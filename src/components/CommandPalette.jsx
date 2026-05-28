@@ -1,7 +1,6 @@
 import { useEffect, useState, useMemo, useRef } from 'react'
-import { Search, ArrowRight, Building2, Users, Wallet, BarChart3, Car, Trash2, Hash, ShieldCheck } from 'lucide-react'
-
-const ICONS = { Building2, Users, Wallet, BarChart3, Car, Trash2, Hash, ShieldCheck }
+import { Search, ArrowRight, Building2, Users, Wallet, BarChart3, Car, Trash2, Hash, ShieldCheck, Calculator } from 'lucide-react'
+const ICONS = { Building2, Users, Wallet, BarChart3, Car, Trash2, Hash, ShieldCheck, Calculator }
 
 export function CommandPalette({ open, onClose, onNavigate, pages = [] }) {
   const [query, setQuery] = useState('')
