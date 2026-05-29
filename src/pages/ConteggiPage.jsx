@@ -57,6 +57,10 @@ function sortVenueIds(a, b) {
   return aNum - bNum
 }
 
+function getCassaDepositi(row) {
+  return (Number(row?.carta) || 0) + (Number(row?.monete) || 0) - (Number(row?.uso_cassa) || 0)
+}
+
 export default function ConteggiPage() {
   const toast = useToast()
   const [venues, setVenues] = useState([])
@@ -77,7 +81,9 @@ export default function ConteggiPage() {
   const [confirmDeletePeriod, setConfirmDeletePeriod] = useState(false)
   const [showMissing, setShowMissing] = useState(false)
   const [filtersOpen, setFiltersOpen] = useState(false)
-  const [operatorsOpen, setOperatorsOpen] = useState(false)
+  const [operatorsOpen, setOperatorsOpen] = useState(true)
+  const [debitiOpen, setDebitiOpen] = useState(false)
+  const [expandedOperators, setExpandedOperators] = useState({})
 
   const [newPeriod, setNewPeriod] = useState({ date_from: todayKey(), date_to: todayKey() })
 
@@ -152,6 +158,7 @@ export default function ConteggiPage() {
   useEffect(() => { loadBaseData(); loadPeriods() }, [])
   useEffect(() => {
     setOperatorFilter('all'); setVenueFilter('all'); setSignFilter('all'); setSearch('')
+    setDebitiOpen(false); setExpandedOperators({})
     if (selectedPeriodId) loadDashboard(selectedPeriodId)
   }, [selectedPeriodId])
 
@@ -193,27 +200,61 @@ export default function ConteggiPage() {
     a.locali.add(String(r.venue_id))
     a.operatori.add(getOperatorName(r))
     a.esattore += Number(r.esattore) || 0
-    a.ricevute += Number(r.acconti) || 0
+    a.acconti += Number(r.acconti) || 0
     a.riporto += Number(r.riporto) || 0
     a.assegni += Number(r.assegno) || 0
     a.debiti += Number(r.debito) || 0
-    a.cassaDepositi += (Number(r.carta) || 0) + (Number(r.monete) || 0) - (Number(r.uso_cassa) || 0)
+    a.cassaDepositi += getCassaDepositi(r)
     a.finale += Number(r.totale_finale) || 0
     return a
-  }, { conteggi: 0, locali: new Set(), operatori: new Set(), esattore: 0, ricevute: 0, riporto: 0, assegni: 0, debiti: 0, cassaDepositi: 0, finale: 0 }), [filteredRows])
+  }, { conteggi: 0, locali: new Set(), operatori: new Set(), esattore: 0, acconti: 0, riporto: 0, assegni: 0, debiti: 0, cassaDepositi: 0, finale: 0 }), [filteredRows])
+
+  const totalSummary = useMemo(() => rows.reduce((a, r) => {
+    a.conteggi += 1
+    a.locali.add(String(r.venue_id))
+    a.operatori.add(getOperatorName(r))
+    a.esattore += Number(r.esattore) || 0
+    a.acconti += Number(r.acconti) || 0
+    a.riporto += Number(r.riporto) || 0
+    a.assegni += Number(r.assegno) || 0
+    a.debiti += Number(r.debito) || 0
+    a.cassaDepositi += getCassaDepositi(r)
+    a.finale += Number(r.totale_finale) || 0
+    return a
+  }, { conteggi: 0, locali: new Set(), operatori: new Set(), esattore: 0, acconti: 0, riporto: 0, assegni: 0, debiti: 0, cassaDepositi: 0, finale: 0 }), [rows, venues, dipendenti])
+
+  const debitiRows = useMemo(() => filteredRows
+    .filter((r) => Number(r.debito) !== 0)
+    .sort((a, b) => Math.abs(Number(b.debito) || 0) - Math.abs(Number(a.debito) || 0)), [filteredRows])
 
   const operatorStats = useMemo(() => {
     const map = {}
     rows.forEach((r) => {
       const name = getOperatorName(r)
-      if (!map[name]) map[name] = { name, count: 0, finale: 0, esattore: 0, ricevute: 0 }
+      if (!map[name]) {
+        map[name] = {
+          name,
+          count: 0,
+          finale: 0,
+          esattore: 0,
+          acconti: 0,
+          riporto: 0,
+          cassaDepositi: 0,
+          debiti: 0,
+          rows: [],
+        }
+      }
       map[name].count += 1
       map[name].finale += Number(r.totale_finale) || 0
       map[name].esattore += Number(r.esattore) || 0
-      map[name].ricevute += Number(r.acconti) || 0
+      map[name].acconti += Number(r.acconti) || 0
+      map[name].riporto += Number(r.riporto) || 0
+      map[name].cassaDepositi += getCassaDepositi(r)
+      map[name].debiti += Number(r.debito) || 0
+      map[name].rows.push(r)
     })
     return Object.values(map).sort((a, b) => b.count - a.count)
-  }, [rows, dipendenti])
+  }, [rows, dipendenti, venues])
 
   const missingVenues = useMemo(() => {
     const counted = new Set(rows.map((r) => String(r.venue_id)))
@@ -305,21 +346,21 @@ export default function ConteggiPage() {
         <div className="mx-auto max-w-[1600px] space-y-3 px-3 py-3 md:space-y-4 md:px-5 md:py-4">
           {/* Period bar */}
           <Card>
-            <div className="grid grid-cols-1 gap-3 p-3 md:grid-cols-[1fr_auto_auto_auto] md:items-end md:gap-4 md:p-4">
+            <div className="grid grid-cols-1 gap-3 p-3 md:grid-cols-[1fr_120px_auto] md:items-end md:gap-4 md:p-4">
               <Field label="Periodo">
                 <Select value={selectedPeriodId} onChange={(e) => setSelectedPeriodId(e.target.value)}>
                   {periods.length === 0 && <option value="">Nessun periodo</option>}
                   {periods.map((p) => (<option key={p.id} value={p.id}>{p.title}</option>))}
                 </Select>
               </Field>
+<Field label="Raggruppa agente">
+  <Select value={operatorFilter} onChange={(e) => setOperatorFilter(e.target.value)}>
+    <option value="all">Tutti gli agenti</option>
+    {operators.map((op) => (<option key={op} value={op}>{op}</option>))}
+  </Select>
+</Field>
               <div>
-                <p className="text-[11px] font-medium text-[var(--color-text-secondary)] mb-1.5">Date</p>
-                <p className="text-[13px] font-medium text-[var(--color-text)] tabular-nums">
-                  {selectedPeriod ? `${formatITDate(selectedPeriod.date_from)} → ${formatITDate(selectedPeriod.date_to)}` : '—'}
-                </p>
-              </div>
-              <div>
-                <p className="text-[11px] font-medium text-[var(--color-text-secondary)] mb-1.5">Stato</p>
+                <p className="mb-1.5 text-[11px] font-medium text-[var(--color-text-secondary)]">Stato</p>
                 {selectedPeriod ? (
                   <Badge variant={isClosed ? 'warning' : 'success'} size="sm">
                     <span className={`inline-block h-1.5 w-1.5 rounded-full ${isClosed ? 'bg-[var(--color-warning)]' : 'bg-[var(--color-success)]'}`} />
@@ -328,222 +369,170 @@ export default function ConteggiPage() {
                 ) : <span className="text-[12px] text-[var(--color-text-muted)]">—</span>}
               </div>
               {selectedPeriod && (
-                <IconButton icon={Trash2} variant="danger" onClick={() => setConfirmDeletePeriod(true)} disabled={isClosed} title="Elimina periodo" />
+                <div className="flex items-center justify-end gap-2">
+                  <IconButton icon={RefreshCw} onClick={() => loadDashboard()} title="Aggiorna" />
+                  <IconButton icon={Trash2} variant="danger" onClick={() => setConfirmDeletePeriod(true)} disabled={isClosed} title="Elimina periodo" />
+                </div>
               )}
             </div>
           </Card>
 
-          {/* KPI grid */}
-          <div className="grid grid-cols-2 gap-2 md:grid-cols-4 md:gap-3">
-            <Stat
-              label="Totale finale"
-              value={fmtSigned(filteredSummary.finale)}
-              hint={`${filteredSummary.conteggi} conteggi · ${filteredSummary.locali.size} locali`}
-              tone={filteredSummary.finale > 0 ? 'success' : filteredSummary.finale < 0 ? 'danger' : 'default'}
-              icon={TrendingUp}
-            />
-            <Stat label="Conteggi" value={filteredSummary.conteggi} icon={FileText} />
-            <Stat label="Locali" value={filteredSummary.locali.size} icon={Building2} />
-            <Stat label="Operatori" value={filteredSummary.operatori.size} icon={Users} />
-          </div>
 
-          {/* Mini totals */}
-          <div className="grid grid-cols-2 gap-2 md:grid-cols-6">
-            <MiniStat label="Esattore" value={fmtEuro(filteredSummary.esattore)} />
-            <MiniStat label="Ricevute" value={fmtEuro(filteredSummary.ricevute)} />
-            <MiniStat label="Da riportare" value={fmtEuro(filteredSummary.riporto)} />
-            <MiniStat label="Cassa/Dep." value={fmtEuro(filteredSummary.cassaDepositi)} />
-            <MiniStat label="Assegni" value={fmtEuro(filteredSummary.assegni)} />
-            <MiniStat label="Debiti" value={fmtEuro(filteredSummary.debiti)} />
-          </div>
+         
 
-          {/* Filters toolbar */}
-          <Card>
-            {/* Desktop filters */}
-            <div className="hidden md:flex flex-wrap items-center gap-2 p-3">
-              <div className="min-w-[240px] flex-1">
-                <Input leftIcon={Search} value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cerca locale o operaio…" />
-              </div>
-              <Select value={operatorFilter} onChange={(e) => setOperatorFilter(e.target.value)} className="w-44">
-                <option value="all">Tutti gli operatori</option>
-                {operators.map((op) => (<option key={op} value={op}>{op}</option>))}
-              </Select>
-              <Select value={venueFilter} onChange={(e) => setVenueFilter(e.target.value)} className="w-44">
-                <option value="all">Tutti i locali</option>
-                {countedVenues.map((v) => (<option key={v.id} value={v.id}>{v.name}</option>))}
-              </Select>
-              <Select value={signFilter} onChange={(e) => setSignFilter(e.target.value)} className="w-40">
-                <option value="all">Tutti i risultati</option>
-                <option value="positive">Solo positivi</option>
-                <option value="negative">Solo negativi</option>
-                <option value="zero">Solo zero</option>
-              </Select>
-              <IconButton icon={RefreshCw} onClick={() => loadDashboard()} title="Aggiorna" />
-              <Button icon={Download} variant="primary" onClick={() => handleGeneratePdf('PDF Conteggi Periodo', filteredRows)}>
-                PDF
-              </Button>
-            </div>
+          {/* Operatori e dettaglio conteggi */}
+<Card>
+  <button
+    type="button"
+    onClick={() => setOperatorsOpen((v) => !v)}
+    className="flex w-full items-center justify-between gap-3 border-b border-[var(--color-border)] px-3 py-3 text-left md:px-4"
+  >
+    <div>
+      <p className="text-[13px] font-semibold text-[var(--color-text)]">
+        Agenti
+      </p>
+      <p className="text-[11px] text-[var(--color-text-muted)]">
+        {operatorStats.length} attivi · freccia per vedere i singoli conteggi
+      </p>
+    </div>
 
-            {/* Mobile toolbar */}
-            <div className="flex flex-col gap-2 p-3 md:hidden">
-              <Input leftIcon={Search} value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cerca locale o operaio…" />
-              <div className="flex gap-2">
-                <Button variant="secondary" icon={Filter} onClick={() => setFiltersOpen(true)} className="flex-1">
-                  Filtri {activeFiltersCount > 0 && <Badge variant="accent" size="sm" className="ml-1">{activeFiltersCount}</Badge>}
-                </Button>
-                <IconButton icon={RefreshCw} onClick={() => loadDashboard()} title="Aggiorna" />
-                <Button icon={Download} variant="primary" onClick={() => handleGeneratePdf('PDF Conteggi Periodo', filteredRows)}>
-                  PDF
-                </Button>
-              </div>
-            </div>
-          </Card>
+    {operatorsOpen ? (
+      <ChevronUp
+        size={15}
+        className="text-[var(--color-text-muted)]"
+      />
+    ) : (
+      <ChevronDown
+        size={15}
+        className="text-[var(--color-text-muted)]"
+      />
+    )}
+  </button>
 
-          {/* Operatori — collapsible su mobile, sidebar desktop */}
-          <div className="grid grid-cols-1 gap-3 md:gap-4 xl:grid-cols-[360px_minmax(0,1fr)]">
-            {/* Operators panel */}
-            <Card className="xl:order-first">
-              <button
-                type="button"
-                onClick={() => setOperatorsOpen((v) => !v)}
-                className="flex w-full items-center justify-between gap-3 border-b border-[var(--color-border)] px-3 py-2.5 text-left md:cursor-default md:px-4 md:py-3 xl:pointer-events-none"
+  <div className={`${operatorsOpen ? 'block' : 'hidden'} p-3 md:p-4`}>
+    <div className="flex flex-col gap-3">
+      {operatorStats.map((op) => {
+        const expanded = !!expandedOperators[op.name]
+
+        return (
+          <div
+            key={op.name}
+            className="rounded-xl border border-[var(--color-border)] bg-white"
+          >
+            <button
+              type="button"
+              onClick={() =>
+                setExpandedOperators((prev) => ({
+                  ...prev,
+                  [op.name]: !prev[op.name],
+                }))
+              }
+              className="flex w-full items-center gap-3 px-4 py-3 text-left"
+            >
+              <div
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ${avatarColor(op.name)}`}
               >
-                <div>
-                  <p className="text-[13px] font-medium text-[var(--color-text)]">Operatori</p>
-                  <p className="text-[11px] text-[var(--color-text-muted)]">
-                    {operatorStats.length} attivi
-                    {operatorFilter !== 'all' && ' · filtro attivo'}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  {operatorFilter !== 'all' && (
-                    <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setOperatorFilter('all') }}>Reset</Button>
-                  )}
-                  <span className="xl:hidden">
-                    {operatorsOpen ? <ChevronUp size={15} className="text-[var(--color-text-muted)]" /> : <ChevronDown size={15} className="text-[var(--color-text-muted)]" />}
-                  </span>
-                </div>
-              </button>
-              <div className={`${operatorsOpen ? 'block' : 'hidden'} xl:block max-h-[400px] xl:max-h-[600px] overflow-y-auto p-2`}>
-                {operatorStats.length === 0 && (
-                  <EmptyState icon={Users} title="Nessun operatore" description="Non ci sono conteggi in questo periodo." />
-                )}
-                <div className="flex flex-col gap-1">
-                  {operatorStats.map((op) => {
-                    const active = operatorFilter === op.name
-                    return (
-                      <button
-                        key={op.name}
-                        onClick={() => setOperatorFilter(active ? 'all' : op.name)}
-                        className={`group flex items-center gap-2.5 rounded-md border px-2.5 py-2 text-left transition-colors ${
-                          active
-                            ? 'border-[var(--color-accent-border)] bg-[var(--color-accent-soft)]'
-                            : 'border-transparent hover:bg-[var(--color-surface-hover)]'
-                        }`}
-                      >
-                        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ${avatarColor(op.name)}`}>
-                          {initials(op.name)}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-[13px] font-medium text-[var(--color-text)]">{op.name}</p>
-                          <p className="text-[11px] text-[var(--color-text-muted)] tabular-nums">
-                            {op.count} conteggi · {fmtEuro(op.esattore)}
+                {initials(op.name)}
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[14px] font-semibold">
+                  {op.name}
+                </p>
+
+                <p className="text-[11px] text-[var(--color-text-muted)]">
+                  {op.count} conteggi · Esattore {fmtEuro(op.esattore)}
+                </p>
+              </div>
+
+<Button
+  icon={Download}
+  size="sm"
+  variant="primary"
+  onClick={(e) => {
+    e.stopPropagation()
+    handleGeneratePdf(
+      `PDF ${op.name}`,
+      rows.filter((r) => getOperatorName(r) === op.name)
+    )
+  }}
+>
+  PDF
+</Button>
+
+{expanded ? (
+  <ChevronUp size={18} />
+) : (
+  <ChevronDown size={18} />
+)}
+            </button>
+
+<div className="grid grid-cols-2 gap-2 border-t border-[var(--color-border)] px-4 py-3 md:grid-cols-6">
+  <TinyMetric label="Esattore" value={fmtEuro(op.esattore)} />
+  <TinyMetric label="Acconti" value={fmtEuro(op.acconti)} />
+  <TinyMetric label="Da riportare" value={fmtEuro(op.riporto)} />
+  <TinyMetric label="Cassa/Depositi" value={fmtEuro(op.cassaDepositi)} />
+  <TinyMetric label="Debiti" value={fmtEuro(op.debiti)} danger />
+  <TinyMetric label="Totale finale" value={fmtSigned(op.finale)} danger={op.finale < 0} />
+</div>
+
+{expanded && (
+              <div className="border-t border-[var(--color-border)] p-3">
+                <div className="grid gap-2">
+                  {op.rows.map((r) => (
+                    <button
+                      key={r.id}
+                      type="button"
+                      onClick={() => setSelectedRow(r)}
+                      className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-left"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="font-medium">
+                            {getVenueName(r)}
+                          </p>
+
+                          <p className="text-[11px] text-[var(--color-text-muted)]">
+                            {formatITDate(r.conteggio_date)}
                           </p>
                         </div>
-                        <div className="flex flex-col items-end gap-0.5">
-                          <span className={`text-[13px] font-semibold tabular-nums ${clsSigned(op.finale)}`}>
-                            {fmtSigned(op.finale)}
-                          </span>
-                          <span
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleGeneratePdf(`PDF ${op.name}`, rows.filter((r) => getOperatorName(r) === op.name))
-                            }}
-                            className="inline-flex h-5 w-5 cursor-pointer items-center justify-center rounded text-[var(--color-text-muted)] transition-opacity hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)] md:opacity-0 md:group-hover:opacity-100"
-                            title="PDF operatore"
-                          >
-                            <Download size={11} strokeWidth={2} />
-                          </span>
-                        </div>
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            </Card>
 
-            {/* Details / conteggi list */}
-            <Card>
-              <div className="flex items-center justify-between border-b border-[var(--color-border)] px-3 py-2.5 md:px-4 md:py-3">
-                <p className="text-[13px] font-medium text-[var(--color-text)]">Dettaglio conteggi</p>
-                <Badge variant="default" size="sm">{filteredRows.length} risultati</Badge>
-              </div>
-              <div className="max-h-[600px] overflow-y-auto p-2 md:p-3">
-                {loading && (
-                  <div className="space-y-2">
-                    {Array.from({ length: 4 }).map((_, i) => (
-                      <div key={i} className="rounded-lg border border-[var(--color-border)] p-3">
-                        <Skeleton variant="text" className="w-1/3 mb-2" />
-                        <Skeleton variant="text" className="w-1/2" />
+                        <span
+                          className={`font-bold ${clsSigned(
+                            r.totale_finale
+                          )}`}
+                        >
+                          {fmtSigned(r.totale_finale)}
+                        </span>
                       </div>
-                    ))}
-                  </div>
-                )}
-                {!loading && filteredRows.length === 0 && (
-                  <EmptyState title="Nessun conteggio" description="Modifica i filtri per vedere risultati." />
-                )}
-                <div className="flex flex-col gap-2">
-                  {!loading && filteredRows.map((r) => (
-                    <div
-                      key={r.id}
-                      className="group rounded-lg border border-[var(--color-border)] bg-white p-3 transition-colors hover:border-[var(--color-border-strong)]"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                            <span className="font-mono text-[11px] tabular-nums text-[var(--color-text-muted)]">{r.venue_id}</span>
-                            <span className="text-[var(--color-text-muted)]">·</span>
-                            <p className="text-[13px] font-medium text-[var(--color-text)] md:text-[14px]">{getVenueName(r)}</p>
-                          </div>
-                          <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-[var(--color-text-muted)]">
-                            <span className="inline-flex items-center gap-1"><Users size={11} strokeWidth={2} />{getOperatorName(r)}</span>
-                            <span>·</span>
-                            <span className="inline-flex items-center gap-1 tabular-nums"><Calendar size={11} strokeWidth={2} />{formatITDate(r.conteggio_date)}</span>
-                          </div>
-                        </div>
-                        <div className="flex flex-col items-end gap-1 shrink-0">
-                          <span className={`text-[14px] font-semibold tabular-nums md:text-[15px] ${clsSigned(r.totale_finale)}`}>
-                            {fmtSigned(r.totale_finale)}
-                          </span>
-                          <div className="flex items-center gap-0.5 md:opacity-0 md:transition-opacity md:group-hover:opacity-100">
-                            <IconButton icon={Eye} size="sm" onClick={() => setSelectedRow(r)} title="Dettagli" />
-                            <IconButton
-                              icon={Download} size="sm"
-                              onClick={() => handleGeneratePdf(`PDF ${getVenueName(r)}`, [r])}
-                              title="PDF"
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="mt-3 grid grid-cols-3 gap-1.5 md:grid-cols-7">
-                        <Chip label="Esattore" value={fmtEuro(r.esattore)} />
-                        <Chip label="Ricevute" value={fmtEuro(r.acconti)} />
-                        <Chip label="Riporto" value={fmtEuro(r.riporto)} />
-                        <Chip label="Assegni" value={fmtEuro(r.assegno)} />
-                        <Chip label="Debiti" value={fmtEuro(r.debito)} />
-                        <Chip label="Bonus" value={fmtEuro(r.bonus)} />
-                        <Chip
-                          label="Cassa"
-                          value={fmtEuro((Number(r.carta) || 0) + (Number(r.monete) || 0) - (Number(r.uso_cassa) || 0))}
-                        />
-                      </div>
-                    </div>
+                    </button>
                   ))}
                 </div>
               </div>
-            </Card>
+            )}
           </div>
+        )
+      })}
+    </div>
+  </div>
+</Card>
+
+          {/* Riepilogo totale generale */}
+          <Card>
+            <div className="border-b border-[var(--color-border)] px-3 py-3 md:px-4">
+              <p className="text-[13px] font-bold uppercase tracking-wide text-[var(--color-text)]">Riepilogo totale generale</p>
+              <p className="text-[11px] text-[var(--color-text-muted)]">Somma di tutti gli agenti del periodo, senza considerare i filtri attivi.</p>
+            </div>
+            <div className="grid grid-cols-2 gap-2 p-3 md:grid-cols-4 xl:grid-cols-7 md:p-4">
+              <SummaryTotalBox label="Esattore" value={fmtEuro(totalSummary.esattore)} />
+              <SummaryTotalBox label="Acconti" value={fmtEuro(totalSummary.acconti)} />
+              <SummaryTotalBox label="Da riportare" value={fmtEuro(totalSummary.riporto)} />
+              <SummaryTotalBox label="Cassa/Depositi" value={fmtEuro(totalSummary.cassaDepositi)} />
+              <SummaryTotalBox label="Assegni" value={fmtEuro(totalSummary.assegni)} />
+              <SummaryTotalBox label="Debiti" value={fmtEuro(totalSummary.debiti)} danger />
+              <SummaryTotalBox label="Totale finale" value={fmtSigned(totalSummary.finale)} tone={totalSummary.finale > 0 ? 'success' : totalSummary.finale < 0 ? 'danger' : 'default'} strong />
+            </div>
+          </Card>
 
           {/* Missing venues */}
           <Card>
@@ -552,23 +541,20 @@ export default function ConteggiPage() {
               onClick={() => setShowMissing((v) => !v)}
               className="flex w-full items-center justify-between gap-3 px-3 py-3 text-left transition-colors hover:bg-[var(--color-surface-hover)] md:px-4"
             >
-              <div className="flex items-center gap-3 min-w-0">
+              <div className="flex min-w-0 items-center gap-3">
                 <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-muted)]">
                   <MapPin size={13} strokeWidth={2} />
                 </div>
                 <div className="min-w-0">
                   <p className="text-[13px] font-medium text-[var(--color-text)]">Locali non conteggiati</p>
-                  <p className="text-[12px] text-[var(--color-text-muted)]">
-                    {missingVenues.length} locali ancora senza conteggio
-                  </p>
+                  <p className="text-[12px] text-[var(--color-text-muted)]">{missingVenues.length} locali ancora senza conteggio</p>
                 </div>
               </div>
               {showMissing ? <ChevronUp size={15} className="shrink-0 text-[var(--color-text-muted)]" /> : <ChevronDown size={15} className="shrink-0 text-[var(--color-text-muted)]" />}
             </button>
             {showMissing && (
               <div className="border-t border-[var(--color-border)]">
-                {/* Desktop table */}
-                <div className="hidden md:block overflow-x-auto">
+                <div className="hidden overflow-x-auto md:block">
                   <table className="w-full text-[13px]">
                     <thead>
                       <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface)]">
@@ -588,19 +574,14 @@ export default function ConteggiPage() {
                     </tbody>
                   </table>
                 </div>
-                {/* Mobile cards */}
-                <div className="md:hidden divide-y divide-[var(--color-border)]">
+                <div className="divide-y divide-[var(--color-border)] md:hidden">
                   {missingVenues.map((v) => (
                     <div key={v.id} className="px-3 py-2.5">
                       <div className="flex items-center gap-2">
                         <span className="inline-flex h-6 min-w-[44px] items-center justify-center rounded bg-[var(--color-surface)] font-mono text-[11px] font-bold text-[var(--color-text-secondary)]">{v.id}</span>
-                        <p className="text-[13px] font-medium text-[var(--color-text)] truncate">{v.name}</p>
+                        <p className="truncate text-[13px] font-medium text-[var(--color-text)]">{v.name}</p>
                       </div>
-                      {v.city && (
-                        <p className="mt-0.5 text-[11px] text-[var(--color-text-muted)]">
-                          <MapPin size={9} strokeWidth={2} className="inline mr-0.5" />{v.city}
-                        </p>
-                      )}
+                      {v.city && <p className="mt-0.5 text-[11px] text-[var(--color-text-muted)]"><MapPin size={9} strokeWidth={2} className="mr-0.5 inline" />{v.city}</p>}
                     </div>
                   ))}
                 </div>
@@ -610,7 +591,6 @@ export default function ConteggiPage() {
         </div>
       </PageBody>
 
-      {/* Modal nuovo periodo */}
       <Modal
         open={showNewPeriod}
         onClose={() => setShowNewPeriod(false)}
@@ -626,9 +606,7 @@ export default function ConteggiPage() {
         <div className="flex flex-col gap-3">
           <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2">
             <p className="text-[11px] font-medium text-[var(--color-text-muted)]">Titolo automatico</p>
-            <p className="mt-0.5 text-[14px] font-medium text-[var(--color-text)]">
-              {formatPeriodTitle(newPeriod.date_from, newPeriod.date_to)}
-            </p>
+            <p className="mt-0.5 text-[14px] font-medium text-[var(--color-text)]">{formatPeriodTitle(newPeriod.date_from, newPeriod.date_to)}</p>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Dal">
@@ -641,7 +619,6 @@ export default function ConteggiPage() {
         </div>
       </Modal>
 
-      {/* Modal filtri mobile */}
       <Modal
         open={filtersOpen}
         onClose={() => setFiltersOpen(false)}
@@ -649,17 +626,15 @@ export default function ConteggiPage() {
         width="sm"
         footer={
           <>
-            <Button variant="ghost" onClick={() => {
-              setOperatorFilter('all'); setVenueFilter('all'); setSignFilter('all')
-            }}>Azzera</Button>
+            <Button variant="ghost" onClick={() => { setOperatorFilter('all'); setVenueFilter('all'); setSignFilter('all') }}>Azzera</Button>
             <Button variant="primary" onClick={() => setFiltersOpen(false)}>Applica</Button>
           </>
         }
       >
         <div className="flex flex-col gap-3">
-          <Field label="Operatore">
+          <Field label="Agente">
             <Select value={operatorFilter} onChange={(e) => setOperatorFilter(e.target.value)}>
-              <option value="all">Tutti gli operatori</option>
+              <option value="all">Tutti gli agenti</option>
               {operators.map((op) => (<option key={op} value={op}>{op}</option>))}
             </Select>
           </Field>
@@ -689,19 +664,12 @@ export default function ConteggiPage() {
         onConfirm={deletePeriod}
       />
 
-      {/* Detail row modal */}
       <Modal
         open={!!selectedRow}
         onClose={() => setSelectedRow(null)}
         title="Dettaglio conteggio"
         width="lg"
-        footer={
-          selectedRow && (
-            <Button icon={Download} variant="primary" onClick={() => handleGeneratePdf(`PDF ${getVenueName(selectedRow)}`, [selectedRow])}>
-              Scarica PDF
-            </Button>
-          )
-        }
+        footer={selectedRow && <Button icon={Download} variant="primary" onClick={() => handleGeneratePdf(`PDF ${getVenueName(selectedRow)}`, [selectedRow])}>Scarica PDF</Button>}
       >
         {selectedRow && (
           <>
@@ -716,16 +684,15 @@ export default function ConteggiPage() {
                 </div>
                 <h3 className="mt-1 text-[16px] font-semibold text-[var(--color-text)] md:text-[18px]">{getVenueName(selectedRow)}</h3>
               </div>
-              <div className={`text-[20px] font-semibold tabular-nums shrink-0 md:text-[26px] ${clsSigned(selectedRow.totale_finale)}`}>
-                {fmtSigned(selectedRow.totale_finale)}
-              </div>
+              <div className={`shrink-0 text-[20px] font-semibold tabular-nums md:text-[26px] ${clsSigned(selectedRow.totale_finale)}`}>{fmtSigned(selectedRow.totale_finale)}</div>
             </div>
             <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
               <Detail label="Esattore" value={fmtEuro(selectedRow.esattore)} />
-              <Detail label="Ricevute" value={fmtEuro(selectedRow.acconti)} />
+              <Detail label="Acconti" value={fmtEuro(selectedRow.acconti)} />
               <Detail label="Da riportare" value={fmtEuro(selectedRow.riporto)} />
+              <Detail label="Cassa/Depositi" value={fmtEuro(getCassaDepositi(selectedRow))} />
               <Detail label="Assegni" value={fmtEuro(selectedRow.assegno)} />
-              <Detail label="Debiti" value={fmtEuro(selectedRow.debito)} />
+              <Detail label="Debiti" value={fmtEuro(selectedRow.debito)} danger />
               <Detail label="Debito virtuale" value={fmtEuro(selectedRow.debito_virt)} />
               <Detail label="Carta" value={fmtEuro(selectedRow.carta)} />
               <Detail label="Monete" value={fmtEuro(selectedRow.monete)} />
@@ -739,29 +706,90 @@ export default function ConteggiPage() {
   )
 }
 
-function MiniStat({ label, value }) {
+function MainMoneyBox({ label, value, tone = 'default', big = false }) {
+  const toneCls = tone === 'success'
+    ? 'border-green-200 bg-green-50 text-[var(--color-success)]'
+    : tone === 'danger'
+      ? 'border-red-200 bg-red-50 text-[var(--color-danger)]'
+      : 'border-[var(--color-border)] bg-white text-[var(--color-text)]'
   return (
-    <div className="rounded-md border border-[var(--color-border)] bg-white px-2.5 py-2 shadow-sm md:px-3">
-      <p className="text-[9px] font-medium text-[var(--color-text-muted)] uppercase tracking-wide md:text-[10px]">{label}</p>
-      <p className="mt-0.5 text-[12px] font-semibold tabular-nums text-[var(--color-text)] md:text-[13px]">{value}</p>
+    <div className={`rounded-xl border px-3 py-3 shadow-sm ${toneCls}`}>
+      <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--color-text-muted)]">{label}</p>
+      <p className={`mt-1 font-extrabold tabular-nums ${big ? 'text-[21px] md:text-[24px]' : 'text-[17px] md:text-[20px]'}`}>{value}</p>
     </div>
   )
 }
 
-function Chip({ label, value }) {
+function DebtBox({ value, count, open, onToggle }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className="rounded-xl border border-red-200 bg-red-50 px-3 py-3 text-left shadow-sm transition-colors hover:border-red-300 hover:bg-red-100/60"
+    >
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--color-danger)]">Debiti</p>
+        {open ? <ChevronUp size={14} className="text-[var(--color-danger)]" /> : <ChevronDown size={14} className="text-[var(--color-danger)]" />}
+      </div>
+      <p className="mt-1 text-[17px] font-extrabold tabular-nums text-[var(--color-danger)] md:text-[20px]">{value}</p>
+      <p className="mt-0.5 text-[10px] font-medium text-red-700">{count} singoli · clicca per aprire</p>
+    </button>
+  )
+}
+
+function TinyMetric({ label, value, danger = false }) {
+  return (
+    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3">
+      <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--color-text-muted)]">
+        {label}
+      </p>
+      <p
+        className={`mt-1 text-[18px] font-extrabold tabular-nums md:text-[22px] ${
+          danger ? 'text-[var(--color-danger)]' : 'text-[var(--color-text)]'
+        }`}
+      >
+        {value}
+      </p>
+    </div>
+  )
+}
+
+function SummaryTotalBox({ label, value, tone = 'default', danger = false, strong = false }) {
+  const valueCls = danger || tone === 'danger'
+    ? 'text-[var(--color-danger)]'
+    : tone === 'success'
+      ? 'text-[var(--color-success)]'
+      : 'text-[var(--color-text)]'
+
+  return (
+    <div
+      className={`rounded-xl border border-[var(--color-border)] bg-white px-5 py-4 shadow-sm ${
+        strong ? 'ring-2 ring-red-200 bg-red-50' : ''
+      }`}
+    >
+      <p className="text-[12px] font-bold uppercase tracking-wide text-[var(--color-text-muted)]">
+        {label}
+      </p>
+      <p className={`mt-1 text-[24px] font-extrabold tabular-nums md:text-[30px] ${valueCls}`}>
+        {value}
+      </p>
+    </div>
+  )
+}
+function Chip({ label, value, danger = false }) {
   return (
     <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1.5">
       <p className="text-[9px] font-medium text-[var(--color-text-muted)] md:text-[10px]">{label}</p>
-      <p className="text-[11px] font-medium tabular-nums text-[var(--color-text)] md:text-[12px]">{value}</p>
+      <p className={`text-[11px] font-medium tabular-nums md:text-[12px] ${danger ? 'text-[var(--color-danger)]' : 'text-[var(--color-text)]'}`}>{value}</p>
     </div>
   )
 }
 
-function Detail({ label, value }) {
+function Detail({ label, value, danger = false }) {
   return (
     <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5">
       <p className="text-[11px] font-medium text-[var(--color-text-muted)]">{label}</p>
-      <p className="mt-0.5 text-[14px] font-semibold tabular-nums text-[var(--color-text)]">{value}</p>
+      <p className={`mt-0.5 text-[14px] font-semibold tabular-nums ${danger ? 'text-[var(--color-danger)]' : 'text-[var(--color-text)]'}`}>{value}</p>
     </div>
   )
 }

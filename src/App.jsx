@@ -158,7 +158,7 @@ function Sidebar({ page, setPage, collapsed, setCollapsed, openPalette, isMobile
         {!collapsed && (
           <div className="min-w-0 flex-1">
             <p className="truncate text-[13px] font-semibold leading-tight text-[var(--color-sidebar-text-active)]">Play Money Admin</p>
-            <p className="text-[10px] leading-tight text-[var(--color-sidebar-text-muted)]">Versione 2.0</p>
+            <p className="text-[10px] leading-tight text-[var(--color-sidebar-text-muted)]">Versione 2.1</p>
           </div>
         )}
         {/* Close button mobile */}
