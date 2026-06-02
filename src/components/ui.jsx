@@ -292,7 +292,7 @@ export function Modal({ open, onClose, title, children, footer, width = 'md' }) 
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div className={`flex w-full ${widths[width]} flex-col overflow-hidden border-[var(--color-border)] bg-white shadow-xl md:max-h-[88vh] md:rounded-xl md:border`}>
-        <header className="flex items-center justify-between border-b border-[var(--color-border)] px-4 py-3">
+        <header className="flex items-center justify-between border-b border-[var(--color-border)] px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))] md:pt-3">
           <h3 className="text-[14px] font-semibold text-[var(--color-text)]">{title}</h3>
           <IconButton icon={X} onClick={onClose} title="Chiudi" size="sm" />
         </header>

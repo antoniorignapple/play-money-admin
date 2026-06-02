@@ -11,7 +11,7 @@ import { PageLayout, PageHeader, PageBody } from '../components/PageLayout'
 import { FormDialog, ConfirmDialog } from '../components/FormDialog'
 import { SkeletonList } from '../components/Skeleton'
 import { useToast } from '../components/Toast'
-import { venueSortFn, formatEuro, formatDateTime } from '../lib/helpers'
+import { venueSortFn, formatEuro, formatEuro0, formatDateTime } from '../lib/helpers'
 
 function getChangeImage(name = '') {
   const n = String(name).toLowerCase()
@@ -549,14 +549,14 @@ function MachineCard({
                 />
               ) : (
                 <p className="mt-0.5 text-[14px] font-semibold tabular-nums text-[var(--color-text)]">
-                  {formatEuro(machine.fondo)}
+                  {formatEuro0(machine.fondo)}
                 </p>
               )}
             </div>
             <div>
               <p className="text-[10px] font-medium uppercase tracking-wide text-[var(--color-text-muted)]">Livello</p>
               <p className="mt-0.5 text-[14px] font-semibold tabular-nums text-[var(--color-success)]">
-                {formatEuro(machine.level)}
+                {formatEuro0(machine.level)}
               </p>
             </div>
           </div>

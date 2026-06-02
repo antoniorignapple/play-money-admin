@@ -14,6 +14,29 @@ import { initials, avatarColor } from '../lib/helpers'
 
 const SUPABASE_FN_URL = 'https://ufkgncqqvqgynncswkiv.supabase.co/functions/v1/admin-update-user'
 
+// Considera "online" chi ha dato un segnale negli ultimi 2 minuti
+// (l'app fa heartbeat ogni 60s).
+const ONLINE_THRESHOLD_MS = 2 * 60 * 1000
+
+function lastSeenInfo(value) {
+  if (!value) return { online: false, label: 'Mai' }
+  const ts = new Date(value).getTime()
+  if (Number.isNaN(ts)) return { online: false, label: '—' }
+  const diff = Date.now() - ts
+  if (diff < ONLINE_THRESHOLD_MS) return { online: true, label: 'Online ora' }
+
+  const min = Math.floor(diff / 60000)
+  if (min < 60) return { online: false, label: `${min} min fa` }
+  const h = Math.floor(min / 60)
+  if (h < 24) return { online: false, label: `${h} h fa` }
+  const g = Math.floor(h / 24)
+  if (g < 7) return { online: false, label: `${g} g fa` }
+  return {
+    online: false,
+    label: new Date(value).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: '2-digit' }),
+  }
+}
+
 export default function AgentiPage() {
   const toast = useToast()
   const [dipendenti, setDipendenti] = useState([])
@@ -185,7 +208,7 @@ export default function AgentiPage() {
                     <Th className="w-12">stato</Th>
                     <Th>Dipendente</Th>
                     <Th>email</Th>
-                    <Th className="w-20">+Plus</Th>
+                    <Th className="w-40">Ultimo accesso</Th>
                     <Th className="w-32">password</Th>
                     <Th className="w-48 text-right">azioni</Th>
                   </tr>
@@ -204,7 +227,6 @@ export default function AgentiPage() {
                   )}
 
                   {!loading && filtered.map((d) => {
-                    const isAdmin = d.role === 'admin'
                     const revealed = revealedPins.has(d.id)
                     return (
                       <tr key={d.id} className="group border-b border-[var(--color-border)] last:border-0 transition-colors hover:bg-[var(--color-surface-hover)]">
@@ -224,9 +246,17 @@ export default function AgentiPage() {
                         </Td>
                         <Td className="text-[var(--color-text-secondary)]">{d.email || '—'}</Td>
                         <Td>
-                          {isAdmin && (
-                            <Badge variant="accent" size="sm">⭐ Plus</Badge>
-                          )}
+                          {(() => {
+                            const ls = lastSeenInfo(d.last_seen)
+                            return (
+                              <span className="inline-flex items-center gap-1.5">
+                                <span className={`inline-block h-2 w-2 rounded-full ${ls.online ? 'bg-[var(--color-success)]' : 'bg-[var(--color-text-muted)]'}`} />
+                                <span className={`text-[12px] ${ls.online ? 'font-semibold text-[var(--color-success)]' : 'text-[var(--color-text-secondary)]'}`}>
+                                  {ls.label}
+                                </span>
+                              </span>
+                            )
+                          })()}
                         </Td>
                         <Td>
                           <div className="flex items-center gap-1.5">
@@ -301,6 +331,17 @@ export default function AgentiPage() {
                           <Badge variant={d.active ? 'success' : 'default'} size="sm">
                             {d.active ? 'OK' : 'Off'}
                           </Badge>
+                          {(() => {
+                            const ls = lastSeenInfo(d.last_seen)
+                            return (
+                              <span className="inline-flex items-center gap-1">
+                                <span className={`inline-block h-1.5 w-1.5 rounded-full ${ls.online ? 'bg-[var(--color-success)]' : 'bg-[var(--color-text-muted)]'}`} />
+                                <span className={`text-[11px] ${ls.online ? 'font-semibold text-[var(--color-success)]' : 'text-[var(--color-text-muted)]'}`}>
+                                  {ls.label}
+                                </span>
+                              </span>
+                            )
+                          })()}
                           <div className="flex items-center gap-1">
                             <span className="font-mono text-[11px] tabular-nums text-[var(--color-text-muted)]">
                               PIN: {revealed ? (d.pin || '—') : '••••'}

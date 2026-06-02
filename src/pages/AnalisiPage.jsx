@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
-import { RefreshCw, FileDown, Users, Wallet, Car, ChevronDown } from 'lucide-react'
+import { RefreshCw, FileDown, Users, Wallet, Car, ChevronDown, Pencil, Trash2 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import {
-  IconButton, Input, EmptyState, Card, Stat,
+  IconButton, Input, EmptyState, Card, Stat, Modal, Button, Field,
 } from '../components/ui'
 import { PageLayout, PageHeader, PageBody } from '../components/PageLayout'
 import { SkeletonCard } from '../components/Skeleton'
+import { ConfirmDialog } from '../components/FormDialog'
 import { useToast } from '../components/Toast'
 import {
-  todayISO, toIT, formatMoney, formatEuro, formatEuro0,
+  todayISO, toIT, formatEuro0,
   dipendenteName, dipendenteId, initials, avatarColor,
 } from '../lib/helpers'
 
@@ -334,6 +335,12 @@ export default function AnalisiPage() {
   const [loading, setLoading] = useState(true)
   const [expandedAgentId, setExpandedAgentId] = useState(null)
 
+  // Modifica / eliminazione movimento dalla tendina
+  const [editMov, setEditMov] = useState(null) // movimento in modifica
+  const [editDraft, setEditDraft] = useState({ acconto: '', recupero: '', da_riportare: '' })
+  const [deleteMov, setDeleteMov] = useState(null) // movimento da eliminare
+  const [savingMov, setSavingMov] = useState(false)
+
   useEffect(() => { loadData() }, [data])
 
   async function loadData() {
@@ -358,6 +365,49 @@ export default function AnalisiPage() {
     const name = String(v.name || '').trim()
     if (name.toLowerCase().startsWith(String(v.id).toLowerCase())) return name
     return `${v.id} ${name}`
+  }
+
+  // ─── MODIFICA / ELIMINAZIONE MOVIMENTO (dalla tendina) ──────────
+  function openEditMov(m) {
+    setEditMov(m)
+    setEditDraft({
+      acconto: String(Math.trunc(Number(m.acconto) || 0)),
+      recupero: String(Math.trunc(Number(m.recupero) || 0)),
+      da_riportare: String(Math.trunc(Number(m.da_riportare) || 0)),
+    })
+  }
+
+  async function saveMovimento() {
+    if (!editMov) return
+    setSavingMov(true)
+    const payload = {
+      acconto: Math.trunc(Number(editDraft.acconto) || 0),
+      recupero: Math.trunc(Number(editDraft.recupero) || 0),
+      da_riportare: Math.trunc(Number(editDraft.da_riportare) || 0),
+    }
+    const { error } = await supabase
+      .from('movements_cassa')
+      .update(payload)
+      .eq('id', editMov.id)
+    setSavingMov(false)
+    if (error) return toast.error(error.message)
+    // aggiorna in locale senza ricaricare tutto
+    setMovements((prev) => prev.map((x) => (x.id === editMov.id ? { ...x, ...payload } : x)))
+    setEditMov(null)
+    toast.success('Movimento aggiornato')
+  }
+
+  async function doDeleteMovimento() {
+    if (!deleteMov) return
+    // soft-delete: va nel Cestino e sparisce subito da Play Money
+    const { error } = await supabase
+      .from('movements_cassa')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', deleteMov.id)
+    if (error) return toast.error(error.message)
+    setMovements((prev) => prev.filter((x) => x.id !== deleteMov.id))
+    setDeleteMov(null)
+    toast.success('Movimento eliminato')
   }
 
   const agentRows = useMemo(() => {
@@ -468,10 +518,10 @@ export default function AnalisiPage() {
         <div className="mx-auto max-w-[1600px] space-y-3 px-3 py-3 md:space-y-4 md:px-5 md:py-4">
           <div className="grid grid-cols-2 gap-2 md:grid-cols-5 md:gap-3">
             <Stat label="Agenti" value={agentRows.length} icon={Users} />
-            <Stat label="Acconti" value={formatEuro(grandTotals.acconti)} tone="accent" icon={Wallet} />
-            <Stat label="Recuperi" value={formatEuro(grandTotals.recuperi)} />
-            <Stat label="Da riportare" value={formatEuro(grandTotals.da_riportare)} tone="success" />
-            <Stat label="Rifornimento" value={formatEuro(grandTotals.rifornimento)} tone="warning" icon={Car} />
+            <Stat label="Acconti" value={formatEuro0(grandTotals.acconti)} tone="accent" icon={Wallet} />
+            <Stat label="Recuperi" value={formatEuro0(grandTotals.recuperi)} />
+            <Stat label="Da riportare" value={formatEuro0(grandTotals.da_riportare)} tone="success" />
+            <Stat label="Rifornimento" value={formatEuro0(grandTotals.rifornimento)} tone="warning" icon={Car} />
           </div>
 
           <Card>
@@ -511,11 +561,11 @@ export default function AnalisiPage() {
                         <p className="text-[14px] font-semibold text-[var(--color-text)]">{r.name}</p>
 
                         <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-[var(--color-success)] md:text-[11px]">
-                          <span>Fondo: <strong className="tabular-nums">{formatEuro(r.monete)}</strong></span>
-                          <span>Flusso: <strong className="tabular-nums">{formatEuro(r.acconti + r.recuperi - r.da_riportare)}</strong></span>
-                          <span>Cassa Gen: <strong className="tabular-nums">{formatEuro(cassaGenerale)}</strong></span>
+                          <span>Fondo: <strong className="tabular-nums">{formatEuro0(r.monete)}</strong></span>
+                          <span>Flusso: <strong className="tabular-nums">{formatEuro0(r.acconti + r.recuperi - r.da_riportare)}</strong></span>
+                          <span>Cassa Gen: <strong className="tabular-nums">{formatEuro0(cassaGenerale)}</strong></span>
                           <span>Km: <strong className="tabular-nums">{r.km || '—'}</strong></span>
-                          <span>Rifornimento: <strong className="tabular-nums">{formatEuro(r.rifornimento)}</strong></span>
+                          <span>Rifornimento: <strong className="tabular-nums">{formatEuro0(r.rifornimento)}</strong></span>
                         </div>
 
                         <button
@@ -543,11 +593,12 @@ export default function AnalisiPage() {
 
                   {isExpanded && (
                     <div className="mt-3 overflow-hidden rounded-xl border border-[var(--color-border)] bg-white">
-                      <div className="grid grid-cols-[minmax(0,1fr)_120px_120px_120px] border-b border-[var(--color-border)] bg-slate-50 px-3 py-2 text-[10px] font-black uppercase tracking-wide text-slate-500">
+                      <div className="grid grid-cols-[minmax(0,1fr)_90px_90px_90px_72px] border-b border-[var(--color-border)] bg-slate-50 px-3 py-2 text-[10px] font-black uppercase tracking-wide text-slate-500">
                         <div>Locale</div>
                         <div className="text-right text-blue-600">Acconto</div>
                         <div className="text-right text-orange-600">Recupero</div>
                         <div className="text-right text-emerald-600">Da riportare</div>
+                        <div className="text-right">Azioni</div>
                       </div>
 
                       {agentMovements.length === 0 ? (
@@ -558,57 +609,116 @@ export default function AnalisiPage() {
                         agentMovements.map((m) => (
                           <div
                             key={m.id}
-                            className="grid grid-cols-[minmax(0,1fr)_120px_120px_120px] border-b border-slate-100 px-3 py-2 text-[12px] last:border-0"
+                            className="grid grid-cols-[minmax(0,1fr)_90px_90px_90px_72px] items-center border-b border-slate-100 px-3 py-2 text-[12px] last:border-0"
                           >
                             <div className="truncate font-semibold text-slate-700">
                               {venueLabel(m.venue_id)}
                             </div>
 
                             <div className="text-right font-bold tabular-nums text-blue-600">
-                              {formatMoney(m.acconto || 0)}
+                              {formatEuro0(m.acconto || 0)}
                             </div>
 
                             <div className="text-right font-bold tabular-nums text-orange-600">
-                              {formatMoney(m.recupero || 0)}
+                              {formatEuro0(m.recupero || 0)}
                             </div>
 
                             <div className="text-right font-bold tabular-nums text-emerald-600">
-                              {formatMoney(m.da_riportare || 0)}
+                              {formatEuro0(m.da_riportare || 0)}
+                            </div>
+
+                            <div className="flex items-center justify-end gap-1">
+                              <button
+                                type="button"
+                                onClick={() => openEditMov(m)}
+                                title="Modifica movimento"
+                                className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
+                              >
+                                <Pencil size={13} strokeWidth={2.2} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setDeleteMov(m)}
+                                title="Elimina movimento"
+                                className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-red-200 text-[var(--color-danger)] transition hover:bg-red-50"
+                              >
+                                <Trash2 size={13} strokeWidth={2.2} />
+                              </button>
                             </div>
                           </div>
                         ))
-                      )}
+)}
                     </div>
                   )}
+
+                  {/* Totali del singolo agente */}
+                  <div className="mt-3 grid grid-cols-3 gap-2 md:gap-3">
+                    <div className="rounded-xl bg-blue-50 px-3 py-2 text-center">
+                      <p className="text-[9px] font-bold uppercase tracking-wide text-blue-600 md:text-[10px]">Acconti</p>
+                      <p className="text-[16px] font-extrabold tabular-nums text-blue-600 md:text-[19px]">{formatEuro0(r.acconti)}</p>
+                    </div>
+                    <div className="rounded-xl bg-orange-50 px-3 py-2 text-center">
+                      <p className="text-[9px] font-bold uppercase tracking-wide text-orange-600 md:text-[10px]">Recuperi</p>
+                      <p className="text-[16px] font-extrabold tabular-nums text-orange-600 md:text-[19px]">{formatEuro0(r.recuperi)}</p>
+                    </div>
+                    <div className="rounded-xl bg-emerald-50 px-3 py-2 text-center">
+                      <p className="text-[9px] font-bold uppercase tracking-wide text-emerald-600 md:text-[10px]">Da riportare</p>
+                      <p className="text-[16px] font-extrabold tabular-nums text-emerald-600 md:text-[19px]">{formatEuro0(r.da_riportare)}</p>
+                    </div>
+                  </div>
                 </div>
               )
             })}
 
-            {!loading && agentRows.length > 0 && (
-              <div className="grid grid-cols-[minmax(0,1fr)_120px_120px_120px] border-t-2 border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-3 font-bold md:px-4">
-                <p className="text-[11px] uppercase tracking-wide text-[var(--color-text-muted)]">
-                  Totali
-                </p>
-
-                <div className="text-right">
-                  <p className="hidden text-[10px] uppercase text-blue-600 md:block">Acconti</p>
-                  <p className="text-[14px] tabular-nums text-blue-600">{formatMoney(grandTotals.acconti)}</p>
-                </div>
-
-                <div className="text-right">
-                  <p className="hidden text-[10px] uppercase text-orange-600 md:block">Recuperi</p>
-                  <p className="text-[14px] tabular-nums text-orange-600">{formatMoney(grandTotals.recuperi)}</p>
-                </div>
-
-                <div className="text-right">
-                  <p className="hidden text-[10px] uppercase text-emerald-600 md:block">Da riportare</p>
-                  <p className="text-[14px] tabular-nums text-emerald-600">{formatMoney(grandTotals.da_riportare)}</p>
-                </div>
-              </div>
-            )}
           </Card>
         </div>
       </PageBody>
+
+      {/* MODIFICA MOVIMENTO */}
+      <Modal
+        open={!!editMov}
+        onClose={() => setEditMov(null)}
+        title="Modifica movimento"
+        width="sm"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setEditMov(null)}>Annulla</Button>
+            <Button variant="primary" onClick={saveMovimento} disabled={savingMov}>
+              {savingMov ? 'Salvataggio…' : 'Salva'}
+            </Button>
+          </>
+        }
+      >
+        {editMov && (
+          <div className="flex flex-col gap-3">
+            <p className="text-[13px] text-[var(--color-text-secondary)]">
+              {venueLabel(editMov.venue_id)}
+            </p>
+            <Field label="Acconto (€)">
+              <Input type="number" inputMode="numeric" value={editDraft.acconto}
+                onChange={(e) => setEditDraft((p) => ({ ...p, acconto: e.target.value }))} autoFocus />
+            </Field>
+            <Field label="Recupero (€)">
+              <Input type="number" inputMode="numeric" value={editDraft.recupero}
+                onChange={(e) => setEditDraft((p) => ({ ...p, recupero: e.target.value }))} />
+            </Field>
+            <Field label="Da riportare (€)">
+              <Input type="number" inputMode="numeric" value={editDraft.da_riportare}
+                onChange={(e) => setEditDraft((p) => ({ ...p, da_riportare: e.target.value }))} />
+            </Field>
+          </div>
+        )}
+      </Modal>
+
+      {/* ELIMINA MOVIMENTO */}
+      <ConfirmDialog
+        open={!!deleteMov}
+        onClose={() => setDeleteMov(null)}
+        title="Elimina movimento"
+        message="Il movimento andrà nel Cestino e sparirà subito dall'app dipendente. Potrai ripristinarlo dal Cestino. Procedere?"
+        confirmLabel="Elimina"
+        onConfirm={doDeleteMovimento}
+      />
     </PageLayout>
   )
 }

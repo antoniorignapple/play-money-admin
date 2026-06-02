@@ -348,7 +348,7 @@ export default function CassaPage() {
     <PageLayout>
       <PageHeader
         title="CASSA"
-        subtitle={loading ? 'Caricamento…' : `${rows.length} movimenti · ${formatMoney(totals.acconto)} € acconti`}
+        subtitle={loading ? 'Caricamento…' : `${rows.length} movimenti · ${formatEuro0(totals.acconto)} acconti`}
         actions={
           <>
             {/* Bottone filtri solo mobile */}
@@ -404,7 +404,7 @@ export default function CassaPage() {
                     <Th>Locale</Th>
                     <Th>Utente</Th>
                     <Th className="text-right">Acconto</Th>
-                    <Th className="text-right">Recupero<br/>da riportare</Th>
+                    <Th className="text-right">Recupero</Th>
                     <Th className="text-right">da Riportare</Th>
                     <Th></Th>
                   </tr>
@@ -448,14 +448,14 @@ export default function CassaPage() {
                         <Td className={pending ? 'line-through text-[var(--color-danger)]' : 'text-[var(--color-text-secondary)]'}>
                           {dipendenteName(operatorById(r.created_by))}
                         </Td>
-                        <Td className={`text-right font-medium tabular-nums ${pending ? 'line-through text-[var(--color-danger)]' : 'text-[var(--color-text)]'}`}>
-                          {formatMoney(r.acconto)}
+                        <Td className={`text-right font-medium tabular-nums ${pending ? 'line-through text-[var(--color-danger)]' : 'text-[var(--color-info)]'}`}>
+                          {formatEuro0(r.acconto)}
                         </Td>
-                        <Td className={`text-right font-medium tabular-nums ${pending ? 'line-through text-[var(--color-danger)]' : 'text-[var(--color-text-secondary)]'}`}>
-                          {formatMoney(r.recupero)}
+                        <Td className={`text-right font-medium tabular-nums ${pending ? 'line-through text-[var(--color-danger)]' : 'text-[var(--color-warning)]'}`}>
+                          {formatEuro0(r.recupero)}
                         </Td>
                         <Td className={`text-right font-medium tabular-nums ${pending ? 'line-through text-[var(--color-danger)]' : 'text-[var(--color-success)]'}`}>
-                          {formatMoney(r.da_riportare)}
+                          {formatEuro0(r.da_riportare)}
                         </Td>
                         <Td>
                           <button
@@ -469,12 +469,12 @@ export default function CassaPage() {
                     )
                   })}
 
-                  {!loading && rows.length > 0 && (
-                    <tr className="border-t-2 border-[var(--color-border-strong)] bg-[var(--color-surface)] font-semibold">
-                      <td colSpan={5} className="px-4 py-2.5 text-right text-[11px] uppercase tracking-wide text-[var(--color-text-muted)]">Totali</td>
-                      <td className="px-4 py-2.5 text-right tabular-nums text-[var(--color-text)]">{formatMoney(totals.acconto)}</td>
-                      <td className="px-4 py-2.5 text-right tabular-nums text-[var(--color-text-secondary)]">{formatMoney(totals.recupero)}</td>
-                      <td className="px-4 py-2.5 text-right tabular-nums text-[var(--color-success)]">{formatMoney(totals.da_riportare)}</td>
+{!loading && rows.length > 0 && (
+                    <tr className="border-t-2 border-[var(--color-border-strong)] bg-[var(--color-surface)] font-bold">
+                      <td colSpan={5} className="px-4 py-3 text-right text-[11px] uppercase tracking-wide text-[var(--color-text-muted)]">Totali</td>
+                      <td className="px-4 py-3 text-right text-[18px] font-extrabold tabular-nums text-[var(--color-info)]">{formatEuro0(totals.acconto)}</td>
+                      <td className="px-4 py-3 text-right text-[18px] font-extrabold tabular-nums text-[var(--color-warning)]">{formatEuro0(totals.recupero)}</td>
+                      <td className="px-4 py-3 text-right text-[18px] font-extrabold tabular-nums text-[var(--color-success)]">{formatEuro0(totals.da_riportare)}</td>
                       <td></td>
                     </tr>
                   )}
@@ -526,15 +526,15 @@ export default function CassaPage() {
                     <div className="mt-2 grid grid-cols-3 gap-2 border-t border-[var(--color-border)] pt-2">
                       <div>
                         <p className="text-[10px] uppercase text-[var(--color-text-muted)]">Acconto</p>
-                        <p className={`text-[13px] font-semibold tabular-nums ${pending ? 'line-through text-[var(--color-danger)]' : ''}`}>{formatMoney(r.acconto)}</p>
+                        <p className={`text-[13px] font-semibold tabular-nums ${pending ? 'line-through text-[var(--color-danger)]' : 'text-[var(--color-info)]'}`}>{formatEuro0(r.acconto)}</p>
                       </div>
                       <div>
                         <p className="text-[10px] uppercase text-[var(--color-text-muted)]">Recupero</p>
-                        <p className={`text-[13px] font-semibold tabular-nums ${pending ? 'line-through text-[var(--color-danger)]' : 'text-[var(--color-text-secondary)]'}`}>{formatMoney(r.recupero)}</p>
+                        <p className={`text-[13px] font-semibold tabular-nums ${pending ? 'line-through text-[var(--color-danger)]' : 'text-[var(--color-warning)]'}`}>{formatEuro0(r.recupero)}</p>
                       </div>
                       <div>
                         <p className="text-[10px] uppercase text-[var(--color-text-muted)]">Da Riportare</p>
-                        <p className={`text-[13px] font-semibold tabular-nums ${pending ? 'line-through text-[var(--color-danger)]' : 'text-[var(--color-success)]'}`}>{formatMoney(r.da_riportare)}</p>
+                        <p className={`text-[13px] font-semibold tabular-nums ${pending ? 'line-through text-[var(--color-danger)]' : 'text-[var(--color-success)]'}`}>{formatEuro0(r.da_riportare)}</p>
                       </div>
                     </div>
                   </div>
@@ -543,20 +543,20 @@ export default function CassaPage() {
 
               {/* Totali mobile */}
               {!loading && rows.length > 0 && (
-                <div className="bg-[var(--color-surface)] px-3 py-3">
-                  <p className="mb-1.5 text-[10px] uppercase tracking-wide text-[var(--color-text-muted)]">Totali</p>
+<div className="bg-[var(--color-surface)] px-3 py-4">
+                  <p className="mb-2 text-[11px] uppercase tracking-wide text-[var(--color-text-muted)]">Totali</p>
                   <div className="grid grid-cols-3 gap-2">
-                    <div>
-                      <p className="text-[10px] text-[var(--color-text-muted)]">Acconto</p>
-                      <p className="text-[14px] font-semibold tabular-nums text-[var(--color-text)]">{formatMoney(totals.acconto)}</p>
+                    <div className="rounded-xl bg-[var(--color-info-soft)] px-2 py-2.5 text-center">
+                      <p className="text-[10px] font-semibold uppercase text-[var(--color-info)]">Acconto</p>
+                      <p className="text-[17px] font-extrabold tabular-nums text-[var(--color-info)]">{formatEuro0(totals.acconto)}</p>
                     </div>
-                    <div>
-                      <p className="text-[10px] text-[var(--color-text-muted)]">Recupero</p>
-                      <p className="text-[14px] font-semibold tabular-nums text-[var(--color-text-secondary)]">{formatMoney(totals.recupero)}</p>
+                    <div className="rounded-xl bg-[var(--color-warning-soft)] px-2 py-2.5 text-center">
+                      <p className="text-[10px] font-semibold uppercase text-[var(--color-warning)]">Recupero</p>
+                      <p className="text-[17px] font-extrabold tabular-nums text-[var(--color-warning)]">{formatEuro0(totals.recupero)}</p>
                     </div>
-                    <div>
-                      <p className="text-[10px] text-[var(--color-text-muted)]">Da Riportare</p>
-                      <p className="text-[14px] font-semibold tabular-nums text-[var(--color-success)]">{formatMoney(totals.da_riportare)}</p>
+                    <div className="rounded-xl bg-[var(--color-success-soft)] px-2 py-2.5 text-center">
+                      <p className="text-[10px] font-semibold uppercase text-[var(--color-success)]">Da Riportare</p>
+                      <p className="text-[17px] font-extrabold tabular-nums text-[var(--color-success)]">{formatEuro0(totals.da_riportare)}</p>
                     </div>
                   </div>
                 </div>

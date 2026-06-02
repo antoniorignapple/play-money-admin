@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   Plus, RefreshCw, Trash2, Building2, Gift, Wallet, ChevronDown, ChevronUp,
-  Banknote, Landmark, CheckCircle2, MinusCircle, Pause, Play,
+  Banknote, Landmark, CheckCircle2, MinusCircle, Pause, Play, StickyNote, Infinity as InfinityIcon,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import {
@@ -39,11 +39,13 @@ export default function DebitiBonusPage() {
   const [dipendenti, setDipendenti] = useState([])
   const [debiti, setDebiti] = useState([])
   const [bonus, setBonus] = useState([])
+  const [note, setNote] = useState([])
   const [movByDebito, setMovByDebito] = useState({})
   const [loading, setLoading] = useState(false)
 
   const [showNewDebito, setShowNewDebito] = useState(false)
   const [showNewBonus, setShowNewBonus] = useState(false)
+  const [showNewNota, setShowNewNota] = useState(false)
   const [detailDebito, setDetailDebito] = useState(null)
   const [manualDeduct, setManualDeduct] = useState(null) // debito su cui registrare decurtazione
   const [manualAmount, setManualAmount] = useState('')
@@ -67,17 +69,19 @@ export default function DebitiBonusPage() {
   async function loadAll() {
     setLoading(true)
     try {
-      const [{ data: venuesData }, { data: dipData }, { data: debitiData }, { data: bonusData }] =
+      const [{ data: venuesData }, { data: dipData }, { data: debitiData }, { data: bonusData }, { data: noteData }] =
         await Promise.all([
           supabase.from('venues').select('*'),
           supabase.from('dipendenti').select('*'),
           supabase.from('debiti').select('*').order('created_at', { ascending: false }),
           supabase.from('bonus').select('*').order('created_at', { ascending: false }),
+          supabase.from('note_generiche').select('*').order('created_at', { ascending: false }),
         ])
       setVenues([...(venuesData || [])].sort(venueSortFn))
       setDipendenti(dipData || [])
       setDebiti(debitiData || [])
       setBonus(bonusData || [])
+      setNote(noteData || [])
     } catch (e) {
       toast.error(`Errore: ${e.message}`)
     } finally {
@@ -225,11 +229,49 @@ export default function DebitiBonusPage() {
     loadAll()
   }
 
+  // ─── NOTE GENERICHE ─────────────────────────────────────────────
+  async function createNota(form) {
+    if (!form.venue_id) return toast.warning('Seleziona un locale')
+    const testo = (form.testo || '').trim()
+    if (!testo) return toast.warning('Scrivi il testo della nota')
+
+    let conteggiTotali = null
+    let conteggiRimasti = null
+    if (!form.sempre) {
+      conteggiTotali = Math.trunc(Number(form.conteggi_totali) || 0)
+      if (conteggiTotali <= 0) return toast.warning('Indica per quanti conteggi (almeno 1)')
+      conteggiRimasti = conteggiTotali
+    }
+
+    if (note.some((n) => n.status === 'attiva' && String(n.venue_id) === String(form.venue_id)))
+      return toast.error('Questo locale ha già una nota attiva')
+
+    const { error } = await supabase.from('note_generiche').insert({
+      venue_id: form.venue_id,
+      testo,
+      conteggi_totali: conteggiTotali,
+      conteggi_rimasti: conteggiRimasti,
+      status: 'attiva',
+    })
+    if (error) return toast.error(error.message)
+    setShowNewNota(false)
+    toast.success('Nota creata')
+    loadAll()
+  }
+
+  async function setNotaStatus(n, status) {
+    const { error } = await supabase
+      .from('note_generiche').update({ status, updated_at: new Date().toISOString() }).eq('id', n.id)
+    if (error) return toast.error(error.message)
+    toast.success(status === 'attiva' ? 'Nota riattivata' : 'Nota chiusa')
+    loadAll()
+  }
+
   // ─── DELETE ─────────────────────────────────────────────────────
   async function doDelete() {
     const c = confirmDelete
     if (!c) return
-    const table = c.kind === 'debito' ? 'debiti' : 'bonus'
+    const table = c.kind === 'debito' ? 'debiti' : c.kind === 'bonus' ? 'bonus' : 'note_generiche'
     const { error } = await supabase.from(table).delete().eq('id', c.row.id)
     if (error) return toast.error(error.message)
     setConfirmDelete(null)
@@ -247,18 +289,27 @@ export default function DebitiBonusPage() {
         title="Debiti & Bonus"
         subtitle={tab === 'debiti'
           ? `${debitiAttivi.length} debiti attivi`
-          : `${bonus.filter((b) => b.status === 'attivo').length} bonus attivi`}
+          : tab === 'bonus'
+            ? `${bonus.filter((b) => b.status === 'attivo').length} bonus attivi`
+            : `${note.filter((n) => n.status === 'attiva').length} note attive`}
         actions={
           <>
             <IconButton icon={RefreshCw} onClick={loadAll} title="Aggiorna" />
-            {tab === 'debiti' ? (
+            {tab === 'debiti' && (
               <Button icon={Plus} variant="primary" onClick={() => setShowNewDebito(true)}>
                 <span className="hidden md:inline">Nuovo debito</span>
                 <span className="md:hidden">Nuovo</span>
               </Button>
-            ) : (
+            )}
+            {tab === 'bonus' && (
               <Button icon={Plus} variant="primary" onClick={() => setShowNewBonus(true)}>
                 <span className="hidden md:inline">Nuovo bonus</span>
+                <span className="md:hidden">Nuovo</span>
+              </Button>
+            )}
+            {tab === 'note' && (
+              <Button icon={Plus} variant="primary" onClick={() => setShowNewNota(true)}>
+                <span className="hidden md:inline">Nuova nota</span>
                 <span className="md:hidden">Nuovo</span>
               </Button>
             )}
@@ -274,6 +325,7 @@ export default function DebitiBonusPage() {
             options={[
               { value: 'debiti', label: 'Debiti' },
               { value: 'bonus', label: 'Bonus' },
+              { value: 'note', label: 'Note' },
             ]}
           />
 
@@ -323,6 +375,22 @@ export default function DebitiBonusPage() {
               )}
             </div>
           )}
+
+          {tab === 'note' && (
+            <div className="space-y-3">
+              {note.length === 0 ? (
+                <EmptyState icon={StickyNote} title="Nessuna nota" description="Crea una nota generica da mostrare sul conteggio di un locale." />
+              ) : (
+                note.map((n) => (
+                  <NotaCard
+                    key={n.id} n={n} venueLabel={venueLabel}
+                    onToggle={() => setNotaStatus(n, n.status === 'attiva' ? 'chiusa' : 'attiva')}
+                    onDelete={() => setConfirmDelete({ kind: 'nota', row: n })}
+                  />
+                ))
+              )}
+            </div>
+          )}
         </div>
       </PageBody>
 
@@ -342,6 +410,14 @@ export default function DebitiBonusPage() {
         venues={venues}
         dipendenti={dipendenti}
         onCreate={createBonus}
+      />
+
+      {/* NUOVA NOTA */}
+      <NewNotaModal
+        open={showNewNota}
+        onClose={() => setShowNewNota(false)}
+        venues={venues}
+        onCreate={createNota}
       />
 
       {/* DETTAGLIO DEBITO */}
@@ -440,7 +516,7 @@ export default function DebitiBonusPage() {
       <ConfirmDialog
         open={!!confirmDelete}
         onClose={() => setConfirmDelete(null)}
-        title={confirmDelete?.kind === 'debito' ? 'Elimina debito' : 'Elimina bonus'}
+        title={confirmDelete?.kind === 'debito' ? 'Elimina debito' : confirmDelete?.kind === 'bonus' ? 'Elimina bonus' : 'Elimina nota'}
         message="L'operazione eliminerà anche lo storico collegato e non è reversibile. Procedere?"
         confirmLabel="Elimina"
         onConfirm={doDelete}
@@ -529,6 +605,41 @@ function BonusCard({ b, venueLabel, onToggle, onDelete }) {
           <IconButton icon={attivo ? Pause : Play} variant="accent" onClick={onToggle}
             title={attivo ? 'Sospendi' : 'Riattiva'} />
           <IconButton icon={Trash2} variant="danger" onClick={onDelete} title="Elimina" />
+        </div>
+      </div>
+    </Card>
+  )
+}
+
+function NotaCard({ n, venueLabel, onToggle, onDelete }) {
+  const attiva = n.status === 'attiva'
+  const sempre = n.conteggi_totali == null
+  return (
+    <Card>
+      <div className={`p-3 md:p-4 ${attiva ? '' : 'opacity-70'}`}>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <StickyNote size={14} className="shrink-0 text-[var(--color-text-muted)]" />
+              <p className="truncate text-[14px] font-semibold">{venueLabel(n.venue_id)}</p>
+            </div>
+            <p className="mt-1.5 whitespace-pre-wrap break-words text-[13px] leading-snug text-[var(--color-text)]">
+              {n.testo}
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <Badge variant={attiva ? 'warning' : 'default'} size="sm">{attiva ? 'Attiva' : 'Chiusa'}</Badge>
+            <IconButton icon={attiva ? Pause : Play} variant="accent" onClick={onToggle}
+              title={attiva ? 'Chiudi' : 'Riattiva'} />
+            <IconButton icon={Trash2} variant="danger" onClick={onDelete} title="Elimina" />
+          </div>
+        </div>
+        <div className="mt-2 flex items-center gap-1.5 text-[11px] text-[var(--color-text-muted)]">
+          {sempre ? (
+            <><InfinityIcon size={13} /> Sempre attiva</>
+          ) : (
+            <>Compare per {n.conteggi_rimasti}/{n.conteggi_totali} conteggi rimanenti</>
+          )}
         </div>
       </div>
     </Card>
@@ -679,6 +790,56 @@ function NewBonusModal({ open, onClose, venues, dipendenti, onCreate }) {
         <Field label="Note (opzionale)">
           <Textarea rows={2} value={form.note} onChange={(e) => set('note', e.target.value)} />
         </Field>
+      </div>
+    </Modal>
+  )
+}
+
+function NewNotaModal({ open, onClose, venues, onCreate }) {
+  const [form, setForm] = useState({ venue_id: '', testo: '', sempre: false, conteggi_totali: '1' })
+  useEffect(() => {
+    if (open) setForm({ venue_id: '', testo: '', sempre: false, conteggi_totali: '1' })
+  }, [open])
+  const set = (k, v) => setForm((p) => ({ ...p, [k]: v }))
+
+  return (
+    <Modal
+      open={open} onClose={onClose} title="Nuova nota" width="md"
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>Annulla</Button>
+          <Button variant="primary" onClick={() => onCreate(form)}>Crea nota</Button>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-3">
+        <Field label="Locale" required>
+          <Select value={form.venue_id} onChange={(e) => set('venue_id', e.target.value)}>
+            <option value="">Seleziona…</option>
+            {venues.map((v) => (
+              <option key={v.id} value={v.id}>{String(v.name || '').startsWith(String(v.id)) ? v.name : `${v.id} ${v.name}`}</option>
+            ))}
+          </Select>
+        </Field>
+
+        <Field label="Testo della nota" required>
+          <Textarea rows={3} value={form.testo} onChange={(e) => set('testo', e.target.value)}
+            placeholder="es. Ricordare di ritirare le chiavi di scorta" />
+        </Field>
+
+        <Field label="Per quanti conteggi deve comparire?" required>
+          <div className="grid grid-cols-2 gap-2">
+            <ChoiceChip active={!form.sempre} onClick={() => set('sempre', false)} label="N° conteggi" />
+            <ChoiceChip active={form.sempre} onClick={() => set('sempre', true)} icon={InfinityIcon} label="Sempre" />
+          </div>
+        </Field>
+
+        {!form.sempre && (
+          <Field label="Numero di conteggi" required hint="La nota sparirà da sola dopo questo numero di conteggi salvati per il locale.">
+            <Input type="number" inputMode="numeric" min="1" value={form.conteggi_totali}
+              onChange={(e) => set('conteggi_totali', e.target.value)} placeholder="es. 3" />
+          </Field>
+        )}
       </div>
     </Modal>
   )
