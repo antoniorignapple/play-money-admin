@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
 import {
   Wallet, Users, Building2, BarChart3, Car, Trash2, ShieldCheck, Calculator,
-  Search, ChevronsLeft, ChevronsRight, Menu, X,
+  Receipt, Search, ChevronsLeft, ChevronsRight, Menu, X,
 } from 'lucide-react'
 import CassaPage from './pages/CassaPage'
 import ConteggiPage from './pages/ConteggiPage'
+import DebitiBonusPage from './pages/DebitiBonusPage'
 import AgentiPage from './pages/AgentiPage'
 import LocaliPage from './pages/LocaliPage'
 import AnalisiPage from './pages/AnalisiPage'
@@ -20,6 +21,7 @@ const NAV = [
   { id: 'locali',     label: 'Locali',     icon: 'Building2',  iconCmp: Building2,  hint: 'Locali e change machines',  component: LocaliPage,    shortcut: 'L' },
   { id: 'analisi',    label: 'Analisi',    icon: 'BarChart3',  iconCmp: BarChart3,  hint: 'Riepilogo giornaliero',     component: AnalisiPage,   shortcut: 'N' },
   { id: 'conteggi',   label: 'Conteggi',   icon: 'Calculator', iconCmp: Calculator, hint: 'Conteggi per periodo',      component: ConteggiPage,  shortcut: 'G' },
+  { id: 'debiti',     label: 'Debiti & Bonus', icon: 'Receipt', iconCmp: Receipt,   hint: 'Debiti e bonus per locale', component: DebitiBonusPage, shortcut: 'B' },
   { id: 'automezzi',  label: 'Automezzi',  icon: 'Car',        iconCmp: Car,        hint: 'Km, mezzi e rifornimenti',  component: AutomezziPage, shortcut: 'M' },
   { id: 'cestino',    label: 'Cestino',    icon: 'Trash2',     iconCmp: Trash2,     hint: 'Movimenti cancellati',      component: CestinoPage,   shortcut: 'T' },
   { id: 'admin',      label: 'ADMIN',      icon: 'ShieldCheck',iconCmp: ShieldCheck,hint: 'Strumenti amministrativi',  component: AdminPage,     shortcut: 'D' },
@@ -158,7 +160,7 @@ function Sidebar({ page, setPage, collapsed, setCollapsed, openPalette, isMobile
         {!collapsed && (
           <div className="min-w-0 flex-1">
             <p className="truncate text-[13px] font-semibold leading-tight text-[var(--color-sidebar-text-active)]">Play Money Admin</p>
-            <p className="text-[10px] leading-tight text-[var(--color-sidebar-text-muted)]">Versione 2.1</p>
+            <p className="text-[10px] leading-tight text-[var(--color-sidebar-text-muted)]">Versione 2.2</p>
           </div>
         )}
         {/* Close button mobile */}
@@ -205,7 +207,7 @@ function Sidebar({ page, setPage, collapsed, setCollapsed, openPalette, isMobile
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto px-2 py-2">
         <div className="flex flex-col gap-0.5">
-          {NAV.slice(0, 7).map((item) => (
+          {NAV.slice(0, 8).map((item) => (
             <NavItem
               key={item.id}
               item={item}
@@ -222,7 +224,7 @@ function Sidebar({ page, setPage, collapsed, setCollapsed, openPalette, isMobile
 
         {/* ADMIN */}
         <NavItem
-          item={NAV[7]}
+          item={NAV[8]}
           active={page === 'admin'}
           collapsed={collapsed}
           isMobile={isMobile}
