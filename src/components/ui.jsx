@@ -270,17 +270,23 @@ export function Segmented({ value, onChange, options = [], size = 'md' }) {
 /* ============ MODAL (fullscreen mobile) ============ */
 export function Modal({ open, onClose, title, children, footer, width = 'md' }) {
   const inputRef = useRef(null)
+
+  // Focus automatico SOLO all'apertura (dipende solo da `open`).
+  useEffect(() => {
+    if (!open) return
+    setTimeout(() => inputRef.current?.focus?.(), 50)
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [open])
+
+  // Listener Escape separato (può dipendere da onClose senza refocus).
   useEffect(() => {
     if (!open) return
     const onKey = (e) => { if (e.key === 'Escape') onClose() }
     document.addEventListener('keydown', onKey)
-    setTimeout(() => inputRef.current?.focus?.(), 50)
-    // Blocca scroll body quando modal aperto
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.removeEventListener('keydown', onKey)
-      document.body.style.overflow = ''
-    }
+    return () => document.removeEventListener('keydown', onKey)
   }, [open, onClose])
 
   if (!open) return null
