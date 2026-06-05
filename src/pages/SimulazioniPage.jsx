@@ -85,14 +85,26 @@ export default function SimulazioniPage() {
       return toast.error('Esiste già una richiesta in attesa per questo operatore e locale')
     }
     const v = venueById[String(form.venue_id)]
-    const { error } = await supabase.from('simulazioni_richieste').insert({
+    const { data: richiestaCreata, error } = await supabase.from('simulazioni_richieste').insert({
       venue_id: form.venue_id,
       venue_name: v ? (v.name || v.id) : form.venue_id,
       requested_user_id: form.user_id,
       note: form.note?.trim() || null,
       status: 'in_attesa',
-    })
+    }).select('id').single()
     if (error) return toast.error(error.message)
+
+    // Push best-effort: se fallisce, la richiesta resta comunque creata
+    // e il badge realtime nell'app dipendenti continua a funzionare.
+    if (richiestaCreata?.id) {
+      supabase.functions.invoke('send-push', {
+        body: {
+          type: 'simulazione_richiesta',
+          richiesta_id: richiestaCreata.id,
+        },
+      }).catch(() => {})
+    }
+
     setShowNewReq(false)
     toast.success('Richiesta inviata')
     loadAll()
