@@ -388,8 +388,9 @@ export default function CassaPage() {
               )}
             </div>
 
-            {/* TABELLA DESKTOP */}
-            <div className="hidden md:block overflow-x-auto">
+{/* TABELLA DESKTOP */}
+<div className="hidden md:block">
+  <div className="max-h-[calc(100vh-340px)] overflow-y-auto overflow-x-auto">
               <table className="w-full min-w-[1100px] text-[13px]">
                 <thead className="bg-[var(--color-surface)]">
                   <tr className="border-b border-[var(--color-border)]">
@@ -469,18 +470,34 @@ export default function CassaPage() {
                     )
                   })}
 
-{!loading && rows.length > 0 && (
-                    <tr className="border-t-2 border-[var(--color-border-strong)] bg-[var(--color-surface)] font-bold">
-                      <td colSpan={5} className="px-4 py-3 text-right text-[11px] uppercase tracking-wide text-[var(--color-text-muted)]">Totali</td>
-                      <td className="px-4 py-3 text-right text-[18px] font-extrabold tabular-nums text-[var(--color-info)]">{formatEuro0(totals.acconto)}</td>
-                      <td className="px-4 py-3 text-right text-[18px] font-extrabold tabular-nums text-[var(--color-warning)]">{formatEuro0(totals.recupero)}</td>
-                      <td className="px-4 py-3 text-right text-[18px] font-extrabold tabular-nums text-[var(--color-success)]">{formatEuro0(totals.da_riportare)}</td>
-                      <td></td>
-                    </tr>
-                  )}
+
                 </tbody>
-              </table>
-            </div>
+                <tfoot>
+  {!loading && rows.length > 0 && (
+    <tr className="sticky bottom-0 border-t-2 border-[var(--color-border-strong)] bg-[var(--color-surface)] font-bold shadow-[0_-4px_12px_rgba(0,0,0,0.08)]">
+      <td colSpan={5} className="px-4 py-3 text-right text-[11px] uppercase tracking-wide text-[var(--color-text-muted)]">
+        Totali
+      </td>
+
+      <td className="px-4 py-3 text-right text-[18px] font-extrabold tabular-nums text-[var(--color-info)]">
+        {formatEuro0(totals.acconto)}
+      </td>
+
+      <td className="px-4 py-3 text-right text-[18px] font-extrabold tabular-nums text-[var(--color-warning)]">
+        {formatEuro0(totals.recupero)}
+      </td>
+
+      <td className="px-4 py-3 text-right text-[18px] font-extrabold tabular-nums text-[var(--color-success)]">
+        {formatEuro0(totals.da_riportare)}
+      </td>
+
+      <td></td>
+    </tr>
+  )}
+</tfoot>
+</table>
+  </div>
+</div>
 
             {/* LISTA CARD MOBILE */}
             <div className="md:hidden divide-y divide-[var(--color-border)]">
