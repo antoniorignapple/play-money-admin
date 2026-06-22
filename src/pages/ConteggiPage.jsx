@@ -61,6 +61,49 @@ function getCassaDepositi(row) {
   return (Number(row?.carta) || 0) + (Number(row?.monete) || 0) - (Number(row?.uso_cassa) || 0)
 }
 
+const EMPLOYEE_DEPOSIT_CODE_BY_NAME = [
+  { keys: ["D APRILE MASSIMO", "DAPRILE MASSIMO", "APRILE MASSIMO", "MASSIMO D APRILE", "MASSIMO DAPRILE"], code: 'D01' },
+  { keys: ['PAPAGNI GIOVANNI', 'GIOVANNI PAPAGNI', 'PAPAGNI'], code: 'D02' },
+  { keys: ['DI BARI ANTONIO', 'ANTONIO DI BARI', 'DI BARI'], code: 'D03' },
+  { keys: ['QUITADAMO ALEX', 'ALEX QUITADAMO', 'QUITADAMO'], code: 'D04' },
+  { keys: ['RIGNANESE ANTONIO', 'ANTONIO RIGNANESE', 'RIGNANESE'], code: 'D05' },
+]
+
+const normalizeText = (value) =>
+  String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^A-Z0-9]+/gi, ' ')
+    .trim()
+    .toUpperCase()
+
+function resolveEmployeeDepositCode(text) {
+  const normalized = normalizeText(text)
+  if (!normalized) return null
+
+  for (const item of EMPLOYEE_DEPOSIT_CODE_BY_NAME) {
+    if (item.keys.some((k) => normalized.includes(normalizeText(k)))) return item.code
+  }
+
+  if (normalized.includes('RIGNANESE')) return 'D05'
+  if (normalized.includes('PAPAGNI')) return 'D02'
+  if (normalized.includes('QUITADAMO')) return 'D04'
+  if (normalized.includes('BARI')) return 'D03'
+  if (normalized.includes('APRILE') || normalized.includes('DAPRILE')) return 'D01'
+
+  return null
+}
+
+function getRealDepositForOperator(realDepositsByCode, operatorName) {
+  const code = resolveEmployeeDepositCode(operatorName)
+  if (!code) return 0
+  return Math.trunc(Number(realDepositsByCode?.[code]) || 0)
+}
+
+function getFinaleWithoutTheoreticalCassa(row) {
+  return (Number(row?.totale_finale) || 0) - getCassaDepositi(row)
+}
+
 export default function ConteggiPage() {
   const toast = useToast()
   const [venues, setVenues] = useState([])
@@ -69,6 +112,7 @@ export default function ConteggiPage() {
   const [selectedPeriodId, setSelectedPeriodId] = useState('')
   const [summary, setSummary] = useState(null)
   const [rows, setRows] = useState([])
+  const [realDepositsByCode, setRealDepositsByCode] = useState({ D01: 0, D02: 0, D03: 0, D04: 0, D05: 0 })
   const [loading, setLoading] = useState(false)
 
   const [search, setSearch] = useState('')
@@ -155,12 +199,48 @@ export default function ConteggiPage() {
     finally { setLoading(false) }
   }
 
+  async function loadRealDepositsForPeriod(period = selectedPeriod) {
+    const empty = { D01: 0, D02: 0, D03: 0, D04: 0, D05: 0 }
+    if (!period?.date_from || !period?.date_to) {
+      setRealDepositsByCode(empty)
+      return
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('movements_cassa')
+        .select('venue_id, acconto, work_date, deleted_at')
+        .in('venue_id', ['D01', 'D02', 'D03', 'D04', 'D05'])
+        .is('deleted_at', null)
+        .gte('work_date', period.date_from)
+        .lte('work_date', period.date_to)
+
+      if (error) throw error
+
+      const totals = { ...empty }
+      ;(data || []).forEach((r) => {
+        const code = String(r.venue_id || '').trim().toUpperCase()
+        if (!Object.prototype.hasOwnProperty.call(totals, code)) return
+        totals[code] += Math.trunc(Number(r.acconto) || 0)
+      })
+
+      setRealDepositsByCode(totals)
+    } catch (e) {
+      toast.error(`Errore depositi reali: ${e.message}`)
+      setRealDepositsByCode(empty)
+    }
+  }
+
   useEffect(() => { loadBaseData(); loadPeriods() }, [])
   useEffect(() => {
     setOperatorFilter('all'); setVenueFilter('all'); setSignFilter('all'); setSearch('')
     setDebitiOpen(false); setExpandedOperators({})
     if (selectedPeriodId) loadDashboard(selectedPeriodId)
   }, [selectedPeriodId])
+
+  useEffect(() => {
+    loadRealDepositsForPeriod(selectedPeriod)
+  }, [selectedPeriod?.id, selectedPeriod?.date_from, selectedPeriod?.date_to])
 
   const operators = useMemo(() => {
     const set = new Set()
@@ -195,33 +275,49 @@ export default function ConteggiPage() {
     })
   }, [rows, search, operatorFilter, venueFilter, signFilter, venues, dipendenti])
 
-  const filteredSummary = useMemo(() => filteredRows.reduce((a, r) => {
-    a.conteggi += 1
-    a.locali.add(String(r.venue_id))
-    a.operatori.add(getOperatorName(r))
-    a.esattore += Number(r.esattore) || 0
-    a.acconti += Number(r.acconti) || 0
-    a.riporto += Number(r.riporto) || 0
-    a.assegni += Number(r.assegno) || 0
-    a.debiti += Number(r.debito) || 0
-    a.cassaDepositi += getCassaDepositi(r)
-    a.finale += Number(r.totale_finale) || 0
-    return a
-  }, { conteggi: 0, locali: new Set(), operatori: new Set(), esattore: 0, acconti: 0, riporto: 0, assegni: 0, debiti: 0, cassaDepositi: 0, finale: 0 }), [filteredRows])
+  const filteredSummary = useMemo(() => {
+    const acc = filteredRows.reduce((a, r) => {
+      const opName = getOperatorName(r)
+      a.conteggi += 1
+      a.locali.add(String(r.venue_id))
+      a.operatori.add(opName)
+      a.esattore += Number(r.esattore) || 0
+      a.acconti += Number(r.acconti) || 0
+      a.riporto += Number(r.riporto) || 0
+      a.assegni += Number(r.assegno) || 0
+      a.debiti += Number(r.debito) || 0
+      a.finaleSenzaCassaTeorica += getFinaleWithoutTheoreticalCassa(r)
+      return a
+    }, { conteggi: 0, locali: new Set(), operatori: new Set(), esattore: 0, acconti: 0, riporto: 0, assegni: 0, debiti: 0, cassaDepositi: 0, finale: 0, finaleSenzaCassaTeorica: 0 })
 
-  const totalSummary = useMemo(() => rows.reduce((a, r) => {
-    a.conteggi += 1
-    a.locali.add(String(r.venue_id))
-    a.operatori.add(getOperatorName(r))
-    a.esattore += Number(r.esattore) || 0
-    a.acconti += Number(r.acconti) || 0
-    a.riporto += Number(r.riporto) || 0
-    a.assegni += Number(r.assegno) || 0
-    a.debiti += Number(r.debito) || 0
-    a.cassaDepositi += getCassaDepositi(r)
-    a.finale += Number(r.totale_finale) || 0
-    return a
-  }, { conteggi: 0, locali: new Set(), operatori: new Set(), esattore: 0, acconti: 0, riporto: 0, assegni: 0, debiti: 0, cassaDepositi: 0, finale: 0 }), [rows, venues, dipendenti])
+    acc.operatori.forEach((opName) => {
+      acc.cassaDepositi += getRealDepositForOperator(realDepositsByCode, opName)
+    })
+    acc.finale = acc.finaleSenzaCassaTeorica + acc.cassaDepositi
+    return acc
+  }, [filteredRows, realDepositsByCode, dipendenti, venues])
+
+  const totalSummary = useMemo(() => {
+    const acc = rows.reduce((a, r) => {
+      const opName = getOperatorName(r)
+      a.conteggi += 1
+      a.locali.add(String(r.venue_id))
+      a.operatori.add(opName)
+      a.esattore += Number(r.esattore) || 0
+      a.acconti += Number(r.acconti) || 0
+      a.riporto += Number(r.riporto) || 0
+      a.assegni += Number(r.assegno) || 0
+      a.debiti += Number(r.debito) || 0
+      a.finaleSenzaCassaTeorica += getFinaleWithoutTheoreticalCassa(r)
+      return a
+    }, { conteggi: 0, locali: new Set(), operatori: new Set(), esattore: 0, acconti: 0, riporto: 0, assegni: 0, debiti: 0, cassaDepositi: 0, finale: 0, finaleSenzaCassaTeorica: 0 })
+
+    acc.operatori.forEach((opName) => {
+      acc.cassaDepositi += getRealDepositForOperator(realDepositsByCode, opName)
+    })
+    acc.finale = acc.finaleSenzaCassaTeorica + acc.cassaDepositi
+    return acc
+  }, [rows, venues, dipendenti, realDepositsByCode])
 
   const debitiRows = useMemo(() => filteredRows
     .filter((r) => Number(r.debito) !== 0)
@@ -236,6 +332,7 @@ export default function ConteggiPage() {
           name,
           count: 0,
           finale: 0,
+          finaleSenzaCassaTeorica: 0,
           esattore: 0,
           acconti: 0,
           riporto: 0,
@@ -245,16 +342,21 @@ export default function ConteggiPage() {
         }
       }
       map[name].count += 1
-      map[name].finale += Number(r.totale_finale) || 0
+      map[name].finaleSenzaCassaTeorica += getFinaleWithoutTheoreticalCassa(r)
       map[name].esattore += Number(r.esattore) || 0
       map[name].acconti += Number(r.acconti) || 0
       map[name].riporto += Number(r.riporto) || 0
-      map[name].cassaDepositi += getCassaDepositi(r)
       map[name].debiti += Number(r.debito) || 0
       map[name].rows.push(r)
     })
+
+    Object.values(map).forEach((op) => {
+      op.cassaDepositi = getRealDepositForOperator(realDepositsByCode, op.name)
+      op.finale = op.finaleSenzaCassaTeorica + op.cassaDepositi
+    })
+
     return Object.values(map).sort((a, b) => b.count - a.count)
-  }, [rows, dipendenti, venues])
+  }, [rows, dipendenti, venues, realDepositsByCode])
 
   const missingVenues = useMemo(() => {
     const counted = new Set(rows.map((r) => String(r.venue_id)))
@@ -499,10 +601,10 @@ export default function ConteggiPage() {
 
                         <span
                           className={`font-bold ${clsSigned(
-                            r.totale_finale
+                            getFinaleWithoutTheoreticalCassa(r)
                           )}`}
                         >
-                          {fmtSigned(r.totale_finale)}
+                          {fmtSigned(getFinaleWithoutTheoreticalCassa(r))}
                         </span>
                       </div>
                     </button>
@@ -684,13 +786,13 @@ export default function ConteggiPage() {
                 </div>
                 <h3 className="mt-1 text-[16px] font-semibold text-[var(--color-text)] md:text-[18px]">{getVenueName(selectedRow)}</h3>
               </div>
-              <div className={`shrink-0 text-[20px] font-semibold tabular-nums md:text-[26px] ${clsSigned(selectedRow.totale_finale)}`}>{fmtSigned(selectedRow.totale_finale)}</div>
+              <div className={`shrink-0 text-[20px] font-semibold tabular-nums md:text-[26px] ${clsSigned(getFinaleWithoutTheoreticalCassa(selectedRow))}`}>{fmtSigned(getFinaleWithoutTheoreticalCassa(selectedRow))}</div>
             </div>
             <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
               <Detail label="Esattore" value={fmtEuro(selectedRow.esattore)} />
               <Detail label="Acconti" value={fmtEuro(selectedRow.acconti)} />
               <Detail label="Da riportare" value={fmtEuro(selectedRow.riporto)} />
-              <Detail label="Cassa/Depositi" value={fmtEuro(getCassaDepositi(selectedRow))} />
+              <Detail label="Cassa/Depositi reale" value="0 €" />
               <Detail label="Assegni" value={fmtEuro(selectedRow.assegno)} />
               <Detail label="Debiti" value={fmtEuro(selectedRow.debito)} danger />
               <Detail label="Debito virtuale" value={fmtEuro(selectedRow.debito_virt)} />
