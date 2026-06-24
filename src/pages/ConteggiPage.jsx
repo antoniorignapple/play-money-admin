@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   Plus, Lock, Unlock, RefreshCw, Search, Users, Building2, FileText, TrendingUp,
-  Download, Eye, Trash2, ChevronDown, ChevronUp, MapPin, Calendar, Filter,
+  Download, Eye, Trash2, ChevronDown, ChevronUp, MapPin, Calendar, Filter, Archive, RotateCcw,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import generateConteggiPdf from '../lib/generateConteggiPdf'
@@ -40,6 +40,29 @@ function formatPeriodTitle(dateFrom, dateTo) {
   const [yt, mt, dt] = String(dateTo).split('-')
   if (mf === mt && yf === yt) return `Conteggi ${Number(df)}-${Number(dt)} ${monthIT[Number(mf)]} ${yf}`
   return `Conteggi ${formatITDate(dateFrom)} - ${formatITDate(dateTo)}`
+}
+
+
+function getArchiveClosedAt(note) {
+  const text = String(note || '')
+  const match = text.match(/\[ARCHIVE_CLOSED_AT:([^\]]+)\]/)
+  return match?.[1] || null
+}
+
+function withArchiveClosedAt(note, closedAt) {
+  const clean = String(note || '').replace(/\n?\[ARCHIVE_CLOSED_AT:[^\]]+\]/g, '').trim()
+  return `${clean}${clean ? '\n' : ''}[ARCHIVE_CLOSED_AT:${closedAt}]`
+}
+
+function withoutArchiveClosedAt(note) {
+  return String(note || '').replace(/\n?\[ARCHIVE_CLOSED_AT:[^\]]+\]/g, '').trim() || null
+}
+
+function isAutoDaRiportareMovement(m) {
+  return Math.trunc(Number(m?.da_riportare) || 0) > 0
+    && Math.trunc(Number(m?.acconto) || 0) === 0
+    && Math.trunc(Number(m?.recupero) || 0) === 0
+    && String(m?.note || '').toLowerCase().includes('caricato automaticamente da conteggi')
 }
 
 const todayKey = () => new Date().toISOString().slice(0, 10)
@@ -110,6 +133,7 @@ export default function ConteggiPage() {
   const [dipendenti, setDipendenti] = useState([])
   const [periods, setPeriods] = useState([])
   const [selectedPeriodId, setSelectedPeriodId] = useState('')
+  const [periodView, setPeriodView] = useState('active')
   const [summary, setSummary] = useState(null)
   const [rows, setRows] = useState([])
   const [realDepositsByCode, setRealDepositsByCode] = useState({ D01: 0, D02: 0, D03: 0, D04: 0, D05: 0 })
@@ -123,6 +147,8 @@ export default function ConteggiPage() {
 
   const [showNewPeriod, setShowNewPeriod] = useState(false)
   const [confirmDeletePeriod, setConfirmDeletePeriod] = useState(false)
+  const [confirmArchivePeriod, setConfirmArchivePeriod] = useState(false)
+  const [confirmReopenPeriod, setConfirmReopenPeriod] = useState(false)
   const [showMissing, setShowMissing] = useState(false)
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [operatorsOpen, setOperatorsOpen] = useState(true)
@@ -145,6 +171,11 @@ export default function ConteggiPage() {
 
   const selectedPeriod = useMemo(() => periods.find((p) => p.id === selectedPeriodId) || null, [periods, selectedPeriodId])
   const isClosed = selectedPeriod?.status === 'closed'
+  const visiblePeriods = useMemo(() => (
+    periodView === 'archive'
+      ? periods.filter((p) => p.status === 'closed')
+      : periods.filter((p) => p.status !== 'closed')
+  ), [periods, periodView])
 
   function getVenueName(row) {
     const venue = venueById[String(row.venue_id)]
@@ -180,8 +211,15 @@ export default function ConteggiPage() {
       .from('conteggi_periods').select('id,title,date_from,date_to,status,note')
       .order('date_from', { ascending: false })
     if (error) { toast.error(`Errore: ${error.message}`); return }
-    setPeriods(data || [])
-    if (data?.length) setSelectedPeriodId((current) => current || data[0].id)
+    const list = data || []
+    setPeriods(list)
+    if (list.length) {
+      setSelectedPeriodId((current) => {
+        if (current && list.some((p) => p.id === current)) return current
+        const firstOpen = list.find((p) => p.status !== 'closed')
+        return (firstOpen || list[0]).id
+      })
+    }
   }
 
   async function loadDashboard(periodId = selectedPeriodId) {
@@ -241,6 +279,17 @@ export default function ConteggiPage() {
   useEffect(() => {
     loadRealDepositsForPeriod(selectedPeriod)
   }, [selectedPeriod?.id, selectedPeriod?.date_from, selectedPeriod?.date_to])
+
+  useEffect(() => {
+    if (!periods.length) return
+    if (selectedPeriodId && visiblePeriods.some((p) => p.id === selectedPeriodId)) return
+    setSelectedPeriodId(visiblePeriods[0]?.id || '')
+    if (!visiblePeriods[0]) {
+      setSummary(null)
+      setRows([])
+      setRealDepositsByCode({ D01: 0, D02: 0, D03: 0, D04: 0, D05: 0 })
+    }
+  }, [periodView, periods, visiblePeriods, selectedPeriodId])
 
   const operators = useMemo(() => {
     const set = new Set()
@@ -388,15 +437,108 @@ export default function ConteggiPage() {
     await loadPeriods()
   }
 
-  async function togglePeriodStatus() {
+  async function archivePeriod() {
     if (!selectedPeriod) return
-    const nextStatus = selectedPeriod.status === 'closed' ? 'open' : 'closed'
-    const { error } = await supabase.from('conteggi_periods').update({ status: nextStatus }).eq('id', selectedPeriod.id)
-    if (error) return toast.error(error.message)
-    await supabase.from('conteggi_admin_rows').update({ locked: nextStatus === 'closed' }).eq('period_id', selectedPeriod.id)
-    toast.success(nextStatus === 'closed' ? 'Periodo chiuso' : 'Periodo riaperto')
-    await loadPeriods()
-    await loadDashboard(selectedPeriod.id)
+
+    try {
+      const closedAt = new Date().toISOString()
+
+      const { error: rowsErr } = await supabase
+        .from('conteggi_admin_rows')
+        .update({ locked: true })
+        .eq('period_id', selectedPeriod.id)
+      if (rowsErr) throw rowsErr
+
+      const { data: movements, error: movReadErr } = await supabase
+        .from('movements_cassa')
+        .select('id, work_date, venue_id, acconto, recupero, da_riportare, note, deleted_at')
+        .is('deleted_at', null)
+        .lte('work_date', selectedPeriod.date_to)
+      if (movReadErr) throw movReadErr
+
+      const idsToArchive = (movements || [])
+        .filter((m) => {
+          const day = String(m.work_date || '').slice(0, 10)
+
+          // I Da Riportare caricati nell'ultimo giorno con il tasto di Play Money
+          // sono la partenza della quindicina successiva: restano attivi.
+          if (isAutoDaRiportareMovement(m) && day >= selectedPeriod.date_to) return false
+
+          // Tutto ciò che appartiene al periodo chiuso viene congelato.
+          if (day >= selectedPeriod.date_from && day <= selectedPeriod.date_to) return true
+
+          // I Da Riportare automatici vecchi, generati da chiusure precedenti,
+          // si archiviano alla chiusura successiva e non si trascinano all'infinito.
+          if (isAutoDaRiportareMovement(m) && day < selectedPeriod.date_to) return true
+
+          return false
+        })
+        .map((m) => m.id)
+        .filter(Boolean)
+
+      if (idsToArchive.length > 0) {
+        const { error: movUpdateErr } = await supabase
+          .from('movements_cassa')
+          .update({ deleted_at: closedAt })
+          .in('id', idsToArchive)
+        if (movUpdateErr) throw movUpdateErr
+      }
+
+      const { error: periodErr } = await supabase
+        .from('conteggi_periods')
+        .update({
+          status: 'closed',
+          note: withArchiveClosedAt(selectedPeriod.note, closedAt),
+        })
+        .eq('id', selectedPeriod.id)
+      if (periodErr) throw periodErr
+
+      setConfirmArchivePeriod(false)
+      toast.success(`Conteggi archiviati • ${idsToArchive.length} movimenti cassa congelati`)
+      await loadPeriods()
+      setPeriodView('archive')
+      setSelectedPeriodId(selectedPeriod.id)
+      await loadDashboard(selectedPeriod.id)
+    } catch (e) {
+      toast.error(`Chiusura archivio: ${e.message}`)
+    }
+  }
+
+  async function reopenPeriod() {
+    if (!selectedPeriod) return
+
+    try {
+      const closedAt = getArchiveClosedAt(selectedPeriod.note)
+
+      const { error: rowsErr } = await supabase
+        .from('conteggi_admin_rows')
+        .update({ locked: false })
+        .eq('period_id', selectedPeriod.id)
+      if (rowsErr) throw rowsErr
+
+      if (closedAt) {
+        const { error: movErr } = await supabase
+          .from('movements_cassa')
+          .update({ deleted_at: null })
+          .eq('deleted_at', closedAt)
+        if (movErr) throw movErr
+      }
+
+      const { error: periodErr } = await supabase
+        .from('conteggi_periods')
+        .update({ status: 'open', note: withoutArchiveClosedAt(selectedPeriod.note) })
+        .eq('id', selectedPeriod.id)
+      if (periodErr) throw periodErr
+
+      setConfirmReopenPeriod(false)
+      toast.success('Contabilità riaperta')
+      await loadPeriods()
+      setPeriodView('active')
+      setSelectedPeriodId(selectedPeriod.id)
+      await loadDashboard(selectedPeriod.id)
+    } catch (e) {
+      toast.error(`Riapertura: ${e.message}`)
+    }
   }
 
   async function handleGeneratePdf(title, pdfRows) {
@@ -430,14 +572,24 @@ export default function ConteggiPage() {
               <span className="hidden md:inline">Nuovo periodo</span>
               <span className="md:hidden">Nuovo</span>
             </Button>
-            {selectedPeriod && (
+            {selectedPeriod && !isClosed && (
               <Button
-                icon={isClosed ? Unlock : Lock}
-                variant={isClosed ? 'primary' : 'secondary'}
-                onClick={togglePeriodStatus}
+                icon={Archive}
+                variant="secondary"
+                onClick={() => setConfirmArchivePeriod(true)}
               >
-                <span className="hidden md:inline">{isClosed ? 'Riapri periodo' : 'Chiudi periodo'}</span>
-                <span className="md:hidden">{isClosed ? 'Riapri' : 'Chiudi'}</span>
+                <span className="hidden md:inline">Chiudi e archivia conteggi</span>
+                <span className="md:hidden">Archivia</span>
+              </Button>
+            )}
+            {selectedPeriod && isClosed && (
+              <Button
+                icon={RotateCcw}
+                variant="primary"
+                onClick={() => setConfirmReopenPeriod(true)}
+              >
+                <span className="hidden md:inline">Riapri contabilità</span>
+                <span className="md:hidden">Riapri</span>
               </Button>
             )}
           </>
@@ -446,38 +598,61 @@ export default function ConteggiPage() {
 
       <PageBody>
         <div className="mx-auto max-w-[1600px] space-y-3 px-3 py-3 md:space-y-4 md:px-5 md:py-4">
-          {/* Period bar */}
-          <Card>
-            <div className="grid grid-cols-1 gap-3 p-3 md:grid-cols-[1fr_120px_auto] md:items-end md:gap-4 md:p-4">
-              <Field label="Periodo">
-                <Select value={selectedPeriodId} onChange={(e) => setSelectedPeriodId(e.target.value)}>
-                  {periods.length === 0 && <option value="">Nessun periodo</option>}
-                  {periods.map((p) => (<option key={p.id} value={p.id}>{p.title}</option>))}
-                </Select>
-              </Field>
-<Field label="Raggruppa agente">
-  <Select value={operatorFilter} onChange={(e) => setOperatorFilter(e.target.value)}>
-    <option value="all">Tutti gli agenti</option>
-    {operators.map((op) => (<option key={op} value={op}>{op}</option>))}
-  </Select>
-</Field>
-              <div>
-                <p className="mb-1.5 text-[11px] font-medium text-[var(--color-text-secondary)]">Stato</p>
-                {selectedPeriod ? (
-                  <Badge variant={isClosed ? 'warning' : 'success'} size="sm">
-                    <span className={`inline-block h-1.5 w-1.5 rounded-full ${isClosed ? 'bg-[var(--color-warning)]' : 'bg-[var(--color-success)]'}`} />
-                    {isClosed ? 'Chiuso' : 'Aperto'}
-                  </Badge>
-                ) : <span className="text-[12px] text-[var(--color-text-muted)]">—</span>}
-              </div>
-              {selectedPeriod && (
-                <div className="flex items-center justify-end gap-2">
-                  <IconButton icon={RefreshCw} onClick={() => loadDashboard()} title="Aggiorna" />
-                  <IconButton icon={Trash2} variant="danger" onClick={() => setConfirmDeletePeriod(true)} disabled={isClosed} title="Elimina periodo" />
-                </div>
-              )}
-            </div>
-          </Card>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant={periodView === 'active' ? 'primary' : 'ghost'}
+              onClick={() => setPeriodView('active')}
+            >
+              Conteggi attivi
+            </Button>
+            <Button
+              icon={Archive}
+              variant={periodView === 'archive' ? 'primary' : 'ghost'}
+              onClick={() => setPeriodView('archive')}
+            >
+              Archivio conteggi
+            </Button>
+          </div>
+
+         {/* Period bar */}
+<Card>
+  <div className="grid grid-cols-1 gap-3 p-3 md:grid-cols-[1fr_160px_auto] md:items-end md:gap-4 md:p-4">
+    <Field label="Periodo">
+      <Select value={selectedPeriodId} onChange={(e) => setSelectedPeriodId(e.target.value)}>
+        {visiblePeriods.length === 0 && (
+          <option value="">
+            {periodView === 'archive' ? 'Nessun periodo archiviato' : 'Nessun periodo attivo'}
+          </option>
+        )}
+        {visiblePeriods.map((p) => (
+          <option key={p.id} value={p.id}>{p.title}</option>
+        ))}
+      </Select>
+    </Field>
+
+    <Field label="Raggruppa agente">
+      <Select value={operatorFilter} onChange={(e) => setOperatorFilter(e.target.value)}>
+        <option value="all">Tutti gli agenti</option>
+        {operators.map((op) => (
+          <option key={op} value={op}>{op}</option>
+        ))}
+      </Select>
+    </Field>
+
+    {selectedPeriod && (
+      <div className="flex items-end justify-end gap-2">
+        <IconButton icon={RefreshCw} onClick={() => loadDashboard()} title="Aggiorna" />
+        <IconButton
+          icon={Trash2}
+          variant="danger"
+          onClick={() => setConfirmDeletePeriod(true)}
+          disabled={isClosed}
+          title="Elimina periodo"
+        />
+      </div>
+    )}
+  </div>
+</Card>
 
 
          
@@ -764,6 +939,24 @@ export default function ConteggiPage() {
         message={selectedPeriod ? `Vuoi eliminare il periodo "${selectedPeriod.title}"? I conteggi non verranno cancellati ma scollegati dal periodo.` : ''}
         confirmLabel="Elimina"
         onConfirm={deletePeriod}
+      />
+
+      <ConfirmDialog
+        open={confirmArchivePeriod}
+        onClose={() => setConfirmArchivePeriod(false)}
+        title="Chiudi e archivia conteggi"
+        message={selectedPeriod ? `Vuoi chiudere e archiviare "${selectedPeriod.title}"? Verranno congelati conteggi e movimenti cassa del periodo. I Da Riportare appena caricati per la prossima quindicina resteranno attivi.` : ''}
+        confirmLabel="Chiudi e archivia"
+        onConfirm={archivePeriod}
+      />
+
+      <ConfirmDialog
+        open={confirmReopenPeriod}
+        onClose={() => setConfirmReopenPeriod(false)}
+        title="Riapri contabilità"
+        message={selectedPeriod ? `Vuoi riaprire "${selectedPeriod.title}"? I movimenti congelati da questa chiusura torneranno attivi.` : ''}
+        confirmLabel="Riapri"
+        onConfirm={reopenPeriod}
       />
 
       <Modal

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   Calendar, User, Building2, Mail, Search, Plus, FileDown, RefreshCw,
-  RotateCcw, Save,
+  RotateCcw, Save, Pencil, Trash2,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import {
@@ -229,6 +229,13 @@ export default function CassaPage() {
     work_date: todayISO(), venue_id: '', created_by: '',
     acconto: '', recupero: '', da_riportare: '', note: '',
   })
+  const [editOpen, setEditOpen] = useState(false)
+const [editingRow, setEditingRow] = useState(null)
+const [editRow, setEditRow] = useState({
+  work_date: '', venue_id: '', created_by: '',
+  acconto: '', recupero: '', da_riportare: '', note: '',
+})
+const [confirmDeleteOne, setConfirmDeleteOne] = useState(null)
 
   useEffect(() => { loadData() }, [])
 
@@ -335,6 +342,66 @@ export default function CassaPage() {
     toast.success('Movimento creato')
     await loadData()
   }
+function openEditMovement(row) {
+  setEditingRow(row)
+  setEditRow({
+    work_date: row.work_date || todayISO(),
+    venue_id: row.venue_id || '',
+    created_by: row.created_by || '',
+    acconto: row.acconto ?? '',
+    recupero: row.recupero ?? '',
+    da_riportare: row.da_riportare ?? '',
+    note: row.note || '',
+  })
+  setEditOpen(true)
+}
+
+async function updateMovement() {
+  if (!editingRow?.id) return
+
+  const payload = {
+    work_date: editRow.work_date,
+    venue_id: editRow.venue_id || null,
+    created_by: editRow.created_by || null,
+    acconto: normNumber(editRow.acconto),
+    recupero: normNumber(editRow.recupero),
+    da_riportare: normNumber(editRow.da_riportare),
+    note: editRow.note || null,
+  }
+
+  const { error } = await supabase
+    .from('movements_cassa')
+    .update(payload)
+    .eq('id', editingRow.id)
+
+  if (error) {
+    toast.error(`Errore modifica: ${error.message}`)
+    return
+  }
+
+  setEditOpen(false)
+  setEditingRow(null)
+  toast.success('Movimento modificato')
+  await loadData()
+}
+
+async function deleteMovement(row) {
+  if (!row?.id) return
+
+  const { error } = await supabase
+    .from('movements_cassa')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', row.id)
+
+  if (error) {
+    toast.error(`Errore cancellazione: ${error.message}`)
+    return
+  }
+
+  setConfirmDeleteOne(null)
+  toast.success('Movimento cancellato')
+  await loadData()
+}
 
   async function generatePdf() {
     const pdfRows = movements.filter((r) => {
@@ -525,14 +592,24 @@ export default function CassaPage() {
                         <Td className={`text-right font-medium tabular-nums ${pending ? 'line-through text-[var(--color-danger)]' : 'text-[var(--color-success)]'}`}>
                           {formatEuro0(r.da_riportare)}
                         </Td>
-                        <Td>
-                          <button
-                            onClick={() => toggleRow(r.id)}
-                            className="text-[12px] font-medium text-[var(--color-danger)] opacity-0 transition-opacity hover:underline group-hover:opacity-100"
-                          >
-                            {pending ? 'Ripristina' : 'Cancella'}
-                          </button>
-                        </Td>
+                       <Td>
+  <div className="flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+    <IconButton
+      icon={Pencil}
+      size="sm"
+      variant="secondary"
+      onClick={() => openEditMovement(r)}
+      title="Modifica movimento"
+    />
+    <IconButton
+      icon={Trash2}
+      size="sm"
+      variant="danger"
+      onClick={() => setConfirmDeleteOne(r)}
+      title="Elimina movimento"
+    />
+  </div>
+</Td>
                       </tr>
                     )
                   })}
@@ -703,6 +780,57 @@ export default function CassaPage() {
         </div>
       </Modal>
 
+<Modal
+  open={editOpen}
+  onClose={() => setEditOpen(false)}
+  title="Modifica movimento"
+  width="md"
+  footer={
+    <>
+      <Button variant="ghost" onClick={() => setEditOpen(false)}>Annulla</Button>
+      <Button variant="primary" icon={Save} onClick={updateMovement}>Salva modifiche</Button>
+    </>
+  }
+>
+  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+    <Field label="Data" required>
+      <Input type="date" value={editRow.work_date} onChange={(e) => setEditRow((p) => ({ ...p, work_date: e.target.value }))} />
+    </Field>
+
+<Field label="Locale" required>
+  <SearchableVenueSelect
+    venues={venues}
+    value={editRow.venue_id}
+    venueLabel={venueLabel}
+    onChange={(venueId) => setEditRow((p) => ({ ...p, venue_id: venueId }))}
+  />
+</Field>
+
+    <Field label="Agente" required className="md:col-span-2">
+      <Select value={editRow.created_by} onChange={(e) => setEditRow((p) => ({ ...p, created_by: e.target.value }))}>
+        <option value="">Seleziona agente…</option>
+        {dipendenti.map((d) => (<option key={dipendenteId(d)} value={dipendenteId(d)}>{dipendenteName(d)}</option>))}
+      </Select>
+    </Field>
+
+    <Field label="Acconto">
+      <Input type="number" value={editRow.acconto} onChange={(e) => setEditRow((p) => ({ ...p, acconto: e.target.value }))} />
+    </Field>
+
+    <Field label="Recupero">
+      <Input type="number" value={editRow.recupero} onChange={(e) => setEditRow((p) => ({ ...p, recupero: e.target.value }))} />
+    </Field>
+
+    <Field label="Da riportare" className="md:col-span-2">
+      <Input type="number" value={editRow.da_riportare} onChange={(e) => setEditRow((p) => ({ ...p, da_riportare: e.target.value }))} />
+    </Field>
+
+    <Field label="Note" className="md:col-span-2">
+      <Input value={editRow.note} onChange={(e) => setEditRow((p) => ({ ...p, note: e.target.value }))} />
+    </Field>
+  </div>
+</Modal>
+
       {/* PDF export */}
       <Modal
         open={pdfOpen}
@@ -729,6 +857,15 @@ export default function CassaPage() {
         </div>
       </Modal>
 
+<ConfirmDialog
+  open={!!confirmDeleteOne}
+  onClose={() => setConfirmDeleteOne(null)}
+  title="Elimina movimento"
+  message="Confermi di voler eliminare questo movimento? Andrà nel Cestino."
+  confirmLabel="Sì, elimina"
+  variant="danger"
+  onConfirm={() => deleteMovement(confirmDeleteOne)}
+/>
       <ConfirmDialog
         open={confirmSave}
         onClose={() => setConfirmSave(false)}
@@ -740,6 +877,7 @@ export default function CassaPage() {
       />
     </PageLayout>
   )
+
 }
 
 function Th({ children, className = '' }) {
