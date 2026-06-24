@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   Plus, RefreshCw, Trash2, Building2, Gift, Wallet, ChevronDown, ChevronUp,
   Banknote, Landmark, CheckCircle2, MinusCircle, Pause, Play, StickyNote, Infinity as InfinityIcon,
+  Pencil,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import {
@@ -50,6 +51,7 @@ export default function DebitiBonusPage() {
   const [manualDeduct, setManualDeduct] = useState(null) // debito su cui registrare decurtazione
   const [manualAmount, setManualAmount] = useState('')
   const [confirmDelete, setConfirmDelete] = useState(null) // { kind, row }
+  const [editItem, setEditItem] = useState(null) // { kind, row }
 
   const venueById = useMemo(() => {
     const map = {}
@@ -267,6 +269,130 @@ export default function DebitiBonusPage() {
     loadAll()
   }
 
+
+  // ─── MODIFICA DEBITO / BONUS / NOTA ───────────────────────────
+  async function updateDebito(row, form) {
+    if (!row) return
+    if (!form.venue_id) return toast.warning('Seleziona un locale')
+    const importoIniziale = Math.trunc(Number(form.importo_iniziale) || 0)
+    if (importoIniziale <= 0) return toast.warning('Inserisci un importo valido')
+    if (form.modalita === 'contanti') {
+      if (!form.periodicita) return toast.warning('Scegli la periodicità')
+      if (!form.rata_tipo) return toast.warning('Scegli il tipo di rata')
+      if (form.rata_tipo === 'fisso' && !(Number(form.rata_importo) > 0))
+        return toast.warning("Inserisci l'importo della rata")
+    }
+
+    const vecchioIniziale = Math.trunc(Number(row.importo_iniziale) || 0)
+    const vecchioResiduo = Math.trunc(Number(row.residuo) || 0)
+    const giaScalato = Math.max(0, vecchioIniziale - vecchioResiduo)
+    const nuovoResiduo = Math.max(0, importoIniziale - giaScalato)
+    const dip = dipendenti.find((x) => String(x.auth_user_id) === String(form.agent_id))
+
+    const { error } = await supabase
+      .from('debiti')
+      .update({
+        venue_id: form.venue_id,
+        agent_id: form.agent_id || null,
+        agent_name: dip?.full_name || null,
+        importo_iniziale: importoIniziale,
+        residuo: nuovoResiduo,
+        modalita: form.modalita,
+        periodicita: form.modalita === 'contanti' ? form.periodicita : null,
+        rata_tipo: form.modalita === 'contanti' ? form.rata_tipo : null,
+        rata_importo:
+          form.modalita === 'contanti' && form.rata_tipo === 'fisso'
+            ? Math.trunc(Number(form.rata_importo) || 0)
+            : null,
+        status: nuovoResiduo <= 0 ? 'estinto' : (row.status === 'estinto' ? 'attivo' : row.status),
+        note: form.note?.trim() || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', row.id)
+    if (error) return toast.error(error.message)
+
+    setEditItem(null)
+    toast.success('Debito modificato')
+    await loadAll()
+    if (detailDebito?.id === row.id) {
+      setDetailDebito((prev) => prev ? {
+        ...prev,
+        importo_iniziale: importoIniziale,
+        residuo: nuovoResiduo,
+        venue_id: form.venue_id,
+        agent_id: form.agent_id || null,
+        agent_name: dip?.full_name || null,
+        modalita: form.modalita,
+        periodicita: form.modalita === 'contanti' ? form.periodicita : null,
+        rata_tipo: form.modalita === 'contanti' ? form.rata_tipo : null,
+        rata_importo: form.modalita === 'contanti' && form.rata_tipo === 'fisso' ? Math.trunc(Number(form.rata_importo) || 0) : null,
+        status: nuovoResiduo <= 0 ? 'estinto' : (row.status === 'estinto' ? 'attivo' : row.status),
+        note: form.note?.trim() || null,
+      } : prev)
+    }
+  }
+
+  async function updateBonus(row, form) {
+    if (!row) return
+    if (!form.venue_id) return toast.warning('Seleziona un locale')
+    const importo = Math.trunc(Number(form.importo) || 0)
+    if (importo <= 0) return toast.warning('Inserisci un importo valido')
+    if (!form.periodicita) return toast.warning('Scegli la periodicità')
+    if (row.status === 'attivo' && bonus.some((b) => b.id !== row.id && b.status === 'attivo' && String(b.venue_id) === String(form.venue_id)))
+      return toast.error('Questo locale ha già un altro bonus attivo')
+
+    const dip = dipendenti.find((x) => String(x.auth_user_id) === String(form.agent_id))
+    const { error } = await supabase
+      .from('bonus')
+      .update({
+        venue_id: form.venue_id,
+        agent_id: form.agent_id || null,
+        agent_name: dip?.full_name || null,
+        importo,
+        periodicita: form.periodicita,
+        note: form.note?.trim() || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', row.id)
+    if (error) return toast.error(error.message)
+    setEditItem(null)
+    toast.success('Bonus modificato')
+    loadAll()
+  }
+
+  async function updateNota(row, form) {
+    if (!row) return
+    if (!form.venue_id) return toast.warning('Seleziona un locale')
+    const testo = (form.testo || '').trim()
+    if (!testo) return toast.warning('Scrivi il testo della nota')
+
+    let conteggiTotali = null
+    let conteggiRimasti = null
+    if (!form.sempre) {
+      conteggiTotali = Math.trunc(Number(form.conteggi_totali) || 0)
+      if (conteggiTotali <= 0) return toast.warning('Indica per quanti conteggi (almeno 1)')
+      const vecchiTotali = Math.trunc(Number(row.conteggi_totali) || 0)
+      const vecchiRimasti = Math.trunc(Number(row.conteggi_rimasti) || 0)
+      const giaConsumati = vecchiTotali > 0 ? Math.max(0, vecchiTotali - vecchiRimasti) : 0
+      conteggiRimasti = Math.max(0, conteggiTotali - giaConsumati)
+    }
+
+    const { error } = await supabase
+      .from('note_generiche')
+      .update({
+        venue_id: form.venue_id,
+        testo,
+        conteggi_totali: conteggiTotali,
+        conteggi_rimasti: conteggiRimasti,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', row.id)
+    if (error) return toast.error(error.message)
+    setEditItem(null)
+    toast.success('Nota modificata')
+    loadAll()
+  }
+
   // ─── DELETE ─────────────────────────────────────────────────────
   async function doDelete() {
     const c = confirmDelete
@@ -340,6 +466,7 @@ export default function DebitiBonusPage() {
                       key={d.id} d={d} venueLabel={venueLabel}
                       onOpen={() => openDebitoDetail(d)}
                       onDeduct={() => { setManualDeduct(d); setManualAmount('') }}
+                      onEdit={() => setEditItem({ kind: 'debito', row: d })}
                       onDelete={() => setConfirmDelete({ kind: 'debito', row: d })}
                     />
                   ))}
@@ -352,6 +479,7 @@ export default function DebitiBonusPage() {
                     <DebitoCard
                       key={d.id} d={d} venueLabel={venueLabel} closed
                       onOpen={() => openDebitoDetail(d)}
+                      onEdit={() => setEditItem({ kind: 'debito', row: d })}
                       onDelete={() => setConfirmDelete({ kind: 'debito', row: d })}
                     />
                   ))}
@@ -369,6 +497,7 @@ export default function DebitiBonusPage() {
                   <BonusCard
                     key={b.id} b={b} venueLabel={venueLabel}
                     onToggle={() => toggleBonus(b)}
+                    onEdit={() => setEditItem({ kind: 'bonus', row: b })}
                     onDelete={() => setConfirmDelete({ kind: 'bonus', row: b })}
                   />
                 ))
@@ -385,6 +514,7 @@ export default function DebitiBonusPage() {
                   <NotaCard
                     key={n.id} n={n} venueLabel={venueLabel}
                     onToggle={() => setNotaStatus(n, n.status === 'attiva' ? 'chiusa' : 'attiva')}
+                    onEdit={() => setEditItem({ kind: 'nota', row: n })}
                     onDelete={() => setConfirmDelete({ kind: 'nota', row: n })}
                   />
                 ))
@@ -513,6 +643,17 @@ export default function DebitiBonusPage() {
         )}
       </Modal>
 
+
+      <EditItemModal
+        item={editItem}
+        onClose={() => setEditItem(null)}
+        venues={venues}
+        dipendenti={dipendenti}
+        onSaveDebito={updateDebito}
+        onSaveBonus={updateBonus}
+        onSaveNota={updateNota}
+      />
+
       <ConfirmDialog
         open={!!confirmDelete}
         onClose={() => setConfirmDelete(null)}
@@ -536,7 +677,7 @@ function DebitoModeBadge({ d }) {
   return <Badge variant="warning" size="sm"><Banknote size={11} /> Contanti</Badge>
 }
 
-function DebitoCard({ d, venueLabel, onOpen, onDeduct, onDelete, closed = false }) {
+function DebitoCard({ d, venueLabel, onOpen, onDeduct, onEdit, onDelete, closed = false }) {
   const iniziale = Math.trunc(Number(d.importo_iniziale) || 0)
   const residuo = Math.trunc(Number(d.residuo) || 0)
   const pct = iniziale > 0 ? Math.min(100, Math.round(((iniziale - residuo) / iniziale) * 100)) : 0
@@ -566,6 +707,7 @@ function DebitoCard({ d, venueLabel, onOpen, onDeduct, onDelete, closed = false 
             {!closed && onDeduct && (
               <IconButton icon={MinusCircle} variant="accent" onClick={onDeduct} title="Registra decurtazione" />
             )}
+            <IconButton icon={Pencil} variant="accent" onClick={onEdit} title="Modifica" />
             <IconButton icon={Trash2} variant="danger" onClick={onDelete} title="Elimina" />
           </div>
         </div>
@@ -585,7 +727,7 @@ function DebitoCard({ d, venueLabel, onOpen, onDeduct, onDelete, closed = false 
   )
 }
 
-function BonusCard({ b, venueLabel, onToggle, onDelete }) {
+function BonusCard({ b, venueLabel, onToggle, onEdit, onDelete }) {
   const attivo = b.status === 'attivo'
   return (
     <Card>
@@ -604,6 +746,7 @@ function BonusCard({ b, venueLabel, onToggle, onDelete }) {
           <Badge variant={attivo ? 'success' : 'default'} size="sm">{attivo ? 'Attivo' : 'Sospeso'}</Badge>
           <IconButton icon={attivo ? Pause : Play} variant="accent" onClick={onToggle}
             title={attivo ? 'Sospendi' : 'Riattiva'} />
+          <IconButton icon={Pencil} variant="accent" onClick={onEdit} title="Modifica" />
           <IconButton icon={Trash2} variant="danger" onClick={onDelete} title="Elimina" />
         </div>
       </div>
@@ -611,7 +754,7 @@ function BonusCard({ b, venueLabel, onToggle, onDelete }) {
   )
 }
 
-function NotaCard({ n, venueLabel, onToggle, onDelete }) {
+function NotaCard({ n, venueLabel, onToggle, onEdit, onDelete }) {
   const attiva = n.status === 'attiva'
   const sempre = n.conteggi_totali == null
   return (
@@ -631,6 +774,7 @@ function NotaCard({ n, venueLabel, onToggle, onDelete }) {
             <Badge variant={attiva ? 'warning' : 'default'} size="sm">{attiva ? 'Attiva' : 'Chiusa'}</Badge>
             <IconButton icon={attiva ? Pause : Play} variant="accent" onClick={onToggle}
               title={attiva ? 'Chiudi' : 'Riattiva'} />
+            <IconButton icon={Pencil} variant="accent" onClick={onEdit} title="Modifica" />
             <IconButton icon={Trash2} variant="danger" onClick={onDelete} title="Elimina" />
           </div>
         </div>
@@ -672,12 +816,7 @@ function NewDebitoModal({ open, onClose, venues, dipendenti, onCreate }) {
     >
       <div className="flex flex-col gap-3">
         <Field label="Locale" required>
-          <Select value={form.venue_id} onChange={(e) => set('venue_id', e.target.value)}>
-            <option value="">Seleziona…</option>
-            {venues.map((v) => (
-              <option key={v.id} value={v.id}>{String(v.name || '').startsWith(String(v.id)) ? v.name : `${v.id} ${v.name}`}</option>
-            ))}
-          </Select>
+          <SearchableVenueSelect venues={venues} value={form.venue_id} onChange={(value) => set('venue_id', value)} />
         </Field>
 
         <Field label="Agente (opzionale)">
@@ -758,12 +897,7 @@ function NewBonusModal({ open, onClose, venues, dipendenti, onCreate }) {
     >
       <div className="flex flex-col gap-3">
         <Field label="Locale" required>
-          <Select value={form.venue_id} onChange={(e) => set('venue_id', e.target.value)}>
-            <option value="">Seleziona…</option>
-            {venues.map((v) => (
-              <option key={v.id} value={v.id}>{String(v.name || '').startsWith(String(v.id)) ? v.name : `${v.id} ${v.name}`}</option>
-            ))}
-          </Select>
+          <SearchableVenueSelect venues={venues} value={form.venue_id} onChange={(value) => set('venue_id', value)} />
         </Field>
 
         <Field label="Agente (opzionale)">
@@ -814,12 +948,7 @@ function NewNotaModal({ open, onClose, venues, onCreate }) {
     >
       <div className="flex flex-col gap-3">
         <Field label="Locale" required>
-          <Select value={form.venue_id} onChange={(e) => set('venue_id', e.target.value)}>
-            <option value="">Seleziona…</option>
-            {venues.map((v) => (
-              <option key={v.id} value={v.id}>{String(v.name || '').startsWith(String(v.id)) ? v.name : `${v.id} ${v.name}`}</option>
-            ))}
-          </Select>
+          <SearchableVenueSelect venues={venues} value={form.venue_id} onChange={(value) => set('venue_id', value)} />
         </Field>
 
         <Field label="Testo della nota" required>
@@ -836,6 +965,305 @@ function NewNotaModal({ open, onClose, venues, onCreate }) {
 
         {!form.sempre && (
           <Field label="Numero di conteggi" required hint="La nota sparirà da sola dopo questo numero di conteggi salvati per il locale.">
+            <Input type="number" inputMode="numeric" min="1" value={form.conteggi_totali}
+              onChange={(e) => set('conteggi_totali', e.target.value)} placeholder="es. 3" />
+          </Field>
+        )}
+      </div>
+    </Modal>
+  )
+}
+
+
+function SearchableVenueSelect({ venues, value, onChange }) {
+  const selectedVenue = venues.find((v) => String(v.id) === String(value))
+  const [query, setQuery] = useState('')
+  const [open, setOpen] = useState(false)
+
+  useEffect(() => {
+    if (selectedVenue && !open) {
+      setQuery(String(selectedVenue.name || '').startsWith(String(selectedVenue.id))
+        ? selectedVenue.name
+        : `${selectedVenue.id} ${selectedVenue.name}`)
+    }
+    if (!value && !open) setQuery('')
+  }, [selectedVenue, value, open])
+
+  const normalizedQuery = query.trim().toLowerCase()
+
+  const filteredVenues = useMemo(() => {
+    if (!normalizedQuery) return venues.slice(0, 30)
+
+    return venues.filter((v) => {
+      const id = String(v.id || '').toLowerCase()
+      const name = String(v.name || '').toLowerCase()
+      const label = `${id} ${name}`
+      return id.includes(normalizedQuery) || name.includes(normalizedQuery) || label.includes(normalizedQuery)
+    }).slice(0, 30)
+  }, [venues, normalizedQuery])
+
+  const pickVenue = (venue) => {
+    const label = String(venue.name || '').startsWith(String(venue.id))
+      ? venue.name
+      : `${venue.id} ${venue.name}`
+
+    onChange(venue.id)
+    setQuery(label)
+    setOpen(false)
+  }
+
+  return (
+    <div className="relative">
+      <Input
+        value={query}
+        onFocus={() => setOpen(true)}
+        onChange={(e) => {
+          setQuery(e.target.value)
+          onChange('')
+          setOpen(true)
+        }}
+        placeholder="Cerca e seleziona locale..."
+      />
+
+      {open && (
+        <div className="absolute z-50 mt-1 max-h-64 w-full overflow-auto rounded-lg border border-[var(--color-border)] bg-white shadow-xl">
+          {filteredVenues.length > 0 ? (
+            filteredVenues.map((v) => {
+              const label = String(v.name || '').startsWith(String(v.id))
+                ? v.name
+                : `${v.id} ${v.name}`
+
+              return (
+                <button
+                  key={v.id}
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => pickVenue(v)}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-blue-50"
+                >
+                  <span className="font-semibold text-slate-900">{v.id}</span>
+                  <span className="truncate text-slate-700">{v.name}</span>
+                </button>
+              )
+            })
+          ) : (
+            <div className="px-3 py-2 text-sm text-slate-500">
+              Nessun locale trovato
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function EditItemModal({ item, onClose, venues, dipendenti, onSaveDebito, onSaveBonus, onSaveNota }) {
+  if (!item) return null
+  if (item.kind === 'debito') {
+    return <EditDebitoModal open={!!item} onClose={onClose} row={item.row} venues={venues} dipendenti={dipendenti} onSave={onSaveDebito} />
+  }
+  if (item.kind === 'bonus') {
+    return <EditBonusModal open={!!item} onClose={onClose} row={item.row} venues={venues} dipendenti={dipendenti} onSave={onSaveBonus} />
+  }
+  return <EditNotaModal open={!!item} onClose={onClose} row={item.row} venues={venues} onSave={onSaveNota} />
+}
+
+function EditDebitoModal({ open, onClose, row, venues, dipendenti, onSave }) {
+  const [form, setForm] = useState({
+    venue_id: '', agent_id: '', importo_iniziale: '', modalita: 'contanti',
+    periodicita: 'ogni_conteggio', rata_tipo: 'fisso', rata_importo: '', note: '',
+  })
+  useEffect(() => {
+    if (open && row) setForm({
+      venue_id: row.venue_id || '',
+      agent_id: row.agent_id || '',
+      importo_iniziale: String(Math.trunc(Number(row.importo_iniziale) || 0) || ''),
+      modalita: row.modalita || 'contanti',
+      periodicita: row.periodicita || 'ogni_conteggio',
+      rata_tipo: row.rata_tipo || 'fisso',
+      rata_importo: row.rata_importo != null ? String(Math.trunc(Number(row.rata_importo) || 0)) : '',
+      note: row.note || '',
+    })
+  }, [open, row])
+  const set = (k, v) => setForm((p) => ({ ...p, [k]: v }))
+  const isContanti = form.modalita === 'contanti'
+  const vecchioIniziale = Math.trunc(Number(row?.importo_iniziale) || 0)
+  const vecchioResiduo = Math.trunc(Number(row?.residuo) || 0)
+  const giaScalato = Math.max(0, vecchioIniziale - vecchioResiduo)
+  const nuovoIniziale = Math.trunc(Number(form.importo_iniziale) || 0)
+  const nuovoResiduo = Math.max(0, nuovoIniziale - giaScalato)
+
+  return (
+    <Modal
+      open={open} onClose={onClose} title="Modifica debito" width="md"
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>Annulla</Button>
+          <Button variant="primary" onClick={() => onSave(row, form)}>Salva modifiche</Button>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-3">
+        <Field label="Locale" required>
+          <SearchableVenueSelect venues={venues} value={form.venue_id} onChange={(value) => set('venue_id', value)} />
+        </Field>
+
+        <Field label="Agente (opzionale)">
+          <Select value={form.agent_id} onChange={(e) => set('agent_id', e.target.value)}>
+            <option value="">—</option>
+            {dipendenti.map((d) => (
+              <option key={d.id || d.auth_user_id} value={d.auth_user_id || ''}>{d.full_name}</option>
+            ))}
+          </Select>
+        </Field>
+
+        <Field label="Importo debito (€)" required hint={`Scalature già fatte: ${fmtEuro(giaScalato)} · nuovo residuo: ${fmtEuro(nuovoResiduo)}`}>
+          <Input type="number" inputMode="numeric" value={form.importo_iniziale}
+            onChange={(e) => set('importo_iniziale', e.target.value)} placeholder="es. 10000" />
+        </Field>
+
+        <Field label="Modalità di rimborso" required>
+          <div className="grid grid-cols-2 gap-2">
+            <ChoiceChip active={isContanti} onClick={() => set('modalita', 'contanti')} icon={Banknote} label="Contanti" />
+            <ChoiceChip active={!isContanti} onClick={() => set('modalita', 'bonifico')} icon={Landmark} label="Bonifico" />
+          </div>
+        </Field>
+
+        {isContanti && (
+          <>
+            <Field label="Periodicità" required>
+              <div className="grid grid-cols-2 gap-2">
+                <ChoiceChip active={form.periodicita === 'ogni_conteggio'} onClick={() => set('periodicita', 'ogni_conteggio')} label="Ogni conteggio" />
+                <ChoiceChip active={form.periodicita === 'ogni_fine_mese'} onClick={() => set('periodicita', 'ogni_fine_mese')} label="Ogni fine mese" />
+              </div>
+            </Field>
+
+            <Field label="Importo da scalare" required>
+              <div className="grid grid-cols-2 gap-2">
+                <ChoiceChip active={form.rata_tipo === 'fisso'} onClick={() => set('rata_tipo', 'fisso')} label="Importo rata" />
+                <ChoiceChip active={form.rata_tipo === 'tutto_aggio'} onClick={() => set('rata_tipo', 'tutto_aggio')} label="Tutto aggio" />
+              </div>
+            </Field>
+
+            {form.rata_tipo === 'fisso' && (
+              <Field label="Importo rata (€)" required>
+                <Input type="number" inputMode="numeric" value={form.rata_importo}
+                  onChange={(e) => set('rata_importo', e.target.value)} placeholder="es. 250" />
+              </Field>
+            )}
+          </>
+        )}
+
+        <Field label="Note (opzionale)">
+          <Textarea rows={2} value={form.note} onChange={(e) => set('note', e.target.value)} />
+        </Field>
+      </div>
+    </Modal>
+  )
+}
+
+function EditBonusModal({ open, onClose, row, venues, dipendenti, onSave }) {
+  const [form, setForm] = useState({ venue_id: '', agent_id: '', importo: '', periodicita: 'ogni_conteggio', note: '' })
+  useEffect(() => {
+    if (open && row) setForm({
+      venue_id: row.venue_id || '',
+      agent_id: row.agent_id || '',
+      importo: String(Math.trunc(Number(row.importo) || 0) || ''),
+      periodicita: row.periodicita || 'ogni_conteggio',
+      note: row.note || '',
+    })
+  }, [open, row])
+  const set = (k, v) => setForm((p) => ({ ...p, [k]: v }))
+
+  return (
+    <Modal
+      open={open} onClose={onClose} title="Modifica bonus" width="md"
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>Annulla</Button>
+          <Button variant="primary" onClick={() => onSave(row, form)}>Salva modifiche</Button>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-3">
+        <Field label="Locale" required>
+          <SearchableVenueSelect venues={venues} value={form.venue_id} onChange={(value) => set('venue_id', value)} />
+        </Field>
+
+        <Field label="Agente (opzionale)">
+          <Select value={form.agent_id} onChange={(e) => set('agent_id', e.target.value)}>
+            <option value="">—</option>
+            {dipendenti.map((d) => (
+              <option key={d.id || d.auth_user_id} value={d.auth_user_id || ''}>{d.full_name}</option>
+            ))}
+          </Select>
+        </Field>
+
+        <Field label="Importo bonus (€)" required>
+          <Input type="number" inputMode="numeric" value={form.importo}
+            onChange={(e) => set('importo', e.target.value)} placeholder="es. 250" />
+        </Field>
+
+        <Field label="Periodicità" required>
+          <div className="grid grid-cols-2 gap-2">
+            <ChoiceChip active={form.periodicita === 'ogni_conteggio'} onClick={() => set('periodicita', 'ogni_conteggio')} label="Ogni conteggio" />
+            <ChoiceChip active={form.periodicita === 'ogni_fine_mese'} onClick={() => set('periodicita', 'ogni_fine_mese')} label="Ogni fine mese" />
+          </div>
+        </Field>
+
+        <Field label="Note (opzionale)">
+          <Textarea rows={2} value={form.note} onChange={(e) => set('note', e.target.value)} />
+        </Field>
+      </div>
+    </Modal>
+  )
+}
+
+function EditNotaModal({ open, onClose, row, venues, onSave }) {
+  const [form, setForm] = useState({ venue_id: '', testo: '', sempre: false, conteggi_totali: '1' })
+  useEffect(() => {
+    if (open && row) setForm({
+      venue_id: row.venue_id || '',
+      testo: row.testo || '',
+      sempre: row.conteggi_totali == null,
+      conteggi_totali: row.conteggi_totali != null ? String(Math.trunc(Number(row.conteggi_totali) || 1)) : '1',
+    })
+  }, [open, row])
+  const set = (k, v) => setForm((p) => ({ ...p, [k]: v }))
+  const vecchiTotali = Math.trunc(Number(row?.conteggi_totali) || 0)
+  const vecchiRimasti = Math.trunc(Number(row?.conteggi_rimasti) || 0)
+  const giaConsumati = vecchiTotali > 0 ? Math.max(0, vecchiTotali - vecchiRimasti) : 0
+  const nuoviTotali = form.sempre ? null : Math.trunc(Number(form.conteggi_totali) || 0)
+  const nuoviRimasti = form.sempre ? null : Math.max(0, nuoviTotali - giaConsumati)
+
+  return (
+    <Modal
+      open={open} onClose={onClose} title="Modifica nota" width="md"
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>Annulla</Button>
+          <Button variant="primary" onClick={() => onSave(row, form)}>Salva modifiche</Button>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-3">
+        <Field label="Locale" required>
+          <SearchableVenueSelect venues={venues} value={form.venue_id} onChange={(value) => set('venue_id', value)} />
+        </Field>
+
+        <Field label="Testo della nota" required>
+          <Textarea rows={3} value={form.testo} onChange={(e) => set('testo', e.target.value)} />
+        </Field>
+
+        <Field label="Per quanti conteggi deve comparire?" required>
+          <div className="grid grid-cols-2 gap-2">
+            <ChoiceChip active={!form.sempre} onClick={() => set('sempre', false)} label="N° conteggi" />
+            <ChoiceChip active={form.sempre} onClick={() => set('sempre', true)} icon={InfinityIcon} label="Sempre" />
+          </div>
+        </Field>
+
+        {!form.sempre && (
+          <Field label="Numero di conteggi" required hint={`Già consumati: ${giaConsumati} · nuovi rimanenti: ${nuoviRimasti}`}>
             <Input type="number" inputMode="numeric" min="1" value={form.conteggi_totali}
               onChange={(e) => set('conteggi_totali', e.target.value)} placeholder="es. 3" />
           </Field>

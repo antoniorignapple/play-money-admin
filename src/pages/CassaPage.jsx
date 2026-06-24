@@ -131,6 +131,73 @@ try {
   doc.save(`Movimenti_${dateLabel}.pdf`)
 }
 
+function SearchableVenueSelect({ venues, value, onChange, venueLabel }) {
+  const selectedVenue = venues.find((v) => String(v.id) === String(value))
+  const [query, setQuery] = useState('')
+  const [open, setOpen] = useState(false)
+
+  useEffect(() => {
+    if (selectedVenue && !open) setQuery(venueLabel(selectedVenue.id))
+    if (!value && !open) setQuery('')
+  }, [selectedVenue, value, open, venueLabel])
+
+  const filteredVenues = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return venues.slice(0, 40)
+
+    return venues.filter((v) => {
+      const id = String(v.id || '').toLowerCase()
+      const name = String(v.name || '').toLowerCase()
+      const label = venueLabel(v.id).toLowerCase()
+      return id.includes(q) || name.includes(q) || label.includes(q)
+    }).slice(0, 40)
+  }, [venues, query, venueLabel])
+
+  const pickVenue = (venue) => {
+    onChange(venue.id)
+    setQuery(venueLabel(venue.id))
+    setOpen(false)
+  }
+
+  return (
+    <div className="relative">
+      <Input
+        value={query}
+        onFocus={() => setOpen(true)}
+        onChange={(e) => {
+          setQuery(e.target.value)
+          onChange('')
+          setOpen(true)
+        }}
+        placeholder="Cerca locale per codice o nome..."
+      />
+
+      {open && (
+        <div className="absolute z-50 mt-1 max-h-64 w-full overflow-auto rounded-lg border border-[var(--color-border)] bg-white shadow-xl">
+          {filteredVenues.length > 0 ? (
+            filteredVenues.map((v) => (
+              <button
+                key={v.id}
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => pickVenue(v)}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-blue-50"
+              >
+                <span className="font-semibold text-slate-900">{v.id}</span>
+                <span className="truncate text-slate-700">{v.name}</span>
+              </button>
+            ))
+          ) : (
+            <div className="px-3 py-2 text-sm text-slate-500">
+              Nessun locale trovato
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 /* ============ PAGE ============ */
 export default function CassaPage() {
   const toast = useToast()
@@ -607,12 +674,14 @@ export default function CassaPage() {
           <Field label="Data" required>
             <Input type="date" value={newRow.work_date} onChange={(e) => setNewRow((p) => ({ ...p, work_date: e.target.value }))} />
           </Field>
-          <Field label="Locale" required>
-            <Select value={newRow.venue_id} onChange={(e) => setNewRow((p) => ({ ...p, venue_id: e.target.value }))}>
-              <option value="">Seleziona locale…</option>
-              {venues.map((v) => (<option key={v.id} value={v.id}>{venueLabel(v.id)}</option>))}
-            </Select>
-          </Field>
+<Field label="Locale" required>
+  <SearchableVenueSelect
+    venues={venues}
+    value={newRow.venue_id}
+    venueLabel={venueLabel}
+    onChange={(venueId) => setNewRow((p) => ({ ...p, venue_id: venueId }))}
+  />
+</Field>
           <Field label="Agente" required className="md:col-span-2">
             <Select value={newRow.created_by} onChange={(e) => setNewRow((p) => ({ ...p, created_by: e.target.value }))}>
               <option value="">Seleziona agente…</option>
