@@ -137,6 +137,9 @@ export default function ConteggiPage() {
   const [summary, setSummary] = useState(null)
   const [rows, setRows] = useState([])
   const [realDepositsByCode, setRealDepositsByCode] = useState({ D01: 0, D02: 0, D03: 0, D04: 0, D05: 0 })
+  const [adminOverridesByOperator, setAdminOverridesByOperator] = useState({})
+  const [overrideInputsByOperator, setOverrideInputsByOperator] = useState({})
+  const [savingOverrideOperator, setSavingOverrideOperator] = useState('')
   const [loading, setLoading] = useState(false)
 
   const [search, setSearch] = useState('')
@@ -226,13 +229,27 @@ export default function ConteggiPage() {
     if (!periodId) return
     try {
       setLoading(true)
-      const { data: sumRows } = await supabase
-        .from('conteggi_admin_summary').select('*').eq('period_id', periodId).maybeSingle()
-      const { data: detailRows, error: rowsErr } = await supabase
-        .from('conteggi_admin_rows').select('*').eq('period_id', periodId).order('venue_id', { ascending: true })
+      const [{ data: sumRows }, { data: detailRows, error: rowsErr }, { data: overrideRows, error: overrideErr }] = await Promise.all([
+        supabase.from('conteggi_admin_summary').select('*').eq('period_id', periodId).maybeSingle(),
+        supabase.from('conteggi_admin_rows').select('*').eq('period_id', periodId).order('venue_id', { ascending: true }),
+        supabase.from('conteggi_admin_overrides').select('id,period_id,operator_name,esattore_override').eq('period_id', periodId),
+      ])
       if (rowsErr) throw rowsErr
+      if (overrideErr) throw overrideErr
+
+      const overridesMap = {}
+      const inputsMap = {}
+      ;(overrideRows || []).forEach((item) => {
+        const key = normalizeText(item.operator_name)
+        const value = Math.trunc(Number(item.esattore_override) || 0)
+        overridesMap[key] = { ...item, esattore_override: value }
+        inputsMap[key] = String(value)
+      })
+
       setSummary(sumRows || null)
       setRows(detailRows || [])
+      setAdminOverridesByOperator(overridesMap)
+      setOverrideInputsByOperator(inputsMap)
     } catch (e) { toast.error(`Errore: ${e.message}`) }
     finally { setLoading(false) }
   }
@@ -340,11 +357,21 @@ export default function ConteggiPage() {
     }, { conteggi: 0, locali: new Set(), operatori: new Set(), esattore: 0, acconti: 0, riporto: 0, assegni: 0, debiti: 0, cassaDepositi: 0, finale: 0, finaleSenzaCassaTeorica: 0 })
 
     acc.operatori.forEach((opName) => {
+      const override = adminOverridesByOperator[normalizeText(opName)]
+      if (override) {
+        const originalEsattore = filteredRows
+          .filter((r) => getOperatorName(r) === opName)
+          .reduce((sum, r) => sum + (Number(r.esattore) || 0), 0)
+        const overrideEsattore = Math.trunc(Number(override.esattore_override) || 0)
+        const deltaEsattore = overrideEsattore - originalEsattore
+        acc.esattore += deltaEsattore
+        acc.finaleSenzaCassaTeorica += deltaEsattore
+      }
       acc.cassaDepositi += getRealDepositForOperator(realDepositsByCode, opName)
     })
     acc.finale = acc.finaleSenzaCassaTeorica + acc.cassaDepositi
     return acc
-  }, [filteredRows, realDepositsByCode, dipendenti, venues])
+  }, [filteredRows, realDepositsByCode, dipendenti, venues, adminOverridesByOperator])
 
   const totalSummary = useMemo(() => {
     const acc = rows.reduce((a, r) => {
@@ -362,11 +389,21 @@ export default function ConteggiPage() {
     }, { conteggi: 0, locali: new Set(), operatori: new Set(), esattore: 0, acconti: 0, riporto: 0, assegni: 0, debiti: 0, cassaDepositi: 0, finale: 0, finaleSenzaCassaTeorica: 0 })
 
     acc.operatori.forEach((opName) => {
+      const override = adminOverridesByOperator[normalizeText(opName)]
+      if (override) {
+        const originalEsattore = rows
+          .filter((r) => getOperatorName(r) === opName)
+          .reduce((sum, r) => sum + (Number(r.esattore) || 0), 0)
+        const overrideEsattore = Math.trunc(Number(override.esattore_override) || 0)
+        const deltaEsattore = overrideEsattore - originalEsattore
+        acc.esattore += deltaEsattore
+        acc.finaleSenzaCassaTeorica += deltaEsattore
+      }
       acc.cassaDepositi += getRealDepositForOperator(realDepositsByCode, opName)
     })
     acc.finale = acc.finaleSenzaCassaTeorica + acc.cassaDepositi
     return acc
-  }, [rows, venues, dipendenti, realDepositsByCode])
+  }, [rows, venues, dipendenti, realDepositsByCode, adminOverridesByOperator])
 
   const debitiRows = useMemo(() => filteredRows
     .filter((r) => Number(r.debito) !== 0)
@@ -400,12 +437,19 @@ export default function ConteggiPage() {
     })
 
     Object.values(map).forEach((op) => {
+      const override = adminOverridesByOperator[normalizeText(op.name)]
+      op.esattoreOriginal = op.esattore
+      op.esattoreOverride = override ? Math.trunc(Number(override.esattore_override) || 0) : null
+      op.esattoreDelta = override ? op.esattoreOverride - op.esattoreOriginal : 0
+      op.esattore = override ? op.esattoreOverride : op.esattoreOriginal
+      op.hasEsattoreOverride = !!override
       op.cassaDepositi = getRealDepositForOperator(realDepositsByCode, op.name)
+      op.finaleSenzaCassaTeorica += op.esattoreDelta
       op.finale = op.finaleSenzaCassaTeorica + op.cassaDepositi
     })
 
     return Object.values(map).sort((a, b) => b.count - a.count)
-  }, [rows, dipendenti, venues, realDepositsByCode])
+  }, [rows, dipendenti, venues, realDepositsByCode, adminOverridesByOperator])
 
   const missingVenues = useMemo(() => {
     const counted = new Set(rows.map((r) => String(r.venue_id)))
@@ -560,6 +604,87 @@ export default function ConteggiPage() {
     (operatorFilter !== 'all' ? 1 : 0) +
     (venueFilter !== 'all' ? 1 : 0) +
     (signFilter !== 'all' ? 1 : 0)
+
+  function getOverrideInputValue(operatorName, fallbackValue = 0) {
+    const key = normalizeText(operatorName)
+    if (Object.prototype.hasOwnProperty.call(overrideInputsByOperator, key)) return overrideInputsByOperator[key]
+    return String(Math.trunc(Number(fallbackValue) || 0))
+  }
+
+  function setOverrideInputValue(operatorName, value) {
+    const key = normalizeText(operatorName)
+    setOverrideInputsByOperator((prev) => ({ ...prev, [key]: value }))
+  }
+
+  async function saveEsattoreOverride(operatorName, originalValue) {
+    if (!selectedPeriodId || !operatorName) return
+
+    const key = normalizeText(operatorName)
+    const rawValue = String(getOverrideInputValue(operatorName, originalValue)).replace(',', '.').trim()
+    const parsedValue = Math.trunc(Number(rawValue))
+
+    if (!Number.isFinite(parsedValue)) {
+      toast.warning('Inserisci un importo esattore valido')
+      return
+    }
+
+    try {
+      setSavingOverrideOperator(key)
+      const { data, error } = await supabase
+        .from('conteggi_admin_overrides')
+        .upsert({
+          period_id: selectedPeriodId,
+          operator_name: operatorName,
+          esattore_override: parsedValue,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'period_id,operator_name' })
+        .select('id,period_id,operator_name,esattore_override')
+        .single()
+      if (error) throw error
+
+      setAdminOverridesByOperator((prev) => ({
+        ...prev,
+        [key]: { ...data, esattore_override: Math.trunc(Number(data.esattore_override) || 0) },
+      }))
+      setOverrideInputsByOperator((prev) => ({ ...prev, [key]: String(parsedValue) }))
+      toast.success(`Esattore rettificato per ${operatorName}`)
+    } catch (e) {
+      toast.error(`Rettifica esattore: ${e.message}`)
+    } finally {
+      setSavingOverrideOperator('')
+    }
+  }
+
+  async function resetEsattoreOverride(operatorName) {
+    if (!selectedPeriodId || !operatorName) return
+    const key = normalizeText(operatorName)
+
+    try {
+      setSavingOverrideOperator(key)
+      const { error } = await supabase
+        .from('conteggi_admin_overrides')
+        .delete()
+        .eq('period_id', selectedPeriodId)
+        .eq('operator_name', operatorName)
+      if (error) throw error
+
+      setAdminOverridesByOperator((prev) => {
+        const next = { ...prev }
+        delete next[key]
+        return next
+      })
+      setOverrideInputsByOperator((prev) => {
+        const next = { ...prev }
+        delete next[key]
+        return next
+      })
+      toast.success(`Rettifica rimossa per ${operatorName}`)
+    } catch (e) {
+      toast.error(`Rimozione rettifica: ${e.message}`)
+    } finally {
+      setSavingOverrideOperator('')
+    }
+  }
 
   return (
     <PageLayout>
@@ -745,7 +870,15 @@ export default function ConteggiPage() {
             </button>
 
 <div className="grid grid-cols-2 gap-2 border-t border-[var(--color-border)] px-4 py-3 md:grid-cols-6">
-  <TinyMetric label="Esattore" value={fmtEuro(op.esattore)} />
+  <EsattoreOverrideBox
+    value={getOverrideInputValue(op.name, op.esattoreOriginal)}
+    originalValue={op.esattoreOriginal}
+    hasOverride={op.hasEsattoreOverride}
+    disabled={isClosed || savingOverrideOperator === normalizeText(op.name)}
+    onChange={(value) => setOverrideInputValue(op.name, value)}
+    onSave={() => saveEsattoreOverride(op.name, op.esattoreOriginal)}
+    onReset={() => resetEsattoreOverride(op.name)}
+  />
   <TinyMetric label="Acconti" value={fmtEuro(op.acconti)} />
   <TinyMetric label="Da riportare" value={fmtEuro(op.riporto)} />
   <TinyMetric label="Cassa/Depositi" value={fmtEuro(op.cassaDepositi)} />
@@ -775,11 +908,9 @@ export default function ConteggiPage() {
                         </div>
 
                         <span
-                          className={`font-bold ${clsSigned(
-                            getFinaleWithoutTheoreticalCassa(r)
-                          )}`}
+                          className={`font-bold ${clsSigned(Number(r.totale_finale) || 0)}`}
                         >
-                          {fmtSigned(getFinaleWithoutTheoreticalCassa(r))}
+                          {fmtSigned(Number(r.totale_finale) || 0)}
                         </span>
                       </div>
                     </button>
@@ -979,13 +1110,13 @@ export default function ConteggiPage() {
                 </div>
                 <h3 className="mt-1 text-[16px] font-semibold text-[var(--color-text)] md:text-[18px]">{getVenueName(selectedRow)}</h3>
               </div>
-              <div className={`shrink-0 text-[20px] font-semibold tabular-nums md:text-[26px] ${clsSigned(getFinaleWithoutTheoreticalCassa(selectedRow))}`}>{fmtSigned(getFinaleWithoutTheoreticalCassa(selectedRow))}</div>
+              <div className={`shrink-0 text-[20px] font-semibold tabular-nums md:text-[26px] ${clsSigned(Number(selectedRow.totale_finale) || 0)}`}>{fmtSigned(Number(selectedRow.totale_finale) || 0)}</div>
             </div>
             <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
               <Detail label="Esattore" value={fmtEuro(selectedRow.esattore)} />
               <Detail label="Acconti" value={fmtEuro(selectedRow.acconti)} />
               <Detail label="Da riportare" value={fmtEuro(selectedRow.riporto)} />
-              <Detail label="Cassa/Depositi reale" value="0 €" />
+              <Detail label="Cassa/Depositi teorica" value={fmtEuro(getCassaDepositi(selectedRow))} />
               <Detail label="Assegni" value={fmtEuro(selectedRow.assegno)} />
               <Detail label="Debiti" value={fmtEuro(selectedRow.debito)} danger />
               <Detail label="Debito virtuale" value={fmtEuro(selectedRow.debito_virt)} />
@@ -1029,6 +1160,49 @@ function DebtBox({ value, count, open, onToggle }) {
       <p className="mt-1 text-[17px] font-extrabold tabular-nums text-[var(--color-danger)] md:text-[20px]">{value}</p>
       <p className="mt-0.5 text-[10px] font-medium text-red-700">{count} singoli · clicca per aprire</p>
     </button>
+  )
+}
+
+
+function EsattoreOverrideBox({ value, originalValue, hasOverride, disabled = false, onChange, onSave, onReset }) {
+  return (
+    <div className={`rounded-xl border px-4 py-3 ${hasOverride ? 'border-amber-300 bg-amber-50' : 'border-[var(--color-border)] bg-[var(--color-surface)]'}`}>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--color-text-muted)]">
+          Esattore
+        </p>
+        {hasOverride && (
+          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-700">
+            Rettificato
+          </span>
+        )}
+      </div>
+
+      <Input
+        type="number"
+        inputMode="numeric"
+        value={value}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.value)}
+        className="mt-2 h-9 text-right text-[18px] font-extrabold tabular-nums md:text-[22px]"
+      />
+
+      <div className="mt-2 flex items-center justify-between gap-2">
+        <p className="text-[10px] text-[var(--color-text-muted)]">
+          Calcolato: {fmtEuro(originalValue)}
+        </p>
+        <div className="flex shrink-0 gap-1.5">
+          {hasOverride && (
+            <Button size="sm" variant="ghost" disabled={disabled} onClick={onReset}>
+              Reset
+            </Button>
+          )}
+          <Button size="sm" variant="primary" disabled={disabled} onClick={onSave}>
+            Salva
+          </Button>
+        </div>
+      </div>
+    </div>
   )
 }
 
