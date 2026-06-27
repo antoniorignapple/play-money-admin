@@ -241,7 +241,7 @@ function LoginScreen() {
               <img src="/app-icon.png" alt="" className="h-7 w-7 rounded object-contain" draggable={false} />
               <div>
                 <p className="text-[13px] font-semibold text-white">Play Money Admin</p>
-                <p className="text-[10px] text-slate-400">Versione 3.0</p>
+                <p className="text-[10px] text-slate-400">Versione 3.1</p>
               </div>
             </div>
             <div className="px-2 py-3">

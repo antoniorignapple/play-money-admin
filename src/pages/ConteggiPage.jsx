@@ -15,6 +15,7 @@ import { useToast } from '../components/Toast'
 import { initials, avatarColor } from '../lib/helpers'
 
 const fmtEuro = (n) => `${Math.trunc(Number(n) || 0).toLocaleString('it-IT')} €`
+const fmtEuroPlain = (n) => `${Math.trunc(Number(n) || 0).toLocaleString('it-IT')} €`
 const fmtSigned = (n) => {
   const v = Math.trunc(Number(n) || 0)
   if (v > 0) return `+${v.toLocaleString('it-IT')} €`
@@ -137,6 +138,7 @@ export default function ConteggiPage() {
   const [summary, setSummary] = useState(null)
   const [rows, setRows] = useState([])
   const [realDepositsByCode, setRealDepositsByCode] = useState({ D01: 0, D02: 0, D03: 0, D04: 0, D05: 0 })
+  const [missingVenueDeposits, setMissingVenueDeposits] = useState({})
   const [adminOverridesByOperator, setAdminOverridesByOperator] = useState({})
   const [overrideInputsByOperator, setOverrideInputsByOperator] = useState({})
   const [savingOverrideOperator, setSavingOverrideOperator] = useState('')
@@ -152,7 +154,7 @@ export default function ConteggiPage() {
   const [confirmDeletePeriod, setConfirmDeletePeriod] = useState(false)
   const [confirmArchivePeriod, setConfirmArchivePeriod] = useState(false)
   const [confirmReopenPeriod, setConfirmReopenPeriod] = useState(false)
-  const [showMissing, setShowMissing] = useState(false)
+  const [showMissing, setShowMissing] = useState(true)
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [operatorsOpen, setOperatorsOpen] = useState(true)
   const [debitiOpen, setDebitiOpen] = useState(false)
@@ -227,15 +229,33 @@ export default function ConteggiPage() {
 
   async function loadDashboard(periodId = selectedPeriodId) {
     if (!periodId) return
+    const periodForDashboard = periods.find((p) => p.id === periodId)
     try {
       setLoading(true)
-      const [{ data: sumRows }, { data: detailRows, error: rowsErr }, { data: overrideRows, error: overrideErr }] = await Promise.all([
+
+      let activeDepositsQuery = supabase
+        .from('movements_cassa')
+        .select('venue_id, acconto, recupero, deleted_at, work_date')
+        .is('deleted_at', null)
+
+      if (periodForDashboard?.date_to) {
+        activeDepositsQuery = activeDepositsQuery.lte('work_date', periodForDashboard.date_to)
+      }
+
+      const [
+        { data: sumRows },
+        { data: detailRows, error: rowsErr },
+        { data: overrideRows, error: overrideErr },
+        { data: activeDepositsRows, error: activeDepositsErr },
+      ] = await Promise.all([
         supabase.from('conteggi_admin_summary').select('*').eq('period_id', periodId).maybeSingle(),
         supabase.from('conteggi_admin_rows').select('*').eq('period_id', periodId).order('venue_id', { ascending: true }),
         supabase.from('conteggi_admin_overrides').select('id,period_id,operator_name,esattore_override').eq('period_id', periodId),
+        activeDepositsQuery,
       ])
       if (rowsErr) throw rowsErr
       if (overrideErr) throw overrideErr
+      if (activeDepositsErr) throw activeDepositsErr
 
       const overridesMap = {}
       const inputsMap = {}
@@ -246,10 +266,18 @@ export default function ConteggiPage() {
         inputsMap[key] = String(value)
       })
 
+      const depositMap = {}
+      ;(activeDepositsRows || []).forEach((item) => {
+        const venueId = String(item.venue_id || '').trim()
+        if (!venueId || venueId.toUpperCase().startsWith('D')) return
+        depositMap[venueId] = (depositMap[venueId] || 0) + Math.trunc(Number(item.acconto) || 0) - Math.trunc(Number(item.recupero) || 0)
+      })
+
       setSummary(sumRows || null)
       setRows(detailRows || [])
       setAdminOverridesByOperator(overridesMap)
       setOverrideInputsByOperator(inputsMap)
+      setMissingVenueDeposits(depositMap)
     } catch (e) { toast.error(`Errore: ${e.message}`) }
     finally { setLoading(false) }
   }
@@ -305,6 +333,7 @@ export default function ConteggiPage() {
       setSummary(null)
       setRows([])
       setRealDepositsByCode({ D01: 0, D02: 0, D03: 0, D04: 0, D05: 0 })
+      setMissingVenueDeposits({})
     }
   }, [periodView, periods, visiblePeriods, selectedPeriodId])
 
@@ -453,8 +482,11 @@ export default function ConteggiPage() {
 
   const missingVenues = useMemo(() => {
     const counted = new Set(rows.map((r) => String(r.venue_id)))
-    return venues.filter((v) => !counted.has(String(v.id))).sort(sortVenueIds)
-  }, [rows, venues])
+    return venues
+      .filter((v) => !counted.has(String(v.id)))
+      .map((v) => ({ ...v, availableAcconti: Math.trunc(Number(missingVenueDeposits[String(v.id)]) || 0) }))
+      .sort(sortVenueIds)
+  }, [rows, venues, missingVenueDeposits])
 
   async function createPeriod() {
     if (!newPeriod.date_from || !newPeriod.date_to) return toast.warning('Inserisci le date')
@@ -783,147 +815,149 @@ export default function ConteggiPage() {
          
 
           {/* Operatori e dettaglio conteggi */}
-<Card>
-  <button
-    type="button"
-    onClick={() => setOperatorsOpen((v) => !v)}
-    className="flex w-full items-center justify-between gap-3 border-b border-[var(--color-border)] px-3 py-3 text-left md:px-4"
-  >
-    <div>
-      <p className="text-[13px] font-semibold text-[var(--color-text)]">
-        Agenti
-      </p>
-      <p className="text-[11px] text-[var(--color-text-muted)]">
-        {operatorStats.length} attivi · freccia per vedere i singoli conteggi
-      </p>
-    </div>
-
-    {operatorsOpen ? (
-      <ChevronUp
-        size={15}
-        className="text-[var(--color-text-muted)]"
-      />
-    ) : (
-      <ChevronDown
-        size={15}
-        className="text-[var(--color-text-muted)]"
-      />
-    )}
-  </button>
-
-  <div className={`${operatorsOpen ? 'block' : 'hidden'} p-3 md:p-4`}>
-    <div className="flex flex-col gap-3">
-      {operatorStats.map((op) => {
-        const expanded = !!expandedOperators[op.name]
-
-        return (
-          <div
-            key={op.name}
-            className="rounded-xl border border-[var(--color-border)] bg-white"
-          >
-            <button
-              type="button"
-              onClick={() =>
-                setExpandedOperators((prev) => ({
-                  ...prev,
-                  [op.name]: !prev[op.name],
-                }))
-              }
-              className="flex w-full items-center gap-3 px-4 py-3 text-left"
-            >
-              <div
-                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ${avatarColor(op.name)}`}
-              >
-                {initials(op.name)}
-              </div>
-
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-[14px] font-semibold">
-                  {op.name}
-                </p>
-
-                <p className="text-[11px] text-[var(--color-text-muted)]">
-                  {op.count} conteggi · Esattore {fmtEuro(op.esattore)}
-                </p>
-              </div>
-
-<Button
-  icon={Download}
-  size="sm"
-  variant="primary"
-  onClick={(e) => {
-    e.stopPropagation()
-    handleGeneratePdf(
-      `PDF ${op.name}`,
-      rows.filter((r) => getOperatorName(r) === op.name)
-    )
-  }}
->
-  PDF
-</Button>
-
-{expanded ? (
-  <ChevronUp size={18} />
-) : (
-  <ChevronDown size={18} />
-)}
-            </button>
-
-<div className="grid grid-cols-2 gap-2 border-t border-[var(--color-border)] px-4 py-3 md:grid-cols-6">
-  <EsattoreOverrideBox
-    value={getOverrideInputValue(op.name, op.esattoreOriginal)}
-    originalValue={op.esattoreOriginal}
-    hasOverride={op.hasEsattoreOverride}
-    disabled={isClosed || savingOverrideOperator === normalizeText(op.name)}
-    onChange={(value) => setOverrideInputValue(op.name, value)}
-    onSave={() => saveEsattoreOverride(op.name, op.esattoreOriginal)}
-    onReset={() => resetEsattoreOverride(op.name)}
-  />
-  <TinyMetric label="Acconti" value={fmtEuro(op.acconti)} />
-  <TinyMetric label="Da riportare" value={fmtEuro(op.riporto)} />
-  <TinyMetric label="Cassa/Depositi" value={fmtEuro(op.cassaDepositi)} />
-  <TinyMetric label="Debiti" value={fmtEuro(op.debiti)} danger />
-  <TinyMetric label="Totale finale" value={fmtSigned(op.finale)} danger={op.finale < 0} />
-</div>
-
-{expanded && (
-              <div className="border-t border-[var(--color-border)] p-3">
-                <div className="grid gap-2">
-                  {op.rows.map((r) => (
-                    <button
-                      key={r.id}
-                      type="button"
-                      onClick={() => setSelectedRow(r)}
-                      className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-left"
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <p className="font-medium">
-                            {getVenueName(r)}
-                          </p>
-
-                          <p className="text-[11px] text-[var(--color-text-muted)]">
-                            {formatITDate(r.conteggio_date)}
-                          </p>
-                        </div>
-
-                        <span
-                          className={`font-bold ${clsSigned(Number(r.totale_finale) || 0)}`}
-                        >
-                          {fmtSigned(Number(r.totale_finale) || 0)}
-                        </span>
-                      </div>
-                    </button>
-                  ))}
+          <Card>
+            <div className="flex w-full items-center justify-between gap-3 border-b border-[var(--color-border)] bg-gradient-to-r from-slate-50 via-white to-blue-50/40 px-3 py-3 text-left md:px-4">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm">
+                  <Users size={16} strokeWidth={2.4} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[14px] font-extrabold uppercase tracking-[0.08em] text-slate-900">
+                    Agenti
+                  </p>
+                  <p className="text-[11px] text-[var(--color-text-muted)]">
+                    {operatorStats.length} attivi · riepilogo sempre visibile · conteggi apribili solo quando servono
+                  </p>
                 </div>
               </div>
-            )}
-          </div>
-        )
-      })}
-    </div>
-  </div>
-</Card>
+            </div>
+
+            <div className="bg-slate-50/60 p-3 md:p-4">
+              <div className="grid gap-4">
+                {operatorStats.map((op) => {
+                  const finaleTone = op.finale > 0 ? 'text-[var(--color-success)]' : op.finale < 0 ? 'text-[var(--color-danger)]' : 'text-slate-900'
+
+                  return (
+                    <div
+                      key={op.name}
+                      className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm ring-1 ring-black/[0.015] transition-shadow hover:shadow-md"
+                    >
+                      <div className="flex w-full flex-col gap-3 border-b border-slate-100 bg-gradient-to-r from-white via-white to-slate-50 px-4 py-4 text-left md:flex-row md:items-center md:gap-4">
+                        <div className="flex min-w-0 flex-1 items-center gap-3">
+                          <div
+                            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-[13px] font-black shadow-sm ${avatarColor(op.name)}`}
+                          >
+                            {initials(op.name)}
+                          </div>
+
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="truncate text-[18px] font-black uppercase tracking-tight text-slate-950 md:text-[20px]">
+                                {op.name}
+                              </p>
+                              {op.hasEsattoreOverride && (
+                                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-amber-700">
+                                  Rettificato
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="mt-1 flex flex-wrap items-center gap-2 text-[12px] text-slate-500">
+                              <span className="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-600">
+                                {op.count} conteggi
+                              </span>
+                              <span>Esattore {fmtEuro(op.esattore)}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex shrink-0 items-center justify-between gap-2 md:justify-end">
+                          <Button
+                            icon={expandedOperators[op.name] ? ChevronUp : ChevronDown}
+                            size="sm"
+                            variant="secondary"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setExpandedOperators((prev) => ({ ...prev, [op.name]: !prev[op.name] }))
+                            }}
+                          >
+                            {expandedOperators[op.name] ? 'Nascondi conteggi' : 'Vedi conteggi'}
+                          </Button>
+
+                          <Button
+                            icon={Download}
+                            size="sm"
+                            variant="primary"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleGeneratePdf(
+                                `PDF ${op.name}`,
+                                rows.filter((r) => getOperatorName(r) === op.name)
+                              )
+                            }}
+                          >
+                            PDF
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 px-4 py-3 md:grid-cols-3 xl:grid-cols-6">
+                        <EsattoreOverrideBox
+                          value={getOverrideInputValue(op.name, op.esattoreOriginal)}
+                          originalValue={op.esattoreOriginal}
+                          hasOverride={op.hasEsattoreOverride}
+                          disabled={isClosed || savingOverrideOperator === normalizeText(op.name)}
+                          onChange={(value) => setOverrideInputValue(op.name, value)}
+                          onSave={() => saveEsattoreOverride(op.name, op.esattoreOriginal)}
+                          onReset={() => resetEsattoreOverride(op.name)}
+                        />
+                        <TinyMetric label="Acconti" value={fmtEuro(op.acconti)} />
+                        <TinyMetric label="Da riportare" value={fmtEuro(op.riporto)} />
+                        <TinyMetric label="Cassa/Depositi" value={fmtEuro(op.cassaDepositi)} />
+                        <TinyMetric label="Debiti" value={fmtEuro(op.debiti)} />
+                        <TinyMetric label="Finale" value={fmtSigned(op.finale)} tone={op.finale > 0 ? 'success' : op.finale < 0 ? 'danger' : 'default'} />
+                      </div>
+
+                      {expandedOperators[op.name] && (
+                        <div className="border-t border-slate-100 bg-slate-50/70 p-3">
+                          <div className="mb-2 flex items-center justify-between px-1">
+                            <p className="text-[11px] font-black uppercase tracking-[0.12em] text-slate-500">Conteggi salvati</p>
+                            <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-bold text-slate-500 shadow-sm">{op.rows.length}</span>
+                          </div>
+                          <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+                            {op.rows.map((r) => (
+                              <button
+                                key={r.id}
+                                type="button"
+                                onClick={() => setSelectedRow(r)}
+                                className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-left shadow-sm transition-colors hover:border-blue-200 hover:bg-blue-50/30"
+                              >
+                                <div className="flex items-center justify-between gap-3">
+                                  <div className="min-w-0">
+                                    <p className="truncate text-[13px] font-bold text-slate-900">
+                                      {getVenueName(r)}
+                                    </p>
+
+                                    <p className="mt-0.5 text-[11px] text-[var(--color-text-muted)]">
+                                      {formatITDate(r.conteggio_date)}
+                                    </p>
+                                  </div>
+
+                                  <span className={`shrink-0 text-[14px] font-black tabular-nums ${clsSigned(Number(r.totale_finale) || 0)}`}>
+                                    {fmtSigned(Number(r.totale_finale) || 0)}
+                                  </span>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </Card>
 
           {/* Riepilogo totale generale */}
           <Card>
@@ -931,70 +965,66 @@ export default function ConteggiPage() {
               <p className="text-[13px] font-bold uppercase tracking-wide text-[var(--color-text)]">Riepilogo totale generale</p>
               <p className="text-[11px] text-[var(--color-text-muted)]">Somma di tutti gli agenti del periodo, senza considerare i filtri attivi.</p>
             </div>
-            <div className="grid grid-cols-2 gap-2 p-3 md:grid-cols-4 xl:grid-cols-7 md:p-4">
+            <div className="grid grid-cols-2 gap-2 p-3 md:grid-cols-3 xl:grid-cols-6 md:p-4">
               <SummaryTotalBox label="Esattore" value={fmtEuro(totalSummary.esattore)} />
               <SummaryTotalBox label="Acconti" value={fmtEuro(totalSummary.acconti)} />
               <SummaryTotalBox label="Da riportare" value={fmtEuro(totalSummary.riporto)} />
               <SummaryTotalBox label="Cassa/Depositi" value={fmtEuro(totalSummary.cassaDepositi)} />
-              <SummaryTotalBox label="Assegni" value={fmtEuro(totalSummary.assegni)} />
-              <SummaryTotalBox label="Debiti" value={fmtEuro(totalSummary.debiti)} danger />
+              <SummaryTotalBox label="Debiti" value={fmtEuro(totalSummary.debiti)} />
               <SummaryTotalBox label="Totale finale" value={fmtSigned(totalSummary.finale)} tone={totalSummary.finale > 0 ? 'success' : totalSummary.finale < 0 ? 'danger' : 'default'} strong />
             </div>
           </Card>
 
           {/* Missing venues */}
           <Card>
-            <button
-              type="button"
-              onClick={() => setShowMissing((v) => !v)}
-              className="flex w-full items-center justify-between gap-3 px-3 py-3 text-left transition-colors hover:bg-[var(--color-surface-hover)] md:px-4"
-            >
+            <div className="flex w-full items-center justify-between gap-3 border-b border-[var(--color-border)] bg-gradient-to-r from-white via-white to-slate-50 px-3 py-3 text-left md:px-4">
               <div className="flex min-w-0 items-center gap-3">
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-muted)]">
-                  <MapPin size={13} strokeWidth={2} />
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-muted)]">
+                  <MapPin size={14} strokeWidth={2} />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[13px] font-medium text-[var(--color-text)]">Locali non conteggiati</p>
-                  <p className="text-[12px] text-[var(--color-text-muted)]">{missingVenues.length} locali ancora senza conteggio</p>
+                  <p className="text-[13px] font-bold uppercase tracking-wide text-[var(--color-text)]">Locali non conteggiati</p>
+                  <p className="text-[12px] text-[var(--color-text-muted)]">{missingVenues.length} locali ancora senza conteggio · con acconti disponibili</p>
                 </div>
               </div>
-              {showMissing ? <ChevronUp size={15} className="shrink-0 text-[var(--color-text-muted)]" /> : <ChevronDown size={15} className="shrink-0 text-[var(--color-text-muted)]" />}
-            </button>
-            {showMissing && (
-              <div className="border-t border-[var(--color-border)]">
-                <div className="hidden overflow-x-auto md:block">
-                  <table className="w-full text-[13px]">
-                    <thead>
-                      <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface)]">
-                        <th className="px-4 py-2 text-left text-[11px] font-medium uppercase tracking-wide text-[var(--color-text-muted)]">Codice</th>
-                        <th className="px-4 py-2 text-left text-[11px] font-medium uppercase tracking-wide text-[var(--color-text-muted)]">Locale</th>
-                        <th className="px-4 py-2 text-left text-[11px] font-medium uppercase tracking-wide text-[var(--color-text-muted)]">Città</th>
+            </div>
+            <div>
+              <div className="hidden overflow-x-auto md:block">
+                <table className="w-full text-[13px]">
+                  <thead>
+                    <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface)]">
+                      <th className="px-4 py-2 text-left text-[11px] font-medium uppercase tracking-wide text-[var(--color-text-muted)]">Codice</th>
+                      <th className="px-4 py-2 text-left text-[11px] font-medium uppercase tracking-wide text-[var(--color-text-muted)]">Locale</th>
+                      <th className="px-4 py-2 text-right text-[11px] font-medium uppercase tracking-wide text-[var(--color-text-muted)]">Acconti disponibili</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {missingVenues.map((v) => (
+                      <tr key={v.id} className="border-b border-[var(--color-border)] last:border-0 hover:bg-[var(--color-surface-hover)]">
+                        <td className="px-4 py-2 font-mono text-[12px] tabular-nums text-[var(--color-text-muted)]">{v.id}</td>
+                        <td className="px-4 py-2 font-medium text-[var(--color-text)]">{v.name}</td>
+                        <td className={`px-4 py-2 text-right font-black tabular-nums ${v.availableAcconti > 0 ? 'text-[var(--color-success)]' : v.availableAcconti < 0 ? 'text-[var(--color-danger)]' : 'text-[var(--color-text-muted)]'}`}>
+                          {fmtEuro(v.availableAcconti)}
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {missingVenues.map((v) => (
-                        <tr key={v.id} className="border-b border-[var(--color-border)] last:border-0 hover:bg-[var(--color-surface-hover)]">
-                          <td className="px-4 py-2 font-mono text-[12px] tabular-nums text-[var(--color-text-muted)]">{v.id}</td>
-                          <td className="px-4 py-2 font-medium text-[var(--color-text)]">{v.name}</td>
-                          <td className="px-4 py-2 text-[var(--color-text-muted)]">{v.city || '—'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                <div className="divide-y divide-[var(--color-border)] md:hidden">
-                  {missingVenues.map((v) => (
-                    <div key={v.id} className="px-3 py-2.5">
-                      <div className="flex items-center gap-2">
-                        <span className="inline-flex h-6 min-w-[44px] items-center justify-center rounded bg-[var(--color-surface)] font-mono text-[11px] font-bold text-[var(--color-text-secondary)]">{v.id}</span>
-                        <p className="truncate text-[13px] font-medium text-[var(--color-text)]">{v.name}</p>
-                      </div>
-                      {v.city && <p className="mt-0.5 text-[11px] text-[var(--color-text-muted)]"><MapPin size={9} strokeWidth={2} className="mr-0.5 inline" />{v.city}</p>}
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            )}
+              <div className="divide-y divide-[var(--color-border)] md:hidden">
+                {missingVenues.map((v) => (
+                  <div key={v.id} className="px-3 py-2.5">
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex h-6 min-w-[44px] items-center justify-center rounded bg-[var(--color-surface)] font-mono text-[11px] font-bold text-[var(--color-text-secondary)]">{v.id}</span>
+                      <p className="truncate text-[13px] font-medium text-[var(--color-text)]">{v.name}</p>
+                    </div>
+                    <p className={`mt-1 text-[12px] font-black tabular-nums ${v.availableAcconti > 0 ? 'text-[var(--color-success)]' : v.availableAcconti < 0 ? 'text-[var(--color-danger)]' : 'text-[var(--color-text-muted)]'}`}>
+                      Acconti disponibili: {fmtEuro(v.availableAcconti)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
           </Card>
         </div>
       </PageBody>
@@ -1166,8 +1196,8 @@ function DebtBox({ value, count, open, onToggle }) {
 
 function EsattoreOverrideBox({ value, originalValue, hasOverride, disabled = false, onChange, onSave, onReset }) {
   return (
-    <div className={`rounded-xl border px-4 py-3 ${hasOverride ? 'border-amber-300 bg-amber-50' : 'border-[var(--color-border)] bg-[var(--color-surface)]'}`}>
-      <div className="flex items-center justify-between gap-2">
+    <div className={`rounded-xl border px-3 py-3 ${hasOverride ? 'border-amber-300 bg-amber-50' : 'border-[var(--color-border)] bg-[var(--color-surface)]'}`}>
+      <div className="mb-2 flex items-center justify-between gap-2">
         <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--color-text-muted)]">
           Esattore
         </p>
@@ -1178,45 +1208,52 @@ function EsattoreOverrideBox({ value, originalValue, hasOverride, disabled = fal
         )}
       </div>
 
-      <Input
-        type="number"
-        inputMode="numeric"
-        value={value}
-        disabled={disabled}
-        onChange={(e) => onChange(e.target.value)}
-        className="mt-2 h-9 text-right text-[18px] font-extrabold tabular-nums md:text-[22px]"
-      />
+      <div className="flex items-center gap-2">
+        <Input
+          type="number"
+          inputMode="numeric"
+          value={value}
+          disabled={disabled}
+          onChange={(e) => onChange(e.target.value)}
+          className="h-9 min-w-0 flex-1 text-right text-[18px] font-extrabold tabular-nums md:text-[20px]"
+        />
+        <Button size="sm" variant="primary" disabled={disabled} onClick={onSave}>
+          Salva
+        </Button>
+      </div>
 
       <div className="mt-2 flex items-center justify-between gap-2">
         <p className="text-[10px] text-[var(--color-text-muted)]">
           Calcolato: {fmtEuro(originalValue)}
         </p>
-        <div className="flex shrink-0 gap-1.5">
-          {hasOverride && (
-            <Button size="sm" variant="ghost" disabled={disabled} onClick={onReset}>
-              Reset
-            </Button>
-          )}
-          <Button size="sm" variant="primary" disabled={disabled} onClick={onSave}>
-            Salva
-          </Button>
-        </div>
+        {hasOverride && (
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={onReset}
+            className="text-[10px] font-bold text-amber-700 hover:text-amber-800 disabled:opacity-50"
+          >
+            Reset
+          </button>
+        )}
       </div>
     </div>
   )
 }
 
-function TinyMetric({ label, value, danger = false }) {
+function TinyMetric({ label, value, danger = false, tone = 'default' }) {
+  const valueCls = danger || tone === 'danger'
+    ? 'text-[var(--color-danger)]'
+    : tone === 'success'
+      ? 'text-[var(--color-success)]'
+      : 'text-[var(--color-text)]'
+
   return (
-    <div className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3">
-      <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--color-text-muted)]">
+    <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+      <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">
         {label}
       </p>
-      <p
-        className={`mt-1 text-[18px] font-extrabold tabular-nums md:text-[22px] ${
-          danger ? 'text-[var(--color-danger)]' : 'text-[var(--color-text)]'
-        }`}
-      >
+      <p className={`mt-1 text-[18px] font-black tabular-nums md:text-[21px] ${valueCls}`}>
         {value}
       </p>
     </div>

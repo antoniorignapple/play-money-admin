@@ -156,7 +156,7 @@ export default function AdminPage() {
             </h3>
             <Card>
               <div className="divide-y divide-[var(--color-border)]">
-                <InfoRow label="Versione applicazione" value="Play Money Admin v3.0 (PWA + Mobile)" icon={Code} />
+                <InfoRow label="Versione applicazione" value="Play Money Admin v3.1 (PWA + Mobile)" icon={Code} />
                 <InfoRow label="Branch produzione" value="main" icon={GitBranch} />
                 <InfoRow label="Supabase Project URL" value={SUPABASE_URL} icon={Server} mono />
                 <InfoRow label="Edge Function" value="admin-update-user" icon={Lock} mono />
