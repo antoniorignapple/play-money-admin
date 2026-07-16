@@ -394,7 +394,7 @@ export default function ConteggiPage() {
         const overrideEsattore = Math.trunc(Number(override.esattore_override) || 0)
         const deltaEsattore = overrideEsattore - originalEsattore
         acc.esattore += deltaEsattore
-        acc.finaleSenzaCassaTeorica += deltaEsattore
+        acc.finaleSenzaCassaTeorica -= deltaEsattore
       }
       acc.cassaDepositi += getRealDepositForOperator(realDepositsByCode, opName)
     })
@@ -426,7 +426,7 @@ export default function ConteggiPage() {
         const overrideEsattore = Math.trunc(Number(override.esattore_override) || 0)
         const deltaEsattore = overrideEsattore - originalEsattore
         acc.esattore += deltaEsattore
-        acc.finaleSenzaCassaTeorica += deltaEsattore
+        acc.finaleSenzaCassaTeorica -= deltaEsattore
       }
       acc.cassaDepositi += getRealDepositForOperator(realDepositsByCode, opName)
     })
@@ -473,7 +473,7 @@ export default function ConteggiPage() {
       op.esattore = override ? op.esattoreOverride : op.esattoreOriginal
       op.hasEsattoreOverride = !!override
       op.cassaDepositi = getRealDepositForOperator(realDepositsByCode, op.name)
-      op.finaleSenzaCassaTeorica += op.esattoreDelta
+      op.finaleSenzaCassaTeorica -= op.esattoreDelta
       op.finale = op.finaleSenzaCassaTeorica + op.cassaDepositi
     })
 
@@ -624,10 +624,19 @@ export default function ConteggiPage() {
     })
     const toolData = {}
     pdfRows.forEach((r) => { toolData[r.venue_id] = { ...r, ricevute: r.acconti } })
+    const operatorName = pdfRows.length ? getOperatorName(pdfRows[0]) : ''
+    const realCassaDepositi = getRealDepositForOperator(realDepositsByCode, operatorName)
+    const override = adminOverridesByOperator[normalizeText(operatorName)]
+    const esattoreOverride = override
+      ? Math.trunc(Number(override.esattore_override) || 0)
+      : null
+
     await generateConteggiPdf({
       venuesSelected, totalsByVenueId: {}, toolData,
       dateFrom: selectedPeriod?.date_from, dateTo: selectedPeriod?.date_to,
       dipendenteName: title, userEmail: '', targetWin: null,
+      realCassaDepositi,
+      esattoreOverride,
     })
     toast.success('PDF generato')
   }

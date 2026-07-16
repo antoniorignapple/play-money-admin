@@ -25,6 +25,8 @@ async function generateConteggiPdf({
   dipendenteName,
   userEmail,
   targetWin,
+  realCassaDepositi = null,
+  esattoreOverride = null,
 }) {
   const doc = new jsPDF({ unit: 'pt', format: 'a4', orientation: 'portrait' });
 
@@ -147,6 +149,15 @@ async function generateConteggiPdf({
       bonus: 0,
     }
   );
+
+  // Nel PDF riepilogativo usiamo la Cassa/Depositi reale del dipendente.
+  // Le singole righe locali mantengono i propri valori teorici di dettaglio.
+  if (realCassaDepositi !== null && realCassaDepositi !== undefined) {
+    riepilogo.cassaDepositi = n0(realCassaDepositi);
+  }
+  if (esattoreOverride !== null && esattoreOverride !== undefined) {
+    riepilogo.esattore = n0(esattoreOverride);
+  }
 
   riepilogo.finale =
     riepilogo.ricevute +
