@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   Plus, Lock, Unlock, RefreshCw, Search, Users, Building2, FileText, TrendingUp,
   Download, Eye, Trash2, ChevronDown, ChevronUp, MapPin, Calendar, Filter, Archive, RotateCcw,
+  TriangleAlert,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import generateConteggiPdf from '../lib/generateConteggiPdf'
@@ -33,13 +34,8 @@ const formatITDate = (d) => {
   const [y, m, day] = String(d).slice(0, 10).split('-')
   return `${day}/${m}/${y}`
 }
-const monthIT = ['', 'Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre']
-
 function formatPeriodTitle(dateFrom, dateTo) {
   if (!dateFrom || !dateTo) return 'Conteggi'
-  const [yf, mf, df] = String(dateFrom).split('-')
-  const [yt, mt, dt] = String(dateTo).split('-')
-  if (mf === mt && yf === yt) return `Conteggi ${Number(df)}-${Number(dt)} ${monthIT[Number(mf)]} ${yf}`
   return `Conteggi ${formatITDate(dateFrom)} - ${formatITDate(dateTo)}`
 }
 
@@ -235,7 +231,7 @@ export default function ConteggiPage() {
 
       let activeDepositsQuery = supabase
         .from('movements_cassa')
-        .select('venue_id, acconto, recupero, deleted_at, work_date')
+        .select('venue_id, acconto, recupero, da_riportare, deleted_at, work_date')
         .is('deleted_at', null)
 
       if (periodForDashboard?.date_to) {
@@ -270,7 +266,12 @@ export default function ConteggiPage() {
       ;(activeDepositsRows || []).forEach((item) => {
         const venueId = String(item.venue_id || '').trim()
         if (!venueId || venueId.toUpperCase().startsWith('D')) return
-        depositMap[venueId] = (depositMap[venueId] || 0) + Math.trunc(Number(item.acconto) || 0) - Math.trunc(Number(item.recupero) || 0)
+        if (!depositMap[venueId]) {
+          depositMap[venueId] = { acconti: 0, recuperi: 0, daRiportare: 0 }
+        }
+        depositMap[venueId].acconti += Math.trunc(Number(item.acconto) || 0)
+        depositMap[venueId].recuperi += Math.trunc(Number(item.recupero) || 0)
+        depositMap[venueId].daRiportare += Math.trunc(Number(item.da_riportare) || 0)
       })
 
       setSummary(sumRows || null)
@@ -484,7 +485,20 @@ export default function ConteggiPage() {
     const counted = new Set(rows.map((r) => String(r.venue_id)))
     return venues
       .filter((v) => !counted.has(String(v.id)))
-      .map((v) => ({ ...v, availableAcconti: Math.trunc(Number(missingVenueDeposits[String(v.id)]) || 0) }))
+      .map((v) => {
+        const movements = missingVenueDeposits[String(v.id)] || {}
+        const availableAcconti = Math.trunc(Number(movements.acconti) || 0)
+        const recuperi = Math.trunc(Number(movements.recuperi) || 0)
+        const daRiportare = Math.trunc(Number(movements.daRiportare) || 0)
+        return {
+          ...v,
+          availableAcconti,
+          recuperi,
+          daRiportare,
+          availableDaRiportare: Math.max(daRiportare - recuperi, 0),
+          recuperiWarning: recuperi > daRiportare,
+        }
+      })
       .sort(sortVenueIds)
   }, [rows, venues, missingVenueDeposits])
 
@@ -503,7 +517,7 @@ export default function ConteggiPage() {
 
   async function deletePeriod() {
     if (!selectedPeriod) return
-    const title = selectedPeriod.title
+    const title = formatPeriodTitle(selectedPeriod.date_from, selectedPeriod.date_to)
     await supabase.from('conteggi_admin_rows').update({ period_id: null, locked: false }).eq('period_id', selectedPeriod.id)
     const { error } = await supabase.from('conteggi_periods').delete().eq('id', selectedPeriod.id)
     if (error) { toast.error(error.message); return }
@@ -731,7 +745,7 @@ export default function ConteggiPage() {
     <PageLayout>
       <PageHeader
         title="Conteggi"
-        subtitle={selectedPeriod ? selectedPeriod.title : 'Nessun periodo'}
+        subtitle={selectedPeriod ? formatPeriodTitle(selectedPeriod.date_from, selectedPeriod.date_to) : 'Nessun periodo'}
         actions={
           <>
             <Button icon={Plus} onClick={() => setShowNewPeriod(true)} disabled={isClosed}>
@@ -791,7 +805,7 @@ export default function ConteggiPage() {
           </option>
         )}
         {visiblePeriods.map((p) => (
-          <option key={p.id} value={p.id}>{p.title}</option>
+          <option key={p.id} value={p.id}>{formatPeriodTitle(p.date_from, p.date_to)}</option>
         ))}
       </Select>
     </Field>
@@ -993,7 +1007,7 @@ export default function ConteggiPage() {
                 </div>
                 <div className="min-w-0">
                   <p className="text-[13px] font-bold uppercase tracking-wide text-[var(--color-text)]">Locali non conteggiati</p>
-                  <p className="text-[12px] text-[var(--color-text-muted)]">{missingVenues.length} locali ancora senza conteggio · con acconti disponibili</p>
+                  <p className="text-[12px] text-[var(--color-text-muted)]">{missingVenues.length} locali ancora senza conteggio</p>
                 </div>
               </div>
             </div>
@@ -1005,6 +1019,7 @@ export default function ConteggiPage() {
                       <th className="px-4 py-2 text-left text-[11px] font-medium uppercase tracking-wide text-[var(--color-text-muted)]">Codice</th>
                       <th className="px-4 py-2 text-left text-[11px] font-medium uppercase tracking-wide text-[var(--color-text-muted)]">Locale</th>
                       <th className="px-4 py-2 text-right text-[11px] font-medium uppercase tracking-wide text-[var(--color-text-muted)]">Acconti disponibili</th>
+                      <th className="px-4 py-2 text-right text-[11px] font-medium uppercase tracking-wide text-[var(--color-text-muted)]">Da riportare presenti</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1014,6 +1029,16 @@ export default function ConteggiPage() {
                         <td className="px-4 py-2 font-medium text-[var(--color-text)]">{v.name}</td>
                         <td className={`px-4 py-2 text-right font-black tabular-nums ${v.availableAcconti > 0 ? 'text-[var(--color-success)]' : v.availableAcconti < 0 ? 'text-[var(--color-danger)]' : 'text-[var(--color-text-muted)]'}`}>
                           {fmtEuro(v.availableAcconti)}
+                        </td>
+                        <td className="px-4 py-2 text-right font-black tabular-nums">
+                          {v.recuperiWarning ? (
+                            <span className="inline-flex items-center justify-end gap-1.5 text-[var(--color-danger)]">
+                              <TriangleAlert size={15} aria-hidden="true" />
+                              Recuperi maggiori dei da riportare
+                            </span>
+                          ) : v.availableDaRiportare > 0 ? (
+                            <span className="text-[var(--color-success)]">{fmtEuro(v.availableDaRiportare)}</span>
+                          ) : null}
                         </td>
                       </tr>
                     ))}
@@ -1030,6 +1055,16 @@ export default function ConteggiPage() {
                     <p className={`mt-1 text-[12px] font-black tabular-nums ${v.availableAcconti > 0 ? 'text-[var(--color-success)]' : v.availableAcconti < 0 ? 'text-[var(--color-danger)]' : 'text-[var(--color-text-muted)]'}`}>
                       Acconti disponibili: {fmtEuro(v.availableAcconti)}
                     </p>
+                    {v.recuperiWarning ? (
+                      <p className="mt-1 inline-flex items-center gap-1.5 text-[12px] font-black text-[var(--color-danger)]">
+                        <TriangleAlert size={14} aria-hidden="true" />
+                        Recuperi maggiori dei da riportare
+                      </p>
+                    ) : v.availableDaRiportare > 0 ? (
+                      <p className="mt-1 text-[12px] font-black tabular-nums text-[var(--color-success)]">
+                        Da riportare presenti: {fmtEuro(v.availableDaRiportare)}
+                      </p>
+                    ) : null}
                   </div>
                 ))}
               </div>
@@ -1106,7 +1141,7 @@ export default function ConteggiPage() {
         open={confirmDeletePeriod}
         onClose={() => setConfirmDeletePeriod(false)}
         title="Elimina periodo"
-        message={selectedPeriod ? `Vuoi eliminare il periodo "${selectedPeriod.title}"? I conteggi non verranno cancellati ma scollegati dal periodo.` : ''}
+        message={selectedPeriod ? `Vuoi eliminare il periodo "${formatPeriodTitle(selectedPeriod.date_from, selectedPeriod.date_to)}"? I conteggi non verranno cancellati ma scollegati dal periodo.` : ''}
         confirmLabel="Elimina"
         onConfirm={deletePeriod}
       />
@@ -1115,7 +1150,7 @@ export default function ConteggiPage() {
         open={confirmArchivePeriod}
         onClose={() => setConfirmArchivePeriod(false)}
         title="Chiudi e archivia conteggi"
-        message={selectedPeriod ? `Vuoi chiudere e archiviare "${selectedPeriod.title}"? Verranno congelati conteggi e movimenti cassa del periodo. I Da Riportare appena caricati per la prossima quindicina resteranno attivi.` : ''}
+        message={selectedPeriod ? `Vuoi chiudere e archiviare "${formatPeriodTitle(selectedPeriod.date_from, selectedPeriod.date_to)}"? Verranno congelati conteggi e movimenti cassa del periodo. I Da Riportare appena caricati per la prossima quindicina resteranno attivi.` : ''}
         confirmLabel="Chiudi e archivia"
         onConfirm={archivePeriod}
       />
@@ -1124,7 +1159,7 @@ export default function ConteggiPage() {
         open={confirmReopenPeriod}
         onClose={() => setConfirmReopenPeriod(false)}
         title="Riapri contabilità"
-        message={selectedPeriod ? `Vuoi riaprire "${selectedPeriod.title}"? I movimenti congelati da questa chiusura torneranno attivi.` : ''}
+        message={selectedPeriod ? `Vuoi riaprire "${formatPeriodTitle(selectedPeriod.date_from, selectedPeriod.date_to)}"? I movimenti congelati da questa chiusura torneranno attivi.` : ''}
         confirmLabel="Riapri"
         onConfirm={reopenPeriod}
       />

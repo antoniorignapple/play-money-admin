@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  Calendar, User, Building2, Mail, Search, Plus, FileDown, RefreshCw,
+  Calendar, User, Building2, Search, Plus, FileDown, RefreshCw,
   RotateCcw, Save, Pencil, Trash2,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
@@ -16,6 +16,19 @@ import {
   todayISO, firstDayOfMonthISO, toIT, formatDateTime, formatMoney, formatEuro0,
   dipendenteName, dipendenteId, normNumber,
 } from '../lib/helpers'
+
+const CASSA_SAVED_RANGE_KEY = 'play-money-admin-5:cassa-saved-date-range'
+
+function getSavedDateRange() {
+  const fallback = { dateFrom: firstDayOfMonthISO(), dateTo: todayISO() }
+  try {
+    const saved = JSON.parse(localStorage.getItem(CASSA_SAVED_RANGE_KEY) || 'null')
+    if (saved?.dateFrom && saved?.dateTo && saved.dateFrom <= saved.dateTo) return saved
+  } catch {
+    // Dato locale non valido: usa il periodo predefinito.
+  }
+  return fallback
+}
 
 /* ============ PDF EXPORT ============ */
 async function toDataUrl(url) {
@@ -201,6 +214,7 @@ function SearchableVenueSelect({ venues, value, onChange, venueLabel }) {
 /* ============ PAGE ============ */
 export default function CassaPage() {
   const toast = useToast()
+  const [savedDateRange, setSavedDateRange] = useState(getSavedDateRange)
 
   const [movements, setMovements] = useState([])
   const [venues, setVenues] = useState([])
@@ -208,12 +222,10 @@ export default function CassaPage() {
   const [fondi, setFondi] = useState([])
   const [loading, setLoading] = useState(true)
 
-  const [dateFrom, setDateFrom] = useState(firstDayOfMonthISO())
-  const [dateTo, setDateTo] = useState(todayISO())
-  const [nome, setNome] = useState('')
+  const [dateFrom, setDateFrom] = useState(() => savedDateRange.dateFrom)
+  const [dateTo, setDateTo] = useState(() => savedDateRange.dateTo)
   const [cognome, setCognome] = useState('')
   const [nomeLocale, setNomeLocale] = useState('')
-  const [emailFilter, setEmailFilter] = useState('')
 
   const [showGeneric, setShowGeneric] = useState(false)
   const [pendingDeletes, setPendingDeletes] = useState(new Set())
@@ -238,6 +250,21 @@ const [editRow, setEditRow] = useState({
 const [confirmDeleteOne, setConfirmDeleteOne] = useState(null)
 
   useEffect(() => { loadData() }, [])
+
+  function saveDateRange() {
+    if (!dateFrom || !dateTo) {
+      toast.warning('Inserisci entrambe le date')
+      return
+    }
+    if (dateFrom > dateTo) {
+      toast.warning('La data iniziale non può superare quella finale')
+      return
+    }
+    const nextRange = { dateFrom, dateTo }
+    localStorage.setItem(CASSA_SAVED_RANGE_KEY, JSON.stringify(nextRange))
+    setSavedDateRange(nextRange)
+    toast.success('Intervallo date salvato')
+  }
 
   async function loadData() {
     setLoading(true)
@@ -269,27 +296,20 @@ const [confirmDeleteOne, setConfirmDeleteOne] = useState(null)
   }
 
   const rows = useMemo(() => {
-    const nome_q = nome.trim().toLowerCase()
     const cog_q = cognome.trim().toLowerCase()
     const loc_q = nomeLocale.trim().toLowerCase()
-    const mail_q = emailFilter.trim().toLowerCase()
     return movements.filter((r) => {
       if (!showGeneric && !r.venue_id) return false
       if (dateFrom && r.work_date < dateFrom) return false
       if (dateTo && r.work_date > dateTo) return false
       const dip = operatorById(r.created_by)
       const fullName = dipendenteName(dip).toLowerCase()
-      if (nome_q && !fullName.includes(nome_q)) return false
       if (cog_q && !fullName.includes(cog_q)) return false
       const venueText = venueLabel(r.venue_id).toLowerCase()
       if (loc_q && !venueText.includes(loc_q)) return false
-      if (mail_q) {
-        const email = String(dip?.email || '').toLowerCase()
-        if (!email.includes(mail_q)) return false
-      }
       return true
     }).sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
-  }, [movements, dateFrom, dateTo, nome, cognome, nomeLocale, emailFilter, showGeneric, venues, dipendenti])
+  }, [movements, dateFrom, dateTo, cognome, nomeLocale, showGeneric, venues, dipendenti])
 
   const totals = useMemo(() => rows.reduce((acc, r) => {
     acc.acconto += Number(r.acconto || 0)
@@ -437,17 +457,28 @@ async function deleteMovement(row) {
 
   const hasPending = pendingDeletes.size > 0
   const allChecked = rows.length > 0 && pendingDeletes.size === rows.length
+  const dateRangeIsSaved = dateFrom === savedDateRange.dateFrom && dateTo === savedDateRange.dateTo
 
-  // 4 FILTER BANNERS comune a mobile/desktop
+  // 3 FILTER BANNERS comune a mobile/desktop
   const filterBanners = (
-    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+    <div className="mx-auto grid max-w-[1250px] grid-cols-1 gap-3 md:grid-cols-3">
       <FilterBanner tone="info" icon={Calendar} label="Ricerca per data">
         <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
         <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+        <Button
+          type="button"
+          size="sm"
+          variant={dateRangeIsSaved ? 'secondary' : 'primary'}
+          icon={Save}
+          onClick={saveDateRange}
+          disabled={dateRangeIsSaved}
+          className="mt-1 w-full justify-center"
+        >
+          {dateRangeIsSaved ? 'Intervallo salvato' : 'Salva intervallo'}
+        </Button>
       </FilterBanner>
 
       <FilterBanner tone="warning" icon={User} label="Utente">
-        <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome" />
         <Input value={cognome} onChange={(e) => setCognome(e.target.value)} placeholder="Cognome" />
       </FilterBanner>
 
@@ -467,14 +498,6 @@ async function deleteMovement(row) {
         </div>
       </FilterBanner>
 
-      <FilterBanner tone="danger" icon={Mail} label="e-mail">
-        <Input
-          leftIcon={Search}
-          value={emailFilter}
-          onChange={(e) => setEmailFilter(e.target.value)}
-          placeholder="cerca per email"
-        />
-      </FilterBanner>
     </div>
   )
 
