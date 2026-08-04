@@ -241,7 +241,7 @@ function LoginScreen() {
               <img src="/app-icon.png" alt="" className="h-7 w-7 rounded object-contain" draggable={false} />
               <div>
                 <p className="text-[13px] font-semibold text-white">Play Money Admin</p>
-                <p className="text-[10px] text-slate-400">Versione 5</p>
+                <p className="text-[10px] text-slate-400">Versione 6.1</p>
               </div>
             </div>
             <div className="px-2 py-3">
@@ -386,116 +386,39 @@ function LoginScreen() {
 function Sidebar({ page, setPage, collapsed, setCollapsed, openPalette, isMobile, onClose, session, onLogout }) {
   const isMac = typeof navigator !== 'undefined' && navigator.platform.toUpperCase().includes('MAC')
   const cmdKey = isMac ? '⌘' : 'Ctrl'
+  const groups = [
+    { label: 'OPERATIVITÀ', ids: ['cassa', 'conteggi', 'debiti', 'simulazioni'] },
+    { label: 'ANAGRAFICHE', ids: ['agenti', 'locali', 'automezzi'] },
+    { label: 'CONTROLLO', ids: ['analisi', 'cestino', 'admin'] },
+  ]
 
   return (
-    <aside
-      className={`flex h-full shrink-0 flex-col bg-[var(--color-sidebar-bg)] pt-safe transition-[width] duration-150 ${
-        collapsed ? 'w-[56px]' : 'w-[260px] md:w-[228px]'
-      }`}
-    >
-      {/* Brand bar */}
-      <div className={`flex h-14 shrink-0 items-center gap-2.5 border-b border-[var(--color-sidebar-border)] px-3 ${collapsed ? 'justify-center' : ''}`}>
-        <img src="/app-icon.png" alt="" className="h-7 w-7 shrink-0 rounded object-contain" draggable={false} />
-        {!collapsed && (
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-[13px] font-semibold leading-tight text-[var(--color-sidebar-text-active)]">Play Money Admin</p>
-            <p className="text-[10px] leading-tight text-[var(--color-sidebar-text-muted)]">Versione 5</p>
-          </div>
-        )}
-        {/* Close button mobile */}
-        {isMobile && (
-          <button
-            onClick={onClose}
-            className="inline-flex h-8 w-8 items-center justify-center rounded text-[var(--color-sidebar-text-muted)] hover:bg-[var(--color-sidebar-bg-hover)] hover:text-white"
-            aria-label="Chiudi menu"
-          >
-            <X size={16} strokeWidth={2} />
-          </button>
-        )}
-        {!collapsed && !isMobile && (
-          <button
-            onClick={() => setCollapsed(true)}
-            className="inline-flex h-7 w-7 items-center justify-center rounded text-[var(--color-sidebar-text-muted)] transition-colors hover:bg-[var(--color-sidebar-bg-hover)] hover:text-white"
-            title="Comprimi (⌘B)"
-          >
-            <ChevronsLeft size={14} strokeWidth={2} />
-          </button>
-        )}
+    <aside className={`relative flex h-full shrink-0 flex-col overflow-hidden border-r border-[#2f291f] bg-[linear-gradient(180deg,#11151d_0%,#17130d_52%,#0c1017_100%)] pt-safe text-white shadow-[18px_0_50px_-28px_rgba(0,0,0,.8)] transition-[width] duration-300 ${collapsed ? 'w-[72px]' : 'w-[292px] md:w-[272px]'}`}>
+      <div className="pointer-events-none absolute -left-16 top-12 h-56 w-56 rounded-full bg-amber-500/10 blur-3xl" />
+      <div className="pointer-events-none absolute -right-24 bottom-20 h-64 w-64 rounded-full bg-yellow-300/5 blur-3xl" />
+      <div className="pointer-events-none absolute inset-y-0 right-0 w-px bg-[linear-gradient(180deg,transparent,#d9aa4c66,transparent)]" />
+
+      <div className={`relative flex min-h-[86px] shrink-0 items-center gap-3 border-b border-white/8 px-4 ${collapsed ? 'justify-center px-2' : ''}`}>
+        <div className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-[17px] border border-[#d8b764]/40 bg-[linear-gradient(145deg,#fff8df,#c99432)] shadow-[0_16px_30px_-16px_rgba(215,171,75,.75)]">
+          <img src="/app-icon.png" alt="" className="relative z-10 h-10 w-10 object-contain" draggable={false} />
+          <div className="absolute inset-0 bg-white/10" />
+        </div>
+        {!collapsed && <div className="min-w-0 flex-1"><p className="truncate text-[16px] font-black tracking-[0.04em] text-white">PLAY MONEY</p><div className="mt-1 flex items-center gap-2"><span className="rounded-full border border-[#e1bb68]/40 bg-[#d5a441]/15 px-2 py-0.5 text-[9px] font-black tracking-[0.18em] text-[#f0cc7b]">ADMIN</span><span className="text-[10px] font-bold text-white/100">Ver. 6.1</span></div></div>}
+        {isMobile && <button onClick={onClose} className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-white/10 bg-white/5 text-white/70 active:scale-95" aria-label="Chiudi menu"><X size={18}/></button>}
+        {!collapsed && !isMobile && <button onClick={() => setCollapsed(true)} className="flex h-9 w-9 items-center justify-center rounded-[13px] border border-white/8 bg-white/[0.035] text-white/45 transition hover:border-[#d7ad55]/30 hover:text-[#efc872]" title="Comprimi"><ChevronsLeft size={16}/></button>}
       </div>
 
-      {/* Search trigger - solo desktop */}
-      {!isMobile && (
-        <div className="px-2 py-2">
-          <button
-            onClick={openPalette}
-            className={`group flex h-8 w-full items-center gap-2 rounded-md border border-[var(--color-sidebar-border)] bg-[var(--color-sidebar-bg-hover)]/40 px-2 text-left text-[var(--color-sidebar-text-muted)] transition-colors hover:bg-[var(--color-sidebar-bg-hover)] hover:text-white ${
-              collapsed ? 'justify-center' : ''
-            }`}
-          >
-            <Search size={13} strokeWidth={2} className="shrink-0" />
-            {!collapsed && (
-              <>
-                <span className="flex-1 truncate text-[12px]">Cerca…</span>
-                <kbd className="rounded border border-[var(--color-sidebar-border)] bg-[var(--color-sidebar-bg)] px-1 py-0.5 font-mono text-[10px] text-[var(--color-sidebar-text-muted)]">{cmdKey}K</kbd>
-              </>
-            )}
-          </button>
-        </div>
-      )}
+      {!isMobile && <div className="relative px-3 py-3"><button onClick={openPalette} className={`flex h-11 w-full items-center gap-3 rounded-[15px] border border-white/8 bg-white/[0.035] px-3 text-left text-white/45 transition hover:border-[#d5aa51]/25 hover:bg-white/[0.06] hover:text-white ${collapsed ? 'justify-center px-0' : ''}`}><Search size={16}/>{!collapsed && <><span className="flex-1 text-[12px] font-bold">Cerca nell'app</span><kbd className="rounded-lg border border-white/10 bg-black/20 px-1.5 py-1 font-mono text-[9px] text-white/35">{cmdKey}K</kbd></>}</button></div>}
 
-      {/* Nav */}
-      <nav className="flex-1 overflow-y-auto px-2 py-2">
-        <div className="flex flex-col gap-0.5">
-          {NAV.slice(0, 9).map((item) => (
-            <NavItem
-              key={item.id}
-              item={item}
-              active={page === item.id}
-              collapsed={collapsed}
-              isMobile={isMobile}
-              onClick={() => setPage(item.id)}
-            />
-          ))}
-        </div>
-
-        {/* Separator */}
-        <div className="my-2 mx-2 border-t border-[var(--color-sidebar-border)]" />
-
-        {/* ADMIN */}
-        <NavItem
-          item={NAV[9]}
-          active={page === 'admin'}
-          collapsed={collapsed}
-          isMobile={isMobile}
-          onClick={() => setPage('admin')}
-        />
+      <nav className="relative flex-1 overflow-y-auto px-3 pb-3 no-scrollbar">
+        {groups.map((group, gi) => <div key={group.label} className={gi ? 'mt-5' : ''}>
+          {!collapsed && <p className="mb-2 px-2 text-[9px] font-black tracking-[0.24em] text-[#d8b35f]/55">{group.label}</p>}
+          <div className="space-y-1.5">{group.ids.map(id => { const item=NAV.find(n=>n.id===id); return <NavItem key={id} item={item} active={page===id} collapsed={collapsed} isMobile={isMobile} onClick={()=>setPage(id)}/> })}</div>
+        </div>)}
       </nav>
 
-      {/* Footer */}
-      <div className="shrink-0 border-t border-[var(--color-sidebar-border)] pb-safe">
-        {collapsed ? (
-          <button
-            onClick={() => setCollapsed(false)}
-            className="flex h-10 w-full items-center justify-center text-[var(--color-sidebar-text-muted)] transition-colors hover:bg-[var(--color-sidebar-bg-hover)] hover:text-white"
-            title="Espandi sidebar"
-          >
-            <ChevronsRight size={14} strokeWidth={2} />
-          </button>
-        ) : (
-          <div className="flex flex-col gap-2 px-3 py-2.5">
-            <div className="min-w-0">
-              <p className="text-[10px] uppercase tracking-wider text-[var(--color-sidebar-text-muted)]">Utente</p>
-              <p className="truncate text-[12px] font-medium text-[var(--color-sidebar-text-active)]">{session?.user?.email || 'Admin'}</p>
-            </div>
-            <button
-              onClick={onLogout}
-              className="inline-flex h-8 items-center justify-center gap-2 rounded-md border border-[var(--color-sidebar-border)] bg-[var(--color-sidebar-bg-hover)]/40 px-2 text-[12px] font-semibold text-[var(--color-sidebar-text)] transition-colors hover:bg-red-500/15 hover:text-red-100"
-            >
-              <LogOut size={13} strokeWidth={2} />
-              Esci
-            </button>
-          </div>
-        )}
+      <div className="relative shrink-0 border-t border-white/8 p-3 pb-safe">
+        {collapsed ? <button onClick={() => setCollapsed(false)} className="flex h-11 w-full items-center justify-center rounded-[15px] border border-white/8 bg-white/[0.035] text-white/45 hover:text-[#efc872]" title="Espandi"><ChevronsRight size={17}/></button> : <div className="overflow-hidden rounded-[18px] border border-white/8 bg-white/[0.035] p-3"><div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-[#d3aa55]/25 bg-[#d3aa55]/10 text-[12px] font-black text-[#efca77]">AD</div><div className="min-w-0 flex-1"><p className="text-[9px] font-black tracking-[0.18em] text-white/35">AMMINISTRATORE</p><p className="mt-0.5 truncate text-[11px] font-bold text-white/80">{session?.user?.email || 'Admin'}</p></div></div><button onClick={onLogout} className="mt-3 flex h-9 w-full items-center justify-center gap-2 rounded-[12px] border border-white/8 bg-black/15 text-[11px] font-black tracking-[0.08em] text-white/55 transition hover:border-red-400/20 hover:bg-red-500/10 hover:text-red-200"><LogOut size={14}/>ESCI</button></div>}
       </div>
     </aside>
   )
@@ -504,32 +427,10 @@ function Sidebar({ page, setPage, collapsed, setCollapsed, openPalette, isMobile
 function NavItem({ item, active, collapsed, isMobile, onClick }) {
   const Icon = item.iconCmp
   return (
-    <button
-      onClick={onClick}
-      title={collapsed ? item.label : ''}
-      className={`group flex h-10 items-center gap-2 rounded-md px-2 text-[14px] font-medium transition-colors md:h-8 md:text-[13px] ${
-        active
-          ? 'bg-[var(--color-sidebar-bg-active)] text-[var(--color-sidebar-text-active)]'
-          : 'text-[var(--color-sidebar-text)] hover:bg-[var(--color-sidebar-bg-hover)] hover:text-white'
-      } ${collapsed ? 'justify-center px-0' : ''}`}
-    >
-      <Icon
-        size={16}
-        strokeWidth={1.75}
-        className={active ? 'text-white' : 'text-[var(--color-sidebar-text-muted)] group-hover:text-white'}
-      />
-      {!collapsed && (
-        <>
-          <span className="flex-1 text-left">{item.label}</span>
-          {!isMobile && (
-            <kbd className={`rounded border px-1 py-0.5 font-mono text-[9px] opacity-0 transition-opacity group-hover:opacity-100 ${
-              active
-                ? 'border-white/30 bg-white/10 text-white/80'
-                : 'border-[var(--color-sidebar-border)] bg-[var(--color-sidebar-bg)] text-[var(--color-sidebar-text-muted)]'
-            }`}>{item.shortcut}</kbd>
-          )}
-        </>
-      )}
+    <button onClick={onClick} title={collapsed ? item.label : ''} className={`group relative flex h-12 w-full items-center gap-3 overflow-hidden rounded-[16px] px-3 text-[13px] font-black transition-all duration-200 ${active ? 'border border-[#e1bd6b]/45 bg-[linear-gradient(135deg,#f7e4ad_0%,#c7902d_100%)] text-[#281b08] shadow-[0_14px_28px_-17px_rgba(207,157,61,.78)]' : 'border border-transparent text-white/58 hover:border-white/8 hover:bg-white/[0.045] hover:text-white'} ${collapsed ? 'justify-center px-0' : ''}`}>
+      {active && <><div className="absolute inset-0 bg-white/10"/><div className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full bg-white/80"/></>}
+      <div className={`relative flex h-8 w-8 shrink-0 items-center justify-center rounded-[11px] ${active ? 'bg-white/35 text-[#5d3b09]' : 'bg-white/[0.045] text-white/38 group-hover:text-[#edc66e]'}`}><Icon size={17} strokeWidth={2}/></div>
+      {!collapsed && <><span className="relative flex-1 text-left tracking-[0.025em]">{item.label}</span>{!isMobile && <span className={`relative text-[9px] ${active ? 'text-[#5a3a0c]/45' : 'text-white/18'}`}>{item.shortcut}</span>}</>}
     </button>
   )
 }

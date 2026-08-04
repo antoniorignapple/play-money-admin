@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   Plus, Lock, Unlock, RefreshCw, Search, Users, Building2, FileText, TrendingUp,
   Download, Eye, Trash2, ChevronDown, ChevronUp, MapPin, Calendar, Filter, Archive, RotateCcw,
-  TriangleAlert,
+  TriangleAlert, MoreVertical, Pencil, Save, X, CheckCircle2, CircleX, ChevronRight,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import generateConteggiPdf from '../lib/generateConteggiPdf'
@@ -155,6 +155,8 @@ export default function ConteggiPage() {
   const [operatorsOpen, setOperatorsOpen] = useState(true)
   const [debitiOpen, setDebitiOpen] = useState(false)
   const [expandedOperators, setExpandedOperators] = useState({})
+  const [periodMenuOpen, setPeriodMenuOpen] = useState(false)
+  const [venueStatusPopup, setVenueStatusPopup] = useState(null)
 
   const [newPeriod, setNewPeriod] = useState({ date_from: todayKey(), date_to: todayKey() })
 
@@ -495,8 +497,8 @@ export default function ConteggiPage() {
           availableAcconti,
           recuperi,
           daRiportare,
-          availableDaRiportare: Math.max(daRiportare - recuperi, 0),
-          recuperiWarning: recuperi > daRiportare,
+          status: recuperi === daRiportare ? 'ok' : recuperi < daRiportare ? 'warning' : 'error',
+          difference: Math.abs(daRiportare - recuperi),
         }
       })
       .sort(sortVenueIds)
@@ -638,11 +640,19 @@ export default function ConteggiPage() {
     })
     const toolData = {}
     pdfRows.forEach((r) => { toolData[r.venue_id] = { ...r, ricevute: r.acconti } })
-    const operatorName = pdfRows.length ? getOperatorName(pdfRows[0]) : ''
-    const realCassaDepositi = getRealDepositForOperator(realDepositsByCode, operatorName)
-    const override = adminOverridesByOperator[normalizeText(operatorName)]
-    const esattoreOverride = override
-      ? Math.trunc(Number(override.esattore_override) || 0)
+    const operatorNames = Array.from(new Set(pdfRows.map((r) => getOperatorName(r)).filter(Boolean)))
+    const operatorName = operatorNames.length === 1 ? operatorNames[0] : ''
+    const realCassaDepositi = operatorNames.reduce(
+      (sum, name) => sum + getRealDepositForOperator(realDepositsByCode, name),
+      0
+    )
+    const esattoreOverride = operatorNames.length
+      ? operatorNames.reduce((sum, name) => {
+          const operatorRows = pdfRows.filter((r) => getOperatorName(r) === name)
+          const original = operatorRows.reduce((acc, r) => acc + (Number(r.esattore) || 0), 0)
+          const override = adminOverridesByOperator[normalizeText(name)]
+          return sum + (override ? Math.trunc(Number(override.esattore_override) || 0) : original)
+        }, 0)
       : null
 
     await generateConteggiPdf({
@@ -743,335 +753,222 @@ export default function ConteggiPage() {
 
   return (
     <PageLayout>
-      <PageHeader
-        title="Conteggi"
-        subtitle={selectedPeriod ? formatPeriodTitle(selectedPeriod.date_from, selectedPeriod.date_to) : 'Nessun periodo'}
-        actions={
-          <>
-            <Button icon={Plus} onClick={() => setShowNewPeriod(true)} disabled={isClosed}>
-              <span className="hidden md:inline">Nuovo periodo</span>
-              <span className="md:hidden">Nuovo</span>
-            </Button>
-            {selectedPeriod && !isClosed && (
-              <Button
-                icon={Archive}
-                variant="secondary"
-                onClick={() => setConfirmArchivePeriod(true)}
-              >
-                <span className="hidden md:inline">Chiudi e archivia conteggi</span>
-                <span className="md:hidden">Archivia</span>
-              </Button>
-            )}
-            {selectedPeriod && isClosed && (
-              <Button
-                icon={RotateCcw}
-                variant="primary"
-                onClick={() => setConfirmReopenPeriod(true)}
-              >
-                <span className="hidden md:inline">Riapri contabilità</span>
-                <span className="md:hidden">Riapri</span>
-              </Button>
-            )}
-          </>
-        }
-      />
-
       <PageBody>
-        <div className="mx-auto max-w-[1600px] space-y-3 px-3 py-3 md:space-y-4 md:px-5 md:py-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              variant={periodView === 'active' ? 'primary' : 'ghost'}
-              onClick={() => setPeriodView('active')}
-            >
-              Conteggi attivi
-            </Button>
-            <Button
-              icon={Archive}
-              variant={periodView === 'archive' ? 'primary' : 'ghost'}
-              onClick={() => setPeriodView('archive')}
-            >
-              Archivio conteggi
-            </Button>
-          </div>
+        <div className="min-h-full bg-[radial-gradient(circle_at_15%_0%,rgba(226,186,99,.16),transparent_28%),linear-gradient(180deg,#f7f2e8_0%,#f4f0e8_100%)] px-3 py-3 md:px-6 md:py-5">
+          <div className="mx-auto max-w-[1720px] space-y-4">
+            <section className="relative overflow-visible rounded-[30px] border border-[#dfc98f] bg-[linear-gradient(135deg,#fffdf8_0%,#f4e5bf_100%)] px-4 py-5 shadow-[0_24px_60px_-38px_rgba(80,55,15,.62)] md:px-7">
+              <div className="pointer-events-none absolute -left-16 -top-24 h-60 w-60 rounded-full bg-white/75 blur-3xl" />
+              <div className="pointer-events-none absolute -right-12 -top-20 h-64 w-64 rounded-full bg-amber-400/20 blur-3xl" />
 
-         {/* Period bar */}
-<Card>
-  <div className="grid grid-cols-1 gap-3 p-3 md:grid-cols-[1fr_160px_auto] md:items-end md:gap-4 md:p-4">
-    <Field label="Periodo">
-      <Select value={selectedPeriodId} onChange={(e) => setSelectedPeriodId(e.target.value)}>
-        {visiblePeriods.length === 0 && (
-          <option value="">
-            {periodView === 'archive' ? 'Nessun periodo archiviato' : 'Nessun periodo attivo'}
-          </option>
-        )}
-        {visiblePeriods.map((p) => (
-          <option key={p.id} value={p.id}>{formatPeriodTitle(p.date_from, p.date_to)}</option>
-        ))}
-      </Select>
-    </Field>
-
-    <Field label="Raggruppa agente">
-      <Select value={operatorFilter} onChange={(e) => setOperatorFilter(e.target.value)}>
-        <option value="all">Tutti gli agenti</option>
-        {operators.map((op) => (
-          <option key={op} value={op}>{op}</option>
-        ))}
-      </Select>
-    </Field>
-
-    {selectedPeriod && (
-      <div className="flex items-end justify-end gap-2">
-        <IconButton icon={RefreshCw} onClick={() => loadDashboard()} title="Aggiorna" />
-        <IconButton
-          icon={Trash2}
-          variant="danger"
-          onClick={() => setConfirmDeletePeriod(true)}
-          disabled={isClosed}
-          title="Elimina periodo"
-        />
-      </div>
-    )}
-  </div>
-</Card>
-
-
-         
-
-          {/* Operatori e dettaglio conteggi */}
-          <Card>
-            <div className="flex w-full items-center justify-between gap-3 border-b border-[var(--color-border)] bg-gradient-to-r from-slate-50 via-white to-blue-50/40 px-3 py-3 text-left md:px-4">
-              <div className="flex min-w-0 items-center gap-3">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm">
-                  <Users size={16} strokeWidth={2.4} />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[14px] font-extrabold uppercase tracking-[0.08em] text-slate-900">
-                    Agenti
-                  </p>
-                  <p className="text-[11px] text-[var(--color-text-muted)]">
-                    {operatorStats.length} attivi · riepilogo sempre visibile · conteggi apribili solo quando servono
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-slate-50/60 p-3 md:p-4">
-              <div className="grid gap-4">
-                {operatorStats.map((op) => {
-                  const finaleTone = op.finale > 0 ? 'text-[var(--color-success)]' : op.finale < 0 ? 'text-[var(--color-danger)]' : 'text-slate-900'
-
-                  return (
-                    <div
-                      key={op.name}
-                      className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm ring-1 ring-black/[0.015] transition-shadow hover:shadow-md"
-                    >
-                      <div className="flex w-full flex-col gap-3 border-b border-slate-100 bg-gradient-to-r from-white via-white to-slate-50 px-4 py-4 text-left md:flex-row md:items-center md:gap-4">
-                        <div className="flex min-w-0 flex-1 items-center gap-3">
-                          <div
-                            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-[13px] font-black shadow-sm ${avatarColor(op.name)}`}
-                          >
-                            {initials(op.name)}
-                          </div>
-
-                          <div className="min-w-0 flex-1">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <p className="truncate text-[18px] font-black uppercase tracking-tight text-slate-950 md:text-[20px]">
-                                {op.name}
-                              </p>
-                              {op.hasEsattoreOverride && (
-                                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-amber-700">
-                                  Rettificato
-                                </span>
-                              )}
-                            </div>
-
-                            <div className="mt-1 flex flex-wrap items-center gap-2 text-[12px] text-slate-500">
-                              <span className="rounded-full bg-slate-100 px-2 py-0.5 font-bold text-slate-600">
-                                {op.count} conteggi
-                              </span>
-                              <span>Esattore {fmtEuro(op.esattore)}</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="flex shrink-0 items-center justify-between gap-2 md:justify-end">
-                          <Button
-                            icon={expandedOperators[op.name] ? ChevronUp : ChevronDown}
-                            size="sm"
-                            variant="secondary"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setExpandedOperators((prev) => ({ ...prev, [op.name]: !prev[op.name] }))
-                            }}
-                          >
-                            {expandedOperators[op.name] ? 'Nascondi conteggi' : 'Vedi conteggi'}
-                          </Button>
-
-                          <Button
-                            icon={Download}
-                            size="sm"
-                            variant="primary"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleGeneratePdf(
-                                `PDF ${op.name}`,
-                                rows.filter((r) => getOperatorName(r) === op.name)
-                              )
-                            }}
-                          >
-                            PDF
-                          </Button>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2 px-4 py-3 md:grid-cols-3 xl:grid-cols-6">
-                        <EsattoreOverrideBox
-                          value={getOverrideInputValue(op.name, op.esattoreOriginal)}
-                          originalValue={op.esattoreOriginal}
-                          hasOverride={op.hasEsattoreOverride}
-                          disabled={isClosed || savingOverrideOperator === normalizeText(op.name)}
-                          onChange={(value) => setOverrideInputValue(op.name, value)}
-                          onSave={() => saveEsattoreOverride(op.name, op.esattoreOriginal)}
-                          onReset={() => resetEsattoreOverride(op.name)}
-                        />
-                        <TinyMetric label="Acconti" value={fmtEuro(op.acconti)} />
-                        <TinyMetric label="Da riportare" value={fmtEuro(op.riporto)} />
-                        <TinyMetric label="Cassa/Depositi" value={fmtEuro(op.cassaDepositi)} />
-                        <TinyMetric label="Debiti" value={fmtEuro(op.debiti)} />
-                        <TinyMetric label="Finale" value={fmtSigned(op.finale)} tone={op.finale > 0 ? 'success' : op.finale < 0 ? 'danger' : 'default'} />
-                      </div>
-
-                      {expandedOperators[op.name] && (
-                        <div className="border-t border-slate-100 bg-slate-50/70 p-3">
-                          <div className="mb-2 flex items-center justify-between px-1">
-                            <p className="text-[11px] font-black uppercase tracking-[0.12em] text-slate-500">Conteggi salvati</p>
-                            <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-bold text-slate-500 shadow-sm">{op.rows.length}</span>
-                          </div>
-                          <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-                            {op.rows.map((r) => (
-                              <button
-                                key={r.id}
-                                type="button"
-                                onClick={() => setSelectedRow(r)}
-                                className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-left shadow-sm transition-colors hover:border-blue-200 hover:bg-blue-50/30"
-                              >
-                                <div className="flex items-center justify-between gap-3">
-                                  <div className="min-w-0">
-                                    <p className="truncate text-[13px] font-bold text-slate-900">
-                                      {getVenueName(r)}
-                                    </p>
-
-                                    <p className="mt-0.5 text-[11px] text-[var(--color-text-muted)]">
-                                      {formatITDate(r.conteggio_date)}
-                                    </p>
-                                  </div>
-
-                                  <span className={`shrink-0 text-[14px] font-black tabular-nums ${clsSigned(Number(r.totale_finale) || 0)}`}>
-                                    {fmtSigned(Number(r.totale_finale) || 0)}
-                                  </span>
-                                </div>
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          </Card>
-
-          {/* Riepilogo totale generale */}
-          <Card>
-            <div className="border-b border-[var(--color-border)] px-3 py-3 md:px-4">
-              <p className="text-[13px] font-bold uppercase tracking-wide text-[var(--color-text)]">Riepilogo totale generale</p>
-              <p className="text-[11px] text-[var(--color-text-muted)]">Somma di tutti gli agenti del periodo, senza considerare i filtri attivi.</p>
-            </div>
-            <div className="grid grid-cols-2 gap-2 p-3 md:grid-cols-3 xl:grid-cols-6 md:p-4">
-              <SummaryTotalBox label="Esattore" value={fmtEuro(totalSummary.esattore)} />
-              <SummaryTotalBox label="Acconti" value={fmtEuro(totalSummary.acconti)} />
-              <SummaryTotalBox label="Da riportare" value={fmtEuro(totalSummary.riporto)} />
-              <SummaryTotalBox label="Cassa/Depositi" value={fmtEuro(totalSummary.cassaDepositi)} />
-              <SummaryTotalBox label="Debiti" value={fmtEuro(totalSummary.debiti)} />
-              <SummaryTotalBox label="Totale finale" value={fmtSigned(totalSummary.finale)} tone={totalSummary.finale > 0 ? 'success' : totalSummary.finale < 0 ? 'danger' : 'default'} strong />
-            </div>
-          </Card>
-
-          {/* Missing venues */}
-          <Card>
-            <div className="flex w-full items-center justify-between gap-3 border-b border-[var(--color-border)] bg-gradient-to-r from-white via-white to-slate-50 px-3 py-3 text-left md:px-4">
-              <div className="flex min-w-0 items-center gap-3">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-muted)]">
-                  <MapPin size={14} strokeWidth={2} />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[13px] font-bold uppercase tracking-wide text-[var(--color-text)]">Locali non conteggiati</p>
-                  <p className="text-[12px] text-[var(--color-text-muted)]">{missingVenues.length} locali ancora senza conteggio</p>
-                </div>
-              </div>
-            </div>
-            <div>
-              <div className="hidden overflow-x-auto md:block">
-                <table className="w-full text-[13px]">
-                  <thead>
-                    <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface)]">
-                      <th className="px-4 py-2 text-left text-[11px] font-medium uppercase tracking-wide text-[var(--color-text-muted)]">Codice</th>
-                      <th className="px-4 py-2 text-left text-[11px] font-medium uppercase tracking-wide text-[var(--color-text-muted)]">Locale</th>
-                      <th className="px-4 py-2 text-right text-[11px] font-medium uppercase tracking-wide text-[var(--color-text-muted)]">Acconti disponibili</th>
-                      <th className="px-4 py-2 text-right text-[11px] font-medium uppercase tracking-wide text-[var(--color-text-muted)]">Da riportare presenti</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {missingVenues.map((v) => (
-                      <tr key={v.id} className="border-b border-[var(--color-border)] last:border-0 hover:bg-[var(--color-surface-hover)]">
-                        <td className="px-4 py-2 font-mono text-[12px] tabular-nums text-[var(--color-text-muted)]">{v.id}</td>
-                        <td className="px-4 py-2 font-medium text-[var(--color-text)]">{v.name}</td>
-                        <td className={`px-4 py-2 text-right font-black tabular-nums ${v.availableAcconti > 0 ? 'text-[var(--color-success)]' : v.availableAcconti < 0 ? 'text-[var(--color-danger)]' : 'text-[var(--color-text-muted)]'}`}>
-                          {fmtEuro(v.availableAcconti)}
-                        </td>
-                        <td className="px-4 py-2 text-right font-black tabular-nums">
-                          {v.recuperiWarning ? (
-                            <span className="inline-flex items-center justify-end gap-1.5 text-[var(--color-danger)]">
-                              <TriangleAlert size={15} aria-hidden="true" />
-                              Recuperi maggiori dei da riportare
-                            </span>
-                          ) : v.availableDaRiportare > 0 ? (
-                            <span className="text-[var(--color-success)]">{fmtEuro(v.availableDaRiportare)}</span>
-                          ) : null}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <div className="divide-y divide-[var(--color-border)] md:hidden">
-                {missingVenues.map((v) => (
-                  <div key={v.id} className="px-3 py-2.5">
-                    <div className="flex items-center gap-2">
-                      <span className="inline-flex h-6 min-w-[44px] items-center justify-center rounded bg-[var(--color-surface)] font-mono text-[11px] font-bold text-[var(--color-text-secondary)]">{v.id}</span>
-                      <p className="truncate text-[13px] font-medium text-[var(--color-text)]">{v.name}</p>
-                    </div>
-                    <p className={`mt-1 text-[12px] font-black tabular-nums ${v.availableAcconti > 0 ? 'text-[var(--color-success)]' : v.availableAcconti < 0 ? 'text-[var(--color-danger)]' : 'text-[var(--color-text-muted)]'}`}>
-                      Acconti disponibili: {fmtEuro(v.availableAcconti)}
-                    </p>
-                    {v.recuperiWarning ? (
-                      <p className="mt-1 inline-flex items-center gap-1.5 text-[12px] font-black text-[var(--color-danger)]">
-                        <TriangleAlert size={14} aria-hidden="true" />
-                        Recuperi maggiori dei da riportare
-                      </p>
-                    ) : v.availableDaRiportare > 0 ? (
-                      <p className="mt-1 text-[12px] font-black tabular-nums text-[var(--color-success)]">
-                        Da riportare presenti: {fmtEuro(v.availableDaRiportare)}
-                      </p>
-                    ) : null}
+              <div className="relative min-h-[92px]">
+                <div className="mx-auto flex max-w-[900px] flex-col items-center justify-center px-14 text-center">
+                  <h1 className="text-[29px] font-black tracking-[0.13em] text-[#3d2a0b] md:text-[35px]">
+                    SEZIONE CONTEGGI
+                  </h1>
+                  <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-[#6d4a11]">
+                    <span className="text-[10px] font-black tracking-[0.22em] text-[#a47624]">PERIODO ATTIVO</span>
+                    <span className="text-[16px] font-black tabular-nums md:text-[19px]">
+                      {selectedPeriod ? `${formatITDate(selectedPeriod.date_from)} — ${formatITDate(selectedPeriod.date_to)}` : 'NESSUN PERIODO SELEZIONATO'}
+                    </span>
+                    {selectedPeriod && isClosed && (
+                      <span className="rounded-full bg-slate-900 px-2.5 py-1 text-[9px] font-black tracking-[0.15em] text-white">CHIUSO</span>
+                    )}
                   </div>
-                ))}
+                </div>
+
+                <div className="absolute right-0 top-0 z-40">
+                  <button
+                    type="button"
+                    onClick={() => setPeriodMenuOpen((v) => !v)}
+                    className={`group relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-[16px] border transition-all duration-200 active:scale-95 ${periodMenuOpen ? 'border-[#c89d4b] bg-[linear-gradient(145deg,#fff4d3,#e6c371)] text-[#69450e] shadow-[0_15px_28px_-18px_rgba(116,79,17,.55)]' : 'border-[#d8b86c] bg-[linear-gradient(145deg,#fffaf0,#ecd18f)] text-[#755019] shadow-[0_13px_24px_-17px_rgba(116,79,17,.48)] hover:-translate-y-0.5 hover:brightness-102'}`}
+                    aria-label="Apri gestione periodo"
+                  >
+                    <span className="absolute inset-0 bg-[radial-gradient(circle_at_35%_18%,rgba(255,236,177,.28),transparent_46%)]" />
+                    {periodMenuOpen ? <X size={19} className="relative z-10"/> : <MoreVertical size={22} strokeWidth={2.9} className="relative z-10"/>}
+                  </button>
+
+                  {periodMenuOpen && (
+                    <div className="absolute right-0 mt-2 w-[300px] overflow-hidden rounded-[22px] border border-[#d9c28d] bg-[#fffdf8] p-3 shadow-[0_28px_70px_-30px_rgba(45,28,4,.85)]">
+                      <p className="px-1 pb-2 text-[9px] font-black tracking-[0.22em] text-[#a0711f]">GESTIONE PERIODO</p>
+                      <select value={selectedPeriodId} onChange={(e)=>setSelectedPeriodId(e.target.value)} className="h-11 w-full rounded-[14px] border border-[#ddcaa2] bg-white px-3 text-[11px] font-black text-[#4d3510] outline-none">
+                        {visiblePeriods.length===0&&<option value="">Nessun periodo</option>}
+                        {visiblePeriods.map(p=><option key={p.id} value={p.id}>{formatPeriodTitle(p.date_from,p.date_to)}</option>)}
+                      </select>
+                      <div className="mt-2 grid grid-cols-2 gap-2">
+                        <button onClick={()=>{loadDashboard();setPeriodMenuOpen(false)}} className="flex h-10 items-center justify-center gap-2 rounded-[13px] border border-[#dfcfad] bg-white text-[10px] font-black text-[#765116]"><RefreshCw size={14}/>AGGIORNA</button>
+                        <button onClick={()=>{setShowNewPeriod(true);setPeriodMenuOpen(false)}} disabled={isClosed} className="flex h-10 items-center justify-center gap-2 rounded-[13px] bg-[linear-gradient(135deg,#c99635,#8d5d13)] text-[10px] font-black text-white disabled:opacity-40"><Plus size={14}/>NUOVO</button>
+                        {!isClosed && selectedPeriod && <button onClick={()=>{setConfirmArchivePeriod(true);setPeriodMenuOpen(false)}} className="flex h-10 items-center justify-center gap-2 rounded-[13px] border border-[#dfcfad] bg-[#fbf5e8] text-[10px] font-black text-[#684613]"><Archive size={14}/>CHIUDI</button>}
+                        {isClosed && <button onClick={()=>{setConfirmReopenPeriod(true);setPeriodMenuOpen(false)}} className="flex h-10 items-center justify-center gap-2 rounded-[13px] border border-emerald-200 bg-emerald-50 text-[10px] font-black text-emerald-700"><RotateCcw size={14}/>RIAPRI</button>}
+                        <button onClick={()=>setPeriodView(periodView==='active'?'archive':'active')} className="flex h-10 items-center justify-center gap-2 rounded-[13px] border border-[#dfcfad] bg-white text-[10px] font-black text-slate-600">
+                          {periodView==='active' ? <Archive size={14}/> : <Calendar size={14}/>} {periodView==='active'?'ARCHIVIO':'ATTIVI'}
+                        </button>
+                        {selectedPeriod && !isClosed && <button onClick={()=>{setConfirmDeletePeriod(true);setPeriodMenuOpen(false)}} className="flex h-10 items-center justify-center gap-2 rounded-[13px] border border-rose-200 bg-rose-50 text-[10px] font-black text-rose-600"><Trash2 size={14}/>ELIMINA</button>}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          </Card>
+            </section>
+
+            <section className="overflow-hidden rounded-[28px] border border-[#dfcfaa] bg-[#fffdf9] shadow-[0_24px_55px_-38px_rgba(65,43,8,.68)]">
+              <div className="relative border-b border-[#eadfca] px-4 py-4 text-center">
+                <h2 className="text-[21px] font-black tracking-[0.18em] text-[#946318] md:text-[26px]">RIEPILOGO GENERALE</h2>
+                <div className="absolute right-4 top-1/2 flex -translate-y-1/2 items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleGeneratePdf('Riepilogo generale', rows)}
+                    disabled={!rows.length}
+                    className="group flex h-10 min-w-[94px] items-center justify-center gap-2 rounded-[13px] border border-[#d3b469] bg-[linear-gradient(145deg,#fff8e6,#e9cd86)] px-3.5 text-[10px] font-black tracking-[0.11em] text-[#68450e] shadow-[0_10px_20px_-14px_rgba(111,72,10,.52)] transition hover:-translate-y-0.5 hover:brightness-102 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <FileText size={14} /> PDF
+                  </button>
+                  <span className="flex h-10 min-w-[94px] items-center justify-center rounded-[13px] border border-[#b98529] bg-[linear-gradient(145deg,#fff5d8,#e6c675)] px-3.5 text-[9px] font-black text-[#70480d] shadow-[0_9px_18px_-14px_rgba(111,72,10,.72)]">{totalSummary.conteggi} {totalSummary.conteggi===1?'CONTEGGIO':'CONTEGGI'}</span>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
+                {[['ESATTORE',totalSummary.esattore],['ACCONTI',totalSummary.acconti],['DA RIPORTARE',totalSummary.riporto],['DEPOSITI',totalSummary.cassaDepositi],['DEBITI',totalSummary.debiti]].map(([label,value])=><div key={label} className="border-b border-r border-[#eee5d4] px-5 py-8 text-center xl:border-b-0"><p className="text-[11px] font-black tracking-[0.18em] text-slate-500 md:text-[12px]">{label}</p><p className="mt-3 text-[27px] font-black tabular-nums text-[#33250f] md:text-[31px]">{fmtEuro(value)}</p></div>)}
+                <div className={`relative overflow-hidden px-5 py-8 text-center ${totalSummary.finale>0?'bg-emerald-50':totalSummary.finale<0?'bg-rose-50':'bg-[#f7efdf]'}`}><div className="absolute right-[-30px] top-[-35px] h-24 w-24 rounded-full bg-white/55 blur-2xl"/><p className="relative text-[11px] font-black tracking-[0.18em] text-[#8c641f] md:text-[12px]">TOTALE</p><p className={`relative mt-3 text-[32px] font-black tabular-nums md:text-[36px] ${clsSigned(totalSummary.finale)}`}>{fmtSigned(totalSummary.finale)}</p></div>
+              </div>
+            </section>
+
+            <section>
+              <div className="mb-4 text-center">
+                <h2 className="text-[16px] font-black tracking-[0.15em] text-[#a06d18] md:text-[19px]">RIEPILOGHI SINGOLI DIPENDENTI</h2>
+              </div>
+              {loading ? <div className="rounded-[24px] border border-[#e3d8c2] bg-white p-8 text-center text-sm font-bold text-slate-400">Caricamento conteggi…</div> : operatorStats.length===0 ? <div className="rounded-[24px] border border-[#e3d8c2] bg-white p-8 text-center"><Users className="mx-auto text-[#b58a3e]"/><p className="mt-3 font-black text-slate-700">Nessun conteggio nel periodo</p></div> : <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">{operatorStats.map(op=>{
+                const open=!!expandedOperators[op.name]
+                const key=normalizeText(op.name)
+                const hasOverride=Boolean(adminOverridesByOperator[key])
+                const saving=savingOverrideOperator===key
+                const hasConteggi=op.rows.length>0
+                return <article key={op.name} className={`overflow-hidden rounded-[24px] border bg-[#fffdf9] shadow-[0_20px_42px_-34px_rgba(61,39,4,.75)] transition ${open?'border-[#c99a43]':hasConteggi?'border-[#d5b76e]':'border-[#e2d6bf]'}`}>
+                  <div className={`relative overflow-hidden border-b border-[#eee3cf] px-3 py-3 ${hasConteggi?'bg-[linear-gradient(135deg,#fff4d5,#e9c977)]':'bg-[linear-gradient(135deg,#fffaf0,#f0e5cf)]'}`}>
+                    <div className="absolute -right-8 -top-12 h-28 w-28 rounded-full bg-amber-300/20 blur-3xl"/>
+                    <div className="relative flex items-center gap-2">
+                      <button type="button" onClick={()=>setExpandedOperators(prev=>({...prev,[op.name]:!prev[op.name]}))} className="flex min-w-0 flex-1 items-center gap-2 text-left">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] border border-[#d6b76e] bg-white/75 text-[12px] font-black text-[#765116]">{initials(op.name)}</div>
+                        <p className="min-w-0 flex-1 truncate text-[13px] font-black uppercase tracking-[0.04em] text-[#3b2a0e]">{op.name}</p>
+                      </button>
+                      <span className="flex h-7 min-w-7 items-center justify-center rounded-full border border-[#d1b266] bg-[linear-gradient(145deg,#fff6db,#e8c97c)] px-2 text-[10px] font-black tabular-nums text-[#68450e] shadow-[0_6px_12px_-9px_rgba(98,60,5,.38)]">{op.rows.length}</span>
+                      <button type="button" onClick={()=>handleGeneratePdf(op.name,op.rows)} disabled={!op.rows.length} className="flex h-8 min-w-[52px] items-center justify-center rounded-[10px] border border-[#d2b36a] bg-[linear-gradient(145deg,#fff7df,#e7c879)] px-2 text-[9px] font-black tracking-[0.08em] text-[#68450e] shadow-[0_8px_16px_-10px_rgba(95,58,4,.42)] transition hover:brightness-102 active:scale-95 disabled:opacity-35" aria-label={`Genera PDF ${op.name}`}>PDF</button>
+                      <button type="button" onClick={()=>setExpandedOperators(prev=>({...prev,[op.name]:!prev[op.name]}))} className="flex h-8 w-8 items-center justify-center rounded-[10px] text-[#8f651d] transition hover:bg-white/55" aria-label={`Apri dettagli ${op.name}`}>{open?<ChevronUp size={16}/>:<ChevronDown size={16}/>}</button>
+                    </div>
+                  </div>
+
+                  <div className="relative overflow-hidden border-b border-[#d6b36b] bg-[linear-gradient(135deg,#3f2b0d_0%,#765018_55%,#b8862f_100%)] px-3 py-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,.18)]">
+                    <div className="absolute -right-8 -top-10 h-24 w-24 rounded-full bg-amber-200/20 blur-2xl"/>
+                    <div className="relative flex items-center gap-2">
+                      <div className="flex h-10 shrink-0 items-center gap-2 px-1">
+                        <span className="text-[10px] font-black tracking-[0.18em] text-amber-100">ESATTORE</span>
+                        <Pencil size={13} className="text-amber-200"/>
+                      </div>
+                      <div className="relative min-w-0 flex-1"><input inputMode="numeric" value={getOverrideInputValue(op.name,op.esattore)} onChange={(e)=>setOverrideInputValue(op.name,e.target.value.replace(/[^0-9-]/g,''))} className="h-10 w-full rounded-[12px] border border-white/20 bg-black/20 px-3 pr-8 text-right text-[17px] font-black tabular-nums text-white outline-none focus:border-amber-200"/><span className="absolute right-3 top-1/2 -translate-y-1/2 text-[13px] font-black text-amber-100">€</span></div>
+                      <button onClick={()=>saveEsattoreOverride(op.name,op.esattore)} disabled={saving} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[linear-gradient(145deg,#fff0a8,#d6a837)] text-[#4b3209] shadow-[0_9px_18px_-12px_rgba(255,215,94,.95)] transition active:scale-95 disabled:opacity-50">{saving?<RefreshCw size={14} className="animate-spin"/>:<Save size={15}/>}</button>
+                      {hasOverride&&<button onClick={()=>resetEsattoreOverride(op.name)} disabled={saving} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] border border-white/20 bg-white/10 text-white transition active:scale-95"><RotateCcw size={14}/></button>}
+                    </div>
+                  </div>
+
+                  <button type="button" onClick={()=>setExpandedOperators(prev=>({...prev,[op.name]:!prev[op.name]}))} className="w-full text-left"><div className="divide-y divide-[#eee7da] px-3">{[['ACCONTI',op.acconti],['DA RIPORTARE',op.riporto],['DEPOSITI',op.cassaDepositi],['DEBITI',op.debiti]].map(([label,value])=><div key={label} className="flex items-center justify-between py-2.5"><span className="text-[9px] font-black tracking-[0.12em] text-slate-400">{label}</span><span className="text-[13px] font-black tabular-nums text-slate-800">{fmtEuro(value)}</span></div>)}</div><div className={`flex items-center justify-between px-4 py-3 ${op.finale>0?'bg-emerald-50':op.finale<0?'bg-rose-50':'bg-[#f6eedf]'}`}><span className="text-[10px] font-black tracking-[0.14em] text-[#7d5819]">TOTALE</span><span className={`text-[20px] font-black tabular-nums ${clsSigned(op.finale)}`}>{fmtSigned(op.finale)}</span></div></button>
+                  {open&&<div className="border-t border-[#e8dcc5] bg-[#faf7f1] p-3"><div className="space-y-2">{op.rows.map(r=><button key={r.id} onClick={()=>setSelectedRow(r)} className="flex w-full items-center justify-between rounded-[13px] border border-[#e8dfcf] bg-white px-3 py-2 text-left"><div className="min-w-0"><p className="truncate text-[11px] font-black text-slate-800">{getVenueName(r)}</p><p className="text-[9px] font-bold text-slate-400">{formatITDate(r.conteggio_date)}</p></div><span className={`text-[12px] font-black ${clsSigned(r.totale_finale)}`}>{fmtSigned(r.totale_finale)}</span></button>)}</div></div>}
+                </article>})}</div>}
+            </section>
+
+            <section className="overflow-hidden rounded-[28px] border border-[#d9c79f] bg-[linear-gradient(180deg,#f7edd8_0%,#f2e5cd_100%)] shadow-[0_22px_48px_-36px_rgba(65,43,8,.65)]">
+              <div className="border-b border-[#dfcfaf] bg-[linear-gradient(135deg,#f8edd7,#ead5aa)] px-4 py-4 text-center">
+                <h2 className="text-[20px] font-black tracking-[0.17em] text-[#8d5f17] md:text-[24px]">LOCALI DISPONIBILI</h2>
+              </div>
+              {missingVenues.length===0 ? (
+                <div className="p-8 text-center text-sm font-black text-emerald-700">Tutti i locali sono stati conteggiati</div>
+              ) : (
+                <div className="overflow-x-auto p-3 md:p-4">
+                  <div
+                    className="min-w-[980px] items-center gap-3 border-b border-[#d8c7a8] px-4 pb-3"
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'minmax(300px, 1.6fr) repeat(3, minmax(150px, 0.72fr)) 96px',
+                    }}
+                  >
+                    <p className="text-[10px] font-black tracking-[0.16em] text-[#7c5a20]">LOCALE</p>
+                    <p className="text-center text-[10px] font-black tracking-[0.16em] text-blue-600/75">ACCONTI</p>
+                    <p className="text-center text-[10px] font-black tracking-[0.16em] text-orange-600/75">RECUPERI</p>
+                    <p className="text-center text-[10px] font-black tracking-[0.14em] text-emerald-600/75">DA RIPORTARE</p>
+                    <p className="text-center text-[10px] font-black tracking-[0.16em] text-[#7c5a20]">STATO</p>
+                  </div>
+                  <div className="mt-2 space-y-2">
+                    {missingVenues.map((v,index) => {
+                      const statusStyles = v.status === 'ok'
+                        ? 'border-emerald-300/75 bg-emerald-100/60 text-emerald-700 hover:bg-emerald-100'
+                        : v.status === 'warning'
+                          ? 'border-orange-300/75 bg-orange-100/60 text-orange-700 hover:bg-orange-100'
+                          : 'border-rose-300/75 bg-rose-100/60 text-rose-700 hover:bg-rose-100'
+                      const rowGlow = v.status === 'warning'
+                        ? 'shadow-[inset_4px_0_0_rgba(251,146,60,.26)]'
+                        : v.status === 'error'
+                          ? 'shadow-[inset_4px_0_0_rgba(244,63,94,.22)]'
+                          : 'shadow-[inset_4px_0_0_rgba(16,185,129,.12)]'
+                      return (
+                        <div
+                          key={v.id}
+                          className={`min-h-[62px] min-w-[980px] items-center gap-3 rounded-[16px] border border-[#ddcdb0] px-4 py-2.5 transition hover:-translate-y-[1px] hover:border-[#cfb981] hover:shadow-[0_12px_24px_-20px_rgba(72,45,7,.45)] ${index % 2 === 0 ? 'bg-[#fffaf1]' : 'bg-[#f9f0df]'} ${rowGlow}`}
+                          style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'minmax(300px, 1.6fr) repeat(3, minmax(150px, 0.72fr)) 96px',
+                          }}
+                        >
+                          <div className="flex min-w-0 items-center gap-3">
+                            <div className="flex h-10 min-w-14 items-center justify-center rounded-[12px] border border-[#ddc99f] bg-[#f2e3c5] px-2 font-mono text-[11px] font-black text-[#7c5315]">{v.id}</div>
+                            <p className="min-w-0 truncate text-[14px] font-black text-[#302610] md:text-[15px]">{v.name}</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="hidden">ACCONTI</p>
+                            <p className="text-[15px] font-black tabular-nums text-blue-700 md:text-[16px]">{fmtEuro(v.availableAcconti)}</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="hidden">RECUPERI</p>
+                            <p className="text-[15px] font-black tabular-nums text-orange-700 md:text-[16px]">{fmtEuro(v.recuperi)}</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="hidden">DA RIPORTARE</p>
+                            <p className="text-[15px] font-black tabular-nums text-emerald-700 md:text-[16px]">{fmtEuro(v.daRiportare)}</p>
+                          </div>
+                          <button type="button" onClick={() => setVenueStatusPopup(v)} title="Clicca per i dettagli" className={`group flex h-10 w-full items-center justify-center gap-1.5 rounded-[12px] border transition hover:-translate-y-0.5 active:scale-95 ${statusStyles}`} aria-label={`Apri dettagli stato ${v.name}`}>
+                            {v.status === 'ok' ? <CheckCircle2 size={17}/> : v.status === 'warning' ? <TriangleAlert size={17}/> : <CircleX size={17}/>} 
+                            <ChevronRight size={15} className="transition-transform group-hover:translate-x-0.5"/>
+                          </button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+            </section>
+
+          </div>
         </div>
       </PageBody>
+      {venueStatusPopup && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/55 p-4 backdrop-blur-sm" onClick={() => setVenueStatusPopup(null)}>
+          <div onClick={(e) => e.stopPropagation()} className={`relative w-full max-w-[420px] overflow-hidden rounded-[28px] border bg-[linear-gradient(135deg,#07111f_0%,#0d1728_58%,#07111f_100%)] p-5 shadow-[0_30px_80px_-28px_rgba(0,0,0,.95)] ${venueStatusPopup.status === 'ok' ? 'border-emerald-400/35' : venueStatusPopup.status === 'warning' ? 'border-orange-400/35' : 'border-rose-400/35'}`}>
+            <div className={`absolute -left-10 -top-10 h-32 w-32 rounded-full blur-3xl ${venueStatusPopup.status === 'ok' ? 'bg-emerald-400/25' : venueStatusPopup.status === 'warning' ? 'bg-orange-400/25' : 'bg-rose-400/25'}`} />
+            <button type="button" onClick={() => setVenueStatusPopup(null)} className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-[12px] border border-white/10 bg-white/5 text-white"><X size={15}/></button>
+            <div className={`relative mx-auto flex h-16 w-16 items-center justify-center rounded-full border ${venueStatusPopup.status === 'ok' ? 'border-emerald-300/45 bg-emerald-500/15 text-emerald-300' : venueStatusPopup.status === 'warning' ? 'border-orange-300/45 bg-orange-500/15 text-orange-300' : 'border-rose-300/45 bg-rose-500/15 text-rose-300'}`}>
+              {venueStatusPopup.status === 'ok' ? <CheckCircle2 size={29}/> : venueStatusPopup.status === 'warning' ? <TriangleAlert size={29}/> : <CircleX size={29}/>}
+            </div>
+            <p className="relative mt-4 text-center text-[10px] font-black uppercase tracking-[0.22em] text-white/45">{venueStatusPopup.id} · {venueStatusPopup.name}</p>
+            <h3 className="relative mt-2 text-center text-[19px] font-black text-white">
+              {venueStatusPopup.status === 'ok' ? 'Situazione regolare' : venueStatusPopup.status === 'warning' ? 'Da Riportare ancora presente' : 'Anomalia nei recuperi'}
+            </h3>
+            <p className="relative mt-3 text-center text-[13px] font-bold leading-relaxed text-slate-300">
+              {venueStatusPopup.status === 'ok'
+                ? 'Recuperi e Da Riportare coincidono.'
+                : venueStatusPopup.status === 'warning'
+                  ? `È presente ancora un Da Riportare di ${fmtEuro(venueStatusPopup.daRiportare - venueStatusPopup.recuperi)}.`
+                  : 'Recuperi più alti dei Da Riportare.'}
+            </p>
+            <button type="button" onClick={() => setVenueStatusPopup(null)} className={`relative mt-5 h-12 w-full rounded-[16px] text-[12px] font-black uppercase tracking-[0.12em] text-white ${venueStatusPopup.status === 'ok' ? 'bg-[linear-gradient(135deg,#059669,#047857)]' : venueStatusPopup.status === 'warning' ? 'bg-[linear-gradient(135deg,#d97706,#c2410c)]' : 'bg-[linear-gradient(135deg,#e11d48,#be123c)]'}`}>OK</button>
+          </div>
+        </div>
+      )}
 
       <Modal
         open={showNewPeriod}
