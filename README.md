@@ -77,7 +77,7 @@ VITE_SUPABASE_ANON_KEY=...
 | `C` | Cassa |
 | `A` | Agenti |
 | `L` | Locali |
-| `N` | Analisi |
+| `N` | Analisi giornaliera |
 | `M` | Automezzi |
 | `T` | Cestino |
 | `D` | Admin |

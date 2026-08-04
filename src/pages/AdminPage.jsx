@@ -156,7 +156,7 @@ export default function AdminPage() {
             </h3>
             <Card>
               <div className="divide-y divide-[var(--color-border)]">
-                <InfoRow label="Versione applicazione" value="Play Money Admin 6.1 (PWA + Mobile)" icon={Code} />
+                <InfoRow label="Versione applicazione" value="Play Money Admin 6.5 (PWA + Mobile)" icon={Code} />
                 <InfoRow label="Branch produzione" value="main" icon={GitBranch} />
                 <InfoRow label="Supabase Project URL" value={SUPABASE_URL} icon={Server} mono />
                 <InfoRow label="Edge Function" value="admin-update-user" icon={Lock} mono />
@@ -180,7 +180,7 @@ export default function AdminPage() {
                 <ShortcutRow keys={['C']} label="Vai a Cassa" />
                 <ShortcutRow keys={['A']} label="Vai a Agenti" />
                 <ShortcutRow keys={['L']} label="Vai a Locali" />
-                <ShortcutRow keys={['N']} label="Vai a Analisi" />
+                <ShortcutRow keys={['N']} label="Vai ad Analisi giornaliera" />
                 <ShortcutRow keys={['M']} label="Vai a Automezzi" />
                 <ShortcutRow keys={['T']} label="Vai a Cestino" />
                 <ShortcutRow keys={['D']} label="Vai a ADMIN" />

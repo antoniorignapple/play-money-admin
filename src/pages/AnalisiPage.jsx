@@ -346,7 +346,12 @@ export default function AnalisiPage() {
   async function loadData() {
     setLoading(true)
     const [movRes, fondoRes, venRes, dipRes] = await Promise.all([
-      supabase.from('movements_cassa').select('*').eq('work_date', data).is('deleted_at', null),
+      supabase
+  .from('movements_cassa')
+  .select('*')
+  .eq('work_date', data)
+  .neq('origine', 'chiusura_conteggio')
+  .is('deleted_at', null),
       supabase.from('fondo_cassa_giornaliero').select('*').eq('work_date', data),
       supabase.from('venues').select('*'),
       supabase.from('dipendenti').select('*'),
@@ -499,7 +504,7 @@ export default function AnalisiPage() {
   return (
     <PageLayout>
       <PageHeader
-        title="Analisi"
+        title="Analisi giornaliera"
         subtitle={`Riepilogo giornaliero · ${toIT(data)}`}
         actions={
           <>

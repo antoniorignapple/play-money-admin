@@ -281,6 +281,7 @@ const [confirmDeleteOne, setConfirmDeleteOne] = useState(null)
     setFondi(fondoRes.data || [])
     setPendingDeletes(new Set())
     setLoading(false)
+    window.dispatchEvent(new Event('cassa-totale-refresh'))
   }
 
   function venueLabel(id) {
@@ -352,7 +353,8 @@ const [confirmDeleteOne, setConfirmDeleteOne] = useState(null)
     }
     const { error } = await supabase.from('movements_cassa').insert({
       client_id: crypto?.randomUUID?.() || String(Date.now()),
-      work_date: newRow.work_date, venue_id: newRow.venue_id, created_by: newRow.created_by,
+      work_date: newRow.work_date,
+origine: 'admin_cassa', venue_id: newRow.venue_id, created_by: newRow.created_by,
       acconto: normNumber(newRow.acconto), recupero: normNumber(newRow.recupero),
       da_riportare: normNumber(newRow.da_riportare), note: newRow.note || null,
     })
@@ -598,7 +600,9 @@ async function deleteMovement(row) {
                           </Badge>
                         </Td>
                         <Td className={`tabular-nums ${pending ? 'line-through text-[var(--color-danger)]' : 'text-[var(--color-text-secondary)]'}`}>
-                          {formatDateTime(r.created_at)}
+                          {r.origine === 'chiusura_conteggio' || r.origine === 'admin_cassa'
+  ? `${toIT(r.work_date)} 00:00`
+  : formatDateTime(r.created_at)}
                         </Td>
                         <Td className={`font-medium ${pending ? 'line-through text-[var(--color-danger)]' : 'text-[var(--color-text)]'}`}>
                           {r.venue_id ? venueLabel(r.venue_id) : <span className="italic text-[var(--color-text-muted)]">— generico —</span>}
@@ -697,7 +701,9 @@ async function deleteMovement(row) {
                           {dipendenteName(operatorById(r.created_by))}
                         </p>
                         <p className="mt-0.5 text-[11px] text-[var(--color-text-muted)] tabular-nums">
-                          {formatDateTime(r.created_at)}
+                          {r.origine === 'chiusura_conteggio' || r.origine === 'admin_cassa'
+  ? `${toIT(r.work_date)} 00:00`
+  : formatDateTime(r.created_at)}
                         </p>
                       </div>
                       <input

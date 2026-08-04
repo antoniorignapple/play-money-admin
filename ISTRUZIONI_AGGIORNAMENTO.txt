@@ -1,0 +1,19 @@
+PLAY MONEY — AGGIORNAMENTO 6.2 / 13.4
+
+1. Prima della pubblicazione eseguire su Supabase SQL Editor:
+   migrations/03_active_conteggi_period.sql
+
+2. Pubblicare Play Money Admin 6.5.
+
+3. Aprire CONTEGGI nell'Admin e creare il periodo ufficiale attivo.
+   La creazione di un nuovo periodo sostituisce automaticamente quello aperto precedente.
+
+4. Pubblicare Play Money Dipendenti 13.4.
+
+5. Verifica finale:
+   - in Admin deve risultare un solo periodo con stato "open";
+   - in Dipendenti > CONTEGGI deve apparire lo stesso intervallo;
+   - il periodo Dipendenti deve essere in sola lettura con "GESTITO DALL’ADMIN".
+
+Nota: se la migrazione non viene eseguita, Dipendenti mostrerà correttamente
+"periodo non disponibile" e non inventerà né consentirà date manuali.

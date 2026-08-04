@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   Wallet, Users, Building2, BarChart3, Car, Trash2, ShieldCheck, Calculator,
   Receipt, ClipboardCheck, Search, ChevronsLeft, ChevronsRight, Menu, X,
-  LockKeyhole, Mail, Eye, EyeOff, LogOut, Loader2,
+  LockKeyhole, Mail, Eye, EyeOff, LogOut, Loader2, RefreshCw,
 } from 'lucide-react'
 import CassaPage from './pages/CassaPage'
 import ConteggiPage from './pages/ConteggiPage'
@@ -13,22 +13,20 @@ import LocaliPage from './pages/LocaliPage'
 import AnalisiPage from './pages/AnalisiPage'
 import AutomezziPage from './pages/AutomezziPage'
 import CestinoPage from './pages/CestinoPage'
-import AdminPage from './pages/AdminPage'
 import { ToastProvider } from './components/Toast'
 import { CommandPalette } from './components/CommandPalette'
 import { supabase } from './lib/supabase'
 
 const NAV = [
-  { id: 'cassa',      label: 'Cassa',      icon: 'Wallet',     iconCmp: Wallet,     hint: 'Movimenti cassa',           component: CassaPage,     shortcut: 'C' },
-  { id: 'agenti',     label: 'Agenti',     icon: 'Users',      iconCmp: Users,      hint: 'Gestione agenti e accessi', component: AgentiPage,    shortcut: 'A' },
-  { id: 'locali',     label: 'Locali',     icon: 'Building2',  iconCmp: Building2,  hint: 'Locali e change machines',  component: LocaliPage,    shortcut: 'L' },
-  { id: 'analisi',    label: 'Analisi',    icon: 'BarChart3',  iconCmp: BarChart3,  hint: 'Riepilogo giornaliero',     component: AnalisiPage,   shortcut: 'N' },
-  { id: 'conteggi',   label: 'Conteggi',   icon: 'Calculator', iconCmp: Calculator, hint: 'Conteggi per periodo',      component: ConteggiPage,  shortcut: 'G' },
-  { id: 'debiti',     label: 'Debiti & Bonus', icon: 'Receipt', iconCmp: Receipt,   hint: 'Debiti e bonus per locale', component: DebitiBonusPage, shortcut: 'B' },
-  { id: 'simulazioni', label: 'Simulazioni', icon: 'ClipboardCheck', iconCmp: ClipboardCheck, hint: 'Simulazioni e richieste', component: SimulazioniPage, shortcut: 'S' },
-  { id: 'automezzi',  label: 'Automezzi',  icon: 'Car',        iconCmp: Car,        hint: 'Km, mezzi e rifornimenti',  component: AutomezziPage, shortcut: 'M' },
-  { id: 'cestino',    label: 'Cestino',    icon: 'Trash2',     iconCmp: Trash2,     hint: 'Movimenti cancellati',      component: CestinoPage,   shortcut: 'T' },
-  { id: 'admin',      label: 'ADMIN',      icon: 'ShieldCheck',iconCmp: ShieldCheck,hint: 'Strumenti amministrativi',  component: AdminPage,     shortcut: 'D' },
+  { id: 'cassa',       label: 'CASSA',               icon: 'Wallet',         iconCmp: Wallet,         hint: 'Movimenti cassa',           component: CassaPage,       shortcut: 'C' },
+  { id: 'analisi',     label: 'ANALISI GIORNALIERA', icon: 'BarChart3',      iconCmp: BarChart3,      hint: 'Riepilogo giornaliero',     component: AnalisiPage,     shortcut: 'N' },
+  { id: 'conteggi',    label: 'CONTEGGI',            icon: 'Calculator',     iconCmp: Calculator,     hint: 'Conteggi per periodo',      component: ConteggiPage,    shortcut: 'G' },
+  { id: 'debiti',      label: 'DEBITI E BONUS',      icon: 'Receipt',        iconCmp: Receipt,        hint: 'Debiti e bonus per locale', component: DebitiBonusPage, shortcut: 'B' },
+  { id: 'simulazioni', label: 'SIMULAZIONI',         icon: 'ClipboardCheck', iconCmp: ClipboardCheck, hint: 'Simulazioni e richieste',    component: SimulazioniPage,shortcut: 'S' },
+  { id: 'agenti',      label: 'AGENTI',               icon: 'Users',          iconCmp: Users,          hint: 'Gestione agenti e accessi', component: AgentiPage,      shortcut: 'A' },
+  { id: 'locali',      label: 'LOCALI',               icon: 'Building2',      iconCmp: Building2,      hint: 'Locali e change machines',  component: LocaliPage,      shortcut: 'L' },
+  { id: 'automezzi',   label: 'AUTOMEZZI',            icon: 'Car',            iconCmp: Car,            hint: 'Km, mezzi e rifornimenti',  component: AutomezziPage,   shortcut: 'M' },
+  { id: 'cestino',     label: 'CESTINO',              icon: 'Trash2',         iconCmp: Trash2,         hint: 'Movimenti cancellati',      component: CestinoPage,     shortcut: 'T' },
 ]
 
 export default function App() {
@@ -241,7 +239,7 @@ function LoginScreen() {
               <img src="/app-icon.png" alt="" className="h-7 w-7 rounded object-contain" draggable={false} />
               <div>
                 <p className="text-[13px] font-semibold text-white">Play Money Admin</p>
-                <p className="text-[10px] text-slate-400">Versione 6.1</p>
+                <p className="text-[10px] text-slate-400">Versione 6.5</p>
               </div>
             </div>
             <div className="px-2 py-3">
@@ -260,11 +258,6 @@ function LoginScreen() {
                   </div>
                 )
               })}
-              <div className="mx-2 my-2 border-t border-white/10" />
-              <div className="flex h-9 items-center gap-2 rounded-md px-2 text-slate-300">
-                <ShieldCheck size={14} />
-                <span className="text-[12px] font-medium">ADMIN</span>
-              </div>
             </div>
           </aside>
 
@@ -387,10 +380,44 @@ function Sidebar({ page, setPage, collapsed, setCollapsed, openPalette, isMobile
   const isMac = typeof navigator !== 'undefined' && navigator.platform.toUpperCase().includes('MAC')
   const cmdKey = isMac ? '⌘' : 'Ctrl'
   const groups = [
-    { label: 'OPERATIVITÀ', ids: ['cassa', 'conteggi', 'debiti', 'simulazioni'] },
-    { label: 'ANAGRAFICHE', ids: ['agenti', 'locali', 'automezzi'] },
-    { label: 'CONTROLLO', ids: ['analisi', 'cestino', 'admin'] },
+    { label: 'OPERATIVITÀ', ids: ['cassa', 'analisi', 'conteggi', 'debiti', 'simulazioni'] },
+    { label: 'CONTROLLO', ids: ['agenti', 'locali', 'automezzi', 'cestino'] },
   ]
+  const [cassaTotale, setCassaTotale] = useState(0)
+  const [cassaUpdatedAt, setCassaUpdatedAt] = useState(null)
+  const [cassaLoading, setCassaLoading] = useState(false)
+
+  const refreshCassaTotale = useCallback(async () => {
+    setCassaLoading(true)
+    const { data, error } = await supabase
+      .from('movements_cassa')
+      .select('acconto, recupero, da_riportare')
+      .is('deleted_at', null)
+
+    if (!error) {
+      const totale = (data || []).reduce(
+        (sum, row) => sum + Number(row.acconto || 0) + Number(row.recupero || 0) - Number(row.da_riportare || 0),
+        0,
+      )
+      setCassaTotale(totale)
+      setCassaUpdatedAt(new Date())
+    }
+    setCassaLoading(false)
+  }, [])
+
+  useEffect(() => {
+    queueMicrotask(refreshCassaTotale)
+    window.addEventListener('cassa-totale-refresh', refreshCassaTotale)
+    return () => window.removeEventListener('cassa-totale-refresh', refreshCassaTotale)
+  }, [refreshCassaTotale])
+
+  const cassaTone = cassaTotale > 0 ? 'text-emerald-300' : cassaTotale < 0 ? 'text-red-300' : 'text-white'
+  const cassaFormatted = new Intl.NumberFormat('it-IT', {
+    style: 'currency', currency: 'EUR', maximumFractionDigits: 0,
+  }).format(cassaTotale)
+  const updatedLabel = cassaUpdatedAt
+    ? cassaUpdatedAt.toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'medium' })
+    : 'In attesa di aggiornamento'
 
   return (
     <aside className={`relative flex h-full shrink-0 flex-col overflow-hidden border-r border-[#2f291f] bg-[linear-gradient(180deg,#11151d_0%,#17130d_52%,#0c1017_100%)] pt-safe text-white shadow-[18px_0_50px_-28px_rgba(0,0,0,.8)] transition-[width] duration-300 ${collapsed ? 'w-[72px]' : 'w-[292px] md:w-[272px]'}`}>
@@ -403,7 +430,7 @@ function Sidebar({ page, setPage, collapsed, setCollapsed, openPalette, isMobile
           <img src="/app-icon.png" alt="" className="relative z-10 h-10 w-10 object-contain" draggable={false} />
           <div className="absolute inset-0 bg-white/10" />
         </div>
-        {!collapsed && <div className="min-w-0 flex-1"><p className="truncate text-[16px] font-black tracking-[0.04em] text-white">PLAY MONEY</p><div className="mt-1 flex items-center gap-2"><span className="rounded-full border border-[#e1bb68]/40 bg-[#d5a441]/15 px-2 py-0.5 text-[9px] font-black tracking-[0.18em] text-[#f0cc7b]">ADMIN</span><span className="text-[10px] font-bold text-white/100">Ver. 6.1</span></div></div>}
+        {!collapsed && <div className="min-w-0 flex-1"><p className="truncate text-[16px] font-black tracking-[0.04em] text-white">PLAY MONEY</p><div className="mt-1 flex items-center gap-2"><span className="rounded-full border border-[#e1bb68]/40 bg-[#d5a441]/15 px-2 py-0.5 text-[9px] font-black tracking-[0.18em] text-[#f0cc7b]">ADMIN</span><span className="text-[10px] font-bold text-white/100">Ver. 6.5</span></div></div>}
         {isMobile && <button onClick={onClose} className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-white/10 bg-white/5 text-white/70 active:scale-95" aria-label="Chiudi menu"><X size={18}/></button>}
         {!collapsed && !isMobile && <button onClick={() => setCollapsed(true)} className="flex h-9 w-9 items-center justify-center rounded-[13px] border border-white/8 bg-white/[0.035] text-white/45 transition hover:border-[#d7ad55]/30 hover:text-[#efc872]" title="Comprimi"><ChevronsLeft size={16}/></button>}
       </div>
@@ -415,6 +442,25 @@ function Sidebar({ page, setPage, collapsed, setCollapsed, openPalette, isMobile
           {!collapsed && <p className="mb-2 px-2 text-[9px] font-black tracking-[0.24em] text-[#d8b35f]/55">{group.label}</p>}
           <div className="space-y-1.5">{group.ids.map(id => { const item=NAV.find(n=>n.id===id); return <NavItem key={id} item={item} active={page===id} collapsed={collapsed} isMobile={isMobile} onClick={()=>setPage(id)}/> })}</div>
         </div>)}
+        {!collapsed && (
+          <section className="mt-5 overflow-hidden rounded-[22px] border border-[#d9b45f]/30 bg-[linear-gradient(145deg,rgba(217,180,95,.16),rgba(255,255,255,.035))] p-4 shadow-[0_18px_42px_-24px_rgba(215,171,75,.65)]">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[9px] font-black tracking-[0.24em] text-[#e9c873]/65">CASSA TOTALE</p>
+                <p className={`mt-2 truncate text-[27px] font-black tabular-nums tracking-[-0.04em] ${cassaTone}`}>
+                  {cassaLoading && !cassaUpdatedAt ? '—' : cassaFormatted}
+                </p>
+              </div>
+              <button type="button" onClick={refreshCassaTotale} disabled={cassaLoading} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[13px] border border-[#e4c676]/25 bg-black/20 text-[#f0cc7b] transition hover:border-[#e4c676]/50 hover:bg-[#d5a441]/15 disabled:opacity-50" aria-label="Aggiorna Cassa Totale" title="Aggiorna Cassa Totale">
+                <RefreshCw size={15} className={cassaLoading ? 'animate-spin' : ''} />
+              </button>
+            </div>
+            <div className="mt-3 border-t border-white/8 pt-3">
+              <p className="text-[8px] font-black uppercase tracking-[0.14em] text-white/35">Aggiornato alle</p>
+              <p className="mt-1 text-[10px] font-bold tabular-nums text-white/60">{updatedLabel}</p>
+            </div>
+          </section>
+        )}
       </nav>
 
       <div className="relative shrink-0 border-t border-white/8 p-3 pb-safe">

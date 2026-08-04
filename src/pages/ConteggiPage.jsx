@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   Plus, Lock, Unlock, RefreshCw, Search, Users, Building2, FileText, TrendingUp,
-  Download, Eye, Trash2, ChevronDown, ChevronUp, MapPin, Calendar, Filter, Archive, RotateCcw,
+  Download, Eye, Trash2, ChevronDown, ChevronUp, MapPin, Calendar, Filter, Archive,
   TriangleAlert, MoreVertical, Pencil, Save, X, CheckCircle2, CircleX, ChevronRight,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
@@ -39,28 +39,6 @@ function formatPeriodTitle(dateFrom, dateTo) {
   return `Conteggi ${formatITDate(dateFrom)} - ${formatITDate(dateTo)}`
 }
 
-
-function getArchiveClosedAt(note) {
-  const text = String(note || '')
-  const match = text.match(/\[ARCHIVE_CLOSED_AT:([^\]]+)\]/)
-  return match?.[1] || null
-}
-
-function withArchiveClosedAt(note, closedAt) {
-  const clean = String(note || '').replace(/\n?\[ARCHIVE_CLOSED_AT:[^\]]+\]/g, '').trim()
-  return `${clean}${clean ? '\n' : ''}[ARCHIVE_CLOSED_AT:${closedAt}]`
-}
-
-function withoutArchiveClosedAt(note) {
-  return String(note || '').replace(/\n?\[ARCHIVE_CLOSED_AT:[^\]]+\]/g, '').trim() || null
-}
-
-function isAutoDaRiportareMovement(m) {
-  return Math.trunc(Number(m?.da_riportare) || 0) > 0
-    && Math.trunc(Number(m?.acconto) || 0) === 0
-    && Math.trunc(Number(m?.recupero) || 0) === 0
-    && String(m?.note || '').toLowerCase().includes('caricato automaticamente da conteggi')
-}
 
 const todayKey = () => new Date().toISOString().slice(0, 10)
 
@@ -149,7 +127,6 @@ export default function ConteggiPage() {
   const [showNewPeriod, setShowNewPeriod] = useState(false)
   const [confirmDeletePeriod, setConfirmDeletePeriod] = useState(false)
   const [confirmArchivePeriod, setConfirmArchivePeriod] = useState(false)
-  const [confirmReopenPeriod, setConfirmReopenPeriod] = useState(false)
   const [showMissing, setShowMissing] = useState(true)
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [operatorsOpen, setOperatorsOpen] = useState(true)
@@ -225,11 +202,51 @@ export default function ConteggiPage() {
     }
   }
 
-  async function loadDashboard(periodId = selectedPeriodId) {
+  async function loadDashboard(periodId = selectedPeriodId, forceArchive = false) {
     if (!periodId) return
     const periodForDashboard = periods.find((p) => p.id === periodId)
     try {
       setLoading(true)
+
+      if (forceArchive || periodForDashboard?.status === 'closed') {
+        const { data: snapshot, error: snapshotErr } = await supabase
+          .from('conteggi_archive_snapshots')
+          .select('conteggi_data,movimenti_cassa_data,overrides_data,riepilogo_data')
+          .eq('period_id', periodId)
+          .maybeSingle()
+        if (snapshotErr) throw snapshotErr
+        if (!snapshot) throw new Error('Fotografia archivio non trovata')
+
+        const archivedRows = Array.isArray(snapshot.conteggi_data?.conteggi_admin_rows)
+          ? snapshot.conteggi_data.conteggi_admin_rows
+          : (snapshot.conteggi_data?.conteggi_tool || [])
+        const archivedOverrides = Array.isArray(snapshot.overrides_data) ? snapshot.overrides_data : []
+        const archivedMovements = Array.isArray(snapshot.movimenti_cassa_data) ? snapshot.movimenti_cassa_data : []
+        const overridesMap = {}
+        const inputsMap = {}
+        archivedOverrides.forEach((item) => {
+          const key = normalizeText(item.operator_name)
+          const value = Math.trunc(Number(item.esattore_override) || 0)
+          overridesMap[key] = { ...item, esattore_override: value }
+          inputsMap[key] = String(value)
+        })
+        const depositMap = {}
+        archivedMovements.forEach((item) => {
+          const venueId = String(item.venue_id || '').trim()
+          if (!venueId || venueId.toUpperCase().startsWith('D')) return
+          if (!depositMap[venueId]) depositMap[venueId] = { acconti: 0, recuperi: 0, daRiportare: 0 }
+          depositMap[venueId].acconti += Math.trunc(Number(item.acconto) || 0)
+          depositMap[venueId].recuperi += Math.trunc(Number(item.recupero) || 0)
+          depositMap[venueId].daRiportare += Math.trunc(Number(item.da_riportare) || 0)
+        })
+
+        setSummary(snapshot.riepilogo_data || null)
+        setRows(archivedRows)
+        setAdminOverridesByOperator(overridesMap)
+        setOverrideInputsByOperator(inputsMap)
+        setMissingVenueDeposits(depositMap)
+        return
+      }
 
       let activeDepositsQuery = supabase
         .from('movements_cassa')
@@ -292,6 +309,11 @@ export default function ConteggiPage() {
       return
     }
 
+    if (period.status === 'closed') {
+      setRealDepositsByCode(empty)
+      return
+    }
+
     try {
       const { data, error } = await supabase
         .from('movements_cassa')
@@ -326,7 +348,7 @@ export default function ConteggiPage() {
 
   useEffect(() => {
     loadRealDepositsForPeriod(selectedPeriod)
-  }, [selectedPeriod?.id, selectedPeriod?.date_from, selectedPeriod?.date_to])
+  }, [selectedPeriod?.id, selectedPeriod?.date_from, selectedPeriod?.date_to, selectedPeriod?.status])
 
   useEffect(() => {
     if (!periods.length) return
@@ -507,6 +529,11 @@ export default function ConteggiPage() {
   async function createPeriod() {
     if (!newPeriod.date_from || !newPeriod.date_to) return toast.warning('Inserisci le date')
     const title = formatPeriodTitle(newPeriod.date_from, newPeriod.date_to)
+    const { error: deactivateError } = await supabase
+      .from('conteggi_periods')
+      .update({ status: 'inactive' })
+      .eq('status', 'open')
+    if (deactivateError) return toast.error(deactivateError.message)
     const { error } = await supabase.from('conteggi_periods').insert({
       title, date_from: newPeriod.date_from, date_to: newPeriod.date_to, status: 'open', note: null,
     })
@@ -533,103 +560,20 @@ export default function ConteggiPage() {
     if (!selectedPeriod) return
 
     try {
-      const closedAt = new Date().toISOString()
-
-      const { error: rowsErr } = await supabase
-        .from('conteggi_admin_rows')
-        .update({ locked: true })
-        .eq('period_id', selectedPeriod.id)
-      if (rowsErr) throw rowsErr
-
-      const { data: movements, error: movReadErr } = await supabase
-        .from('movements_cassa')
-        .select('id, work_date, venue_id, acconto, recupero, da_riportare, note, deleted_at')
-        .is('deleted_at', null)
-        .lte('work_date', selectedPeriod.date_to)
-      if (movReadErr) throw movReadErr
-
-      const idsToArchive = (movements || [])
-        .filter((m) => {
-          const day = String(m.work_date || '').slice(0, 10)
-
-          // I Da Riportare caricati nell'ultimo giorno con il tasto di Play Money
-          // sono la partenza della quindicina successiva: restano attivi.
-          if (isAutoDaRiportareMovement(m) && day >= selectedPeriod.date_to) return false
-
-          // Tutto ciò che appartiene al periodo chiuso viene congelato.
-          if (day >= selectedPeriod.date_from && day <= selectedPeriod.date_to) return true
-
-          // I Da Riportare automatici vecchi, generati da chiusure precedenti,
-          // si archiviano alla chiusura successiva e non si trascinano all'infinito.
-          if (isAutoDaRiportareMovement(m) && day < selectedPeriod.date_to) return true
-
-          return false
-        })
-        .map((m) => m.id)
-        .filter(Boolean)
-
-      if (idsToArchive.length > 0) {
-        const { error: movUpdateErr } = await supabase
-          .from('movements_cassa')
-          .update({ deleted_at: closedAt })
-          .in('id', idsToArchive)
-        if (movUpdateErr) throw movUpdateErr
-      }
-
-      const { error: periodErr } = await supabase
-        .from('conteggi_periods')
-        .update({
-          status: 'closed',
-          note: withArchiveClosedAt(selectedPeriod.note, closedAt),
-        })
-        .eq('id', selectedPeriod.id)
-      if (periodErr) throw periodErr
+      const { data, error } = await supabase.rpc('chiudi_e_archivia_conteggi', {
+        p_period_id: selectedPeriod.id,
+      })
+      if (error) throw error
+      if (!data?.success) throw new Error('La chiusura non è stata confermata dal server')
 
       setConfirmArchivePeriod(false)
-      toast.success(`Conteggi archiviati • ${idsToArchive.length} movimenti cassa congelati`)
+      toast.success(`Periodo archiviato • ${data.movimenti_archiviati_eliminati || 0} movimenti rimossi dalla Cassa`)
       await loadPeriods()
       setPeriodView('archive')
       setSelectedPeriodId(selectedPeriod.id)
-      await loadDashboard(selectedPeriod.id)
+      await loadDashboard(selectedPeriod.id, true)
     } catch (e) {
       toast.error(`Chiusura archivio: ${e.message}`)
-    }
-  }
-
-  async function reopenPeriod() {
-    if (!selectedPeriod) return
-
-    try {
-      const closedAt = getArchiveClosedAt(selectedPeriod.note)
-
-      const { error: rowsErr } = await supabase
-        .from('conteggi_admin_rows')
-        .update({ locked: false })
-        .eq('period_id', selectedPeriod.id)
-      if (rowsErr) throw rowsErr
-
-      if (closedAt) {
-        const { error: movErr } = await supabase
-          .from('movements_cassa')
-          .update({ deleted_at: null })
-          .eq('deleted_at', closedAt)
-        if (movErr) throw movErr
-      }
-
-      const { error: periodErr } = await supabase
-        .from('conteggi_periods')
-        .update({ status: 'open', note: withoutArchiveClosedAt(selectedPeriod.note) })
-        .eq('id', selectedPeriod.id)
-      if (periodErr) throw periodErr
-
-      setConfirmReopenPeriod(false)
-      toast.success('Contabilità riaperta')
-      await loadPeriods()
-      setPeriodView('active')
-      setSelectedPeriodId(selectedPeriod.id)
-      await loadDashboard(selectedPeriod.id)
-    } catch (e) {
-      toast.error(`Riapertura: ${e.message}`)
     }
   }
 
@@ -798,7 +742,6 @@ export default function ConteggiPage() {
                         <button onClick={()=>{loadDashboard();setPeriodMenuOpen(false)}} className="flex h-10 items-center justify-center gap-2 rounded-[13px] border border-[#dfcfad] bg-white text-[10px] font-black text-[#765116]"><RefreshCw size={14}/>AGGIORNA</button>
                         <button onClick={()=>{setShowNewPeriod(true);setPeriodMenuOpen(false)}} disabled={isClosed} className="flex h-10 items-center justify-center gap-2 rounded-[13px] bg-[linear-gradient(135deg,#c99635,#8d5d13)] text-[10px] font-black text-white disabled:opacity-40"><Plus size={14}/>NUOVO</button>
                         {!isClosed && selectedPeriod && <button onClick={()=>{setConfirmArchivePeriod(true);setPeriodMenuOpen(false)}} className="flex h-10 items-center justify-center gap-2 rounded-[13px] border border-[#dfcfad] bg-[#fbf5e8] text-[10px] font-black text-[#684613]"><Archive size={14}/>CHIUDI</button>}
-                        {isClosed && <button onClick={()=>{setConfirmReopenPeriod(true);setPeriodMenuOpen(false)}} className="flex h-10 items-center justify-center gap-2 rounded-[13px] border border-emerald-200 bg-emerald-50 text-[10px] font-black text-emerald-700"><RotateCcw size={14}/>RIAPRI</button>}
                         <button onClick={()=>setPeriodView(periodView==='active'?'archive':'active')} className="flex h-10 items-center justify-center gap-2 rounded-[13px] border border-[#dfcfad] bg-white text-[10px] font-black text-slate-600">
                           {periodView==='active' ? <Archive size={14}/> : <Calendar size={14}/>} {periodView==='active'?'ARCHIVIO':'ATTIVI'}
                         </button>
@@ -1047,18 +990,9 @@ export default function ConteggiPage() {
         open={confirmArchivePeriod}
         onClose={() => setConfirmArchivePeriod(false)}
         title="Chiudi e archivia conteggi"
-        message={selectedPeriod ? `Vuoi chiudere e archiviare "${formatPeriodTitle(selectedPeriod.date_from, selectedPeriod.date_to)}"? Verranno congelati conteggi e movimenti cassa del periodo. I Da Riportare appena caricati per la prossima quindicina resteranno attivi.` : ''}
+        message={selectedPeriod ? `Stai per chiudere definitivamente "${formatPeriodTitle(selectedPeriod.date_from, selectedPeriod.date_to)}". Verrà creata una fotografia permanente; conteggi e movimenti Cassa del periodo saranno rimossi dall'operatività e non saranno più modificabili. I Da Riportare del periodo successivo resteranno attivi.` : ''}
         confirmLabel="Chiudi e archivia"
         onConfirm={archivePeriod}
-      />
-
-      <ConfirmDialog
-        open={confirmReopenPeriod}
-        onClose={() => setConfirmReopenPeriod(false)}
-        title="Riapri contabilità"
-        message={selectedPeriod ? `Vuoi riaprire "${formatPeriodTitle(selectedPeriod.date_from, selectedPeriod.date_to)}"? I movimenti congelati da questa chiusura torneranno attivi.` : ''}
-        confirmLabel="Riapri"
-        onConfirm={reopenPeriod}
       />
 
       <Modal
