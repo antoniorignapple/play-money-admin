@@ -1,19 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  Calendar, User, Building2, Search, Plus, FileDown, RefreshCw,
+  Calendar, User, Building2, Plus, RefreshCw,
   RotateCcw, Save, Pencil, Trash2,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import {
-  Button, IconButton, Input, Select, Badge, EmptyState, Card, Field, Modal,
-  FilterBanner,
+  Button, IconButton, Input, Select, Badge, EmptyState, Field, Modal,
 } from '../components/ui'
-import { PageLayout, PageHeader, PageBody } from '../components/PageLayout'
+import { PageLayout, PageBody } from '../components/PageLayout'
 import { ConfirmDialog } from '../components/FormDialog'
 import { SkeletonRow } from '../components/Skeleton'
 import { useToast } from '../components/Toast'
 import {
-  todayISO, firstDayOfMonthISO, toIT, formatDateTime, formatMoney, formatEuro0,
+  todayISO, firstDayOfMonthISO, toIT, formatDateTime, formatEuro0,
   dipendenteName, dipendenteId, normNumber,
 } from '../lib/helpers'
 
@@ -296,6 +295,14 @@ const [confirmDeleteOne, setConfirmDeleteOne] = useState(null)
     return dipendenti.find((d) => String(dipendenteId(d)) === String(id))
   }
 
+  function isGenericMovement(row) {
+    return !row?.venue_id || (
+      Number(row?.acconto || 0) === 0 &&
+      Number(row?.recupero || 0) === 0 &&
+      Number(row?.da_riportare || 0) === 0
+    )
+  }
+
   const rows = useMemo(() => {
     const cog_q = cognome.trim().toLowerCase()
     const loc_q = nomeLocale.trim().toLowerCase()
@@ -461,32 +468,38 @@ async function deleteMovement(row) {
   const allChecked = rows.length > 0 && pendingDeletes.size === rows.length
   const dateRangeIsSaved = dateFrom === savedDateRange.dateFrom && dateTo === savedDateRange.dateTo
 
-  // 3 FILTER BANNERS comune a mobile/desktop
+  // Filtri premium: stessa gerarchia visiva della sezione Conteggi.
   const filterBanners = (
-    <div className="mx-auto grid max-w-[1250px] grid-cols-1 gap-3 md:grid-cols-3">
-      <FilterBanner tone="info" icon={Calendar} label="Ricerca per data">
-        <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-        <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
-        <Button
-          type="button"
-          size="sm"
-          variant={dateRangeIsSaved ? 'secondary' : 'primary'}
-          icon={Save}
-          onClick={saveDateRange}
-          disabled={dateRangeIsSaved}
-          className="mt-1 w-full justify-center"
-        >
-          {dateRangeIsSaved ? 'Intervallo salvato' : 'Salva intervallo'}
-        </Button>
-      </FilterBanner>
+    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <section className="rounded-[22px] border border-[#decda8] bg-[#fffdf9] p-4 shadow-[0_18px_38px_-32px_rgba(68,43,5,.72)]">
+        <div className="mb-3 flex items-center justify-center gap-2 text-[#946318]">
+          <Calendar size={15} />
+          <p className="text-[11px] font-black tracking-[0.18em]">DATA</p>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+          <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+        </div>
+        <button type="button" onClick={saveDateRange} disabled={dateRangeIsSaved} className="mt-2 flex h-9 w-full items-center justify-center gap-2 rounded-[12px] border border-[#d9c28f] bg-[#fbf5e8] text-[9px] font-black tracking-[0.1em] text-[#765116] transition active:scale-[.98] disabled:opacity-55">
+          <Save size={13} />{dateRangeIsSaved ? 'INTERVALLO SALVATO' : 'SALVA INTERVALLO'}
+        </button>
+      </section>
 
-      <FilterBanner tone="warning" icon={User} label="Utente">
-        <Input value={cognome} onChange={(e) => setCognome(e.target.value)} placeholder="Cognome" />
-      </FilterBanner>
+      <section className="rounded-[22px] border border-[#decda8] bg-[#fffdf9] p-4 shadow-[0_18px_38px_-32px_rgba(68,43,5,.72)]">
+        <div className="mb-3 flex items-center justify-center gap-2 text-[#946318]">
+          <User size={15} />
+          <p className="text-[11px] font-black tracking-[0.18em]">UTENTE</p>
+        </div>
+        <Input value={cognome} onChange={(e) => setCognome(e.target.value)} placeholder="Cerca per cognome" />
+      </section>
 
-      <FilterBanner tone="success" icon={Building2} label="Locale">
-        <Input value={nomeLocale} onChange={(e) => setNomeLocale(e.target.value)} placeholder="nome locale" />
-        <div className="flex items-center gap-2 pt-1">
+      <section className="rounded-[22px] border border-[#decda8] bg-[#fffdf9] p-4 shadow-[0_18px_38px_-32px_rgba(68,43,5,.72)]">
+        <div className="mb-3 flex items-center justify-center gap-2 text-[#946318]">
+          <Building2 size={15} />
+          <p className="text-[11px] font-black tracking-[0.18em]">LOCALE</p>
+        </div>
+        <Input value={nomeLocale} onChange={(e) => setNomeLocale(e.target.value)} placeholder="Cerca locale" />
+        <div className="mt-3 flex items-center gap-2">
           <input
             type="checkbox"
             id="show-generic"
@@ -495,54 +508,50 @@ async function deleteMovement(row) {
             className="h-4 w-4 cursor-pointer accent-[var(--color-accent)]"
           />
           <label htmlFor="show-generic" className="cursor-pointer text-[12px] text-[var(--color-text-secondary)]">
-            Mostra operazioni generiche
+            MOSTRA OPERAZIONI GENERICHE
           </label>
         </div>
-      </FilterBanner>
+      </section>
 
+      <button type="button" onClick={() => setNewOpen(true)} className="group relative min-h-[146px] overflow-hidden rounded-[22px] border border-[#bd8a2d] bg-[linear-gradient(135deg,#fff3d1_0%,#e4c16e_100%)] p-4 text-[#65420d] shadow-[0_20px_42px_-30px_rgba(97,61,6,.7)] transition hover:-translate-y-0.5 hover:brightness-102 active:scale-[.985]">
+        <span className="absolute -right-8 -top-10 h-28 w-28 rounded-full bg-white/40 blur-2xl" />
+        <span className="relative flex h-full flex-col items-center justify-center gap-3">
+          <span className="flex h-12 w-12 items-center justify-center rounded-[16px] border border-[#c79c4b] bg-white/65 shadow-[0_12px_22px_-16px_rgba(91,55,5,.6)]"><Plus size={24} strokeWidth={2.8} /></span>
+          <span className="text-[12px] font-black tracking-[0.17em]">NUOVO MOVIMENTO</span>
+        </span>
+      </button>
     </div>
   )
 
   return (
     <PageLayout>
-      <PageHeader
-        title="CASSA"
-        subtitle={loading ? 'Caricamento…' : `${rows.length} movimenti · ${formatEuro0(totals.acconto)} acconti`}
-        actions={
-          <>
-            {/* Bottone filtri solo mobile */}
-            <Button variant="secondary" icon={Search} onClick={() => setFiltersOpen(true)} className="md:hidden">
-              Filtri
-            </Button>
-            <IconButton icon={RefreshCw} onClick={loadData} title="Aggiorna" />
-            <Button icon={FileDown} onClick={() => setPdfOpen(true)}>
-              <span className="hidden md:inline">Esporta PDF</span>
-              <span className="md:hidden">PDF</span>
-            </Button>
-            <Button icon={Plus} variant="primary" onClick={() => setNewOpen(true)}>
-              <span className="hidden md:inline">Nuovo</span>
-            </Button>
-          </>
-        }
-      />
-
       <PageBody>
-        <div className="mx-auto max-w-[1600px] space-y-3 px-3 py-3 md:space-y-4 md:px-5 md:py-4">
-          {/* Filtri inline su desktop */}
-          <div className="hidden md:block">
-            {filterBanners}
-          </div>
+        <div className="min-h-full bg-[radial-gradient(circle_at_15%_0%,rgba(226,186,99,.16),transparent_28%),linear-gradient(180deg,#f7f2e8_0%,#f4f0e8_100%)] px-3 py-3 md:px-6 md:py-5">
+          <div className="mx-auto max-w-[1720px] space-y-4">
+          <section className="relative overflow-hidden rounded-[30px] border border-[#dfc98f] bg-[linear-gradient(135deg,#fffdf8_0%,#f4e5bf_100%)] px-4 py-5 shadow-[0_24px_60px_-38px_rgba(80,55,15,.62)] md:px-7">
+            <div className="pointer-events-none absolute -left-16 -top-24 h-60 w-60 rounded-full bg-white/75 blur-3xl" />
+            <div className="pointer-events-none absolute -right-12 -top-20 h-64 w-64 rounded-full bg-amber-400/20 blur-3xl" />
+            <div className="relative min-h-[58px]">
+              <div className="mx-auto flex max-w-[900px] items-center justify-center px-14 text-center">
+                <h1 className="text-[29px] font-black tracking-[0.13em] text-[#3d2a0b] md:text-[35px]">SEZIONE CASSA</h1>
+              </div>
+              <button type="button" onClick={loadData} disabled={loading} className="absolute right-0 top-1/2 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-[16px] border border-[#d8b86c] bg-[linear-gradient(145deg,#fffaf0,#ecd18f)] text-[#755019] shadow-[0_13px_24px_-17px_rgba(116,79,17,.48)] transition hover:-translate-y-[55%] hover:brightness-102 active:scale-95 disabled:opacity-60" aria-label="Aggiorna cassa" title="Aggiorna">
+                <RefreshCw size={19} strokeWidth={2.8} className={loading ? 'animate-spin' : ''} />
+              </button>
+            </div>
+          </section>
 
-          <Card>
-            <div className="flex flex-col gap-2 border-b border-[var(--color-border)] px-3 py-2 md:flex-row md:items-center md:justify-between">
-              <p className="text-[12px] font-medium text-[var(--color-text-secondary)]">
-                Lista movimenti {rows.length > 0 && <span className="text-[var(--color-text-muted)]">({rows.length} righe)</span>}
-              </p>
+          {filterBanners}
+
+          <section className="overflow-hidden rounded-[28px] border border-[#dfcfaa] bg-[#fffdf9] shadow-[0_24px_55px_-38px_rgba(65,43,8,.68)]">
+            <div className="relative flex min-h-[68px] flex-col items-center justify-center gap-2 border-b border-[#eadfca] px-4 py-4 text-center md:flex-row">
+              <h2 className="text-[21px] font-black tracking-[0.18em] text-[#946318] md:text-[26px]">LISTA MOVIMENTI</h2>
+              {!loading && <span className="rounded-full border border-[#d9c28d] bg-[#fbf5e8] px-2.5 py-1 text-[9px] font-black tracking-[0.1em] text-[#765116]">{rows.length} MOVIMENTI</span>}
               {hasPending && (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 md:absolute md:right-4 md:top-1/2 md:-translate-y-1/2">
                   <Badge variant="danger" size="sm">{pendingDeletes.size} da cancellare</Badge>
                   <Button size="sm" icon={RotateCcw} variant="ghost" onClick={cancelPending} className="flex-1 md:flex-initial">Annulla</Button>
-                  <Button size="sm" icon={Save} variant="success" onClick={() => setConfirmSave(true)} className="flex-1 md:flex-initial">Salva</Button>
+                  <Button size="sm" icon={Trash2} variant="danger" onClick={() => setConfirmSave(true)} className="flex-1 font-black tracking-[0.06em] md:flex-initial">CONFERMA CANCELLAZIONE</Button>
                 </div>
               )}
             </div>
@@ -550,19 +559,29 @@ async function deleteMovement(row) {
 {/* TABELLA DESKTOP */}
 <div className="hidden md:block">
   <div className="max-h-[calc(100vh-340px)] overflow-y-auto overflow-x-auto">
-              <table className="w-full min-w-[1100px] text-[13px]">
-                <thead className="bg-[var(--color-surface)]">
-                  <tr className="border-b border-[var(--color-border)]">
+<table className="w-full min-w-[1050px] text-[13px]">
+  <colgroup>
+    <col className="w-[40px]" />
+    <col className="w-[27%]" />
+    <col className="w-[13%]" />
+    <col className="w-[20%]" />
+    <col className="w-[12%]" />
+    <col className="w-[10%]" />
+    <col className="w-[12%]" />
+    <col className="w-[6%]" />
+  </colgroup>
+
+  <thead className="sticky top-0 z-10 bg-[#f5ead3]">
+                  <tr className="border-b border-[#dfcfaa]">
                     <th className="w-10 px-4 py-2.5">
                       <input
                         type="checkbox" checked={allChecked} onChange={selectAllVisible}
                         className="h-3.5 w-3.5 cursor-pointer accent-[var(--color-danger)]"
                       />
                     </th>
-                    <Th>stato</Th>
-                    <Th>data</Th>
                     <Th>Locale</Th>
                     <Th>Utente</Th>
+                    <Th>Data e ora</Th>
                     <Th className="text-right">Acconto</Th>
                     <Th className="text-right">Recupero</Th>
                     <Th className="text-right">da Riportare</Th>
@@ -570,10 +589,10 @@ async function deleteMovement(row) {
                   </tr>
                 </thead>
                 <tbody>
-                  {loading && Array.from({ length: 8 }).map((_, i) => <SkeletonRow key={i} cols={9} />)}
+                  {loading && Array.from({ length: 8 }).map((_, i) => <SkeletonRow key={i} cols={8} />)}
 
                   {!loading && rows.length === 0 && (
-                    <tr><td colSpan={9}>
+                    <tr><td colSpan={8}>
                       <EmptyState title="Nessun movimento" description="Modifica i filtri o crea un nuovo movimento." />
                     </td></tr>
                   )}
@@ -593,32 +612,37 @@ async function deleteMovement(row) {
                             className="h-3.5 w-3.5 cursor-pointer accent-[var(--color-danger)]"
                           />
                         </td>
-                        <Td>
-                          <Badge variant={pending ? 'danger' : 'success'} size="sm">
-                            <span className={`inline-block h-1.5 w-1.5 rounded-full ${pending ? 'bg-[var(--color-danger)]' : 'bg-[var(--color-success)]'}`} />
-                            {pending ? 'cancellato' : 'attivo'}
-                          </Badge>
-                        </Td>
-                        <Td className={`tabular-nums ${pending ? 'line-through text-[var(--color-danger)]' : 'text-[var(--color-text-secondary)]'}`}>
-                          {r.origine === 'chiusura_conteggio' || r.origine === 'admin_cassa'
-  ? `${toIT(r.work_date)} 00:00`
-  : formatDateTime(r.created_at)}
-                        </Td>
                         <Td className={`font-medium ${pending ? 'line-through text-[var(--color-danger)]' : 'text-[var(--color-text)]'}`}>
                           {r.venue_id ? venueLabel(r.venue_id) : <span className="italic text-[var(--color-text-muted)]">— generico —</span>}
                         </Td>
                         <Td className={pending ? 'line-through text-[var(--color-danger)]' : 'text-[var(--color-text-secondary)]'}>
                           {dipendenteName(operatorById(r.created_by))}
                         </Td>
-                        <Td className={`text-right font-medium tabular-nums ${pending ? 'line-through text-[var(--color-danger)]' : 'text-[var(--color-info)]'}`}>
-                          {formatEuro0(r.acconto)}
+                        <Td className={`tabular-nums ${pending ? 'line-through text-[var(--color-danger)]' : 'text-slate-500'}`}>
+                          {r.origine === 'chiusura_conteggio' || r.origine === 'admin_cassa' ? `${toIT(r.work_date)} 00:00` : formatDateTime(r.created_at)}
                         </Td>
-                        <Td className={`text-right font-medium tabular-nums ${pending ? 'line-through text-[var(--color-danger)]' : 'text-[var(--color-warning)]'}`}>
-                          {formatEuro0(r.recupero)}
-                        </Td>
-                        <Td className={`text-right font-medium tabular-nums ${pending ? 'line-through text-[var(--color-danger)]' : 'text-[var(--color-success)]'}`}>
-                          {formatEuro0(r.da_riportare)}
-                        </Td>
+                        {isGenericMovement(r) ? (
+                          <td
+                            colSpan={3}
+                            className={`px-3 py-2.5 text-center text-[11px] font-black uppercase tracking-[0.16em] ${
+                              pending ? 'line-through text-[var(--color-danger)]' : 'text-[#946318]'
+                            }`}
+                          >
+                            Operazione generica
+                          </td>
+                        ) : (
+                          <>
+                            <Td className={`text-right font-black tabular-nums ${pending ? 'line-through text-[var(--color-danger)]' : 'text-[#3d2a0b]'}`}>
+                              {formatEuro0(r.acconto)}
+                            </Td>
+                            <Td className={`text-right font-black tabular-nums ${pending ? 'line-through text-[var(--color-danger)]' : 'text-[#765116]'}`}>
+                              {formatEuro0(r.recupero)}
+                            </Td>
+                            <Td className={`text-right font-black tabular-nums ${pending ? 'line-through text-[var(--color-danger)]' : 'text-slate-700'}`}>
+                              {formatEuro0(r.da_riportare)}
+                            </Td>
+                          </>
+                        )}
                        <Td>
   <div className="flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100">
     <IconButton
@@ -640,32 +664,7 @@ async function deleteMovement(row) {
                       </tr>
                     )
                   })}
-
-
                 </tbody>
-                <tfoot>
-  {!loading && rows.length > 0 && (
-    <tr className="sticky bottom-0 border-t-2 border-[var(--color-border-strong)] bg-[var(--color-surface)] font-bold shadow-[0_-4px_12px_rgba(0,0,0,0.08)]">
-      <td colSpan={5} className="px-4 py-3 text-right text-[11px] uppercase tracking-wide text-[var(--color-text-muted)]">
-        Totali
-      </td>
-
-      <td className="px-4 py-3 text-right text-[18px] font-extrabold tabular-nums text-[var(--color-info)]">
-        {formatEuro0(totals.acconto)}
-      </td>
-
-      <td className="px-4 py-3 text-right text-[18px] font-extrabold tabular-nums text-[var(--color-warning)]">
-        {formatEuro0(totals.recupero)}
-      </td>
-
-      <td className="px-4 py-3 text-right text-[18px] font-extrabold tabular-nums text-[var(--color-success)]">
-        {formatEuro0(totals.da_riportare)}
-      </td>
-
-      <td></td>
-    </tr>
-  )}
-</tfoot>
 </table>
   </div>
 </div>
@@ -694,7 +693,7 @@ async function deleteMovement(row) {
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
-                        <p className={`text-[14px] font-medium ${pending ? 'line-through text-[var(--color-danger)]' : 'text-[var(--color-text)]'}`}>
+                        <p className={`text-[14px] font-black uppercase ${pending ? 'line-through text-[var(--color-danger)]' : 'text-[#3d2a0b]'}`}>
                           {r.venue_id ? venueLabel(r.venue_id) : <span className="italic text-[var(--color-text-muted)]">generico</span>}
                         </p>
                         <p className={`text-[12px] ${pending ? 'line-through' : 'text-[var(--color-text-secondary)]'}`}>
@@ -713,55 +712,73 @@ async function deleteMovement(row) {
                         className="h-5 w-5 cursor-pointer accent-[var(--color-danger)]"
                       />
                     </div>
-                    <div className="mt-2 grid grid-cols-3 gap-2 border-t border-[var(--color-border)] pt-2">
-                      <div>
-                        <p className="text-[10px] uppercase text-[var(--color-text-muted)]">Acconto</p>
-                        <p className={`text-[13px] font-semibold tabular-nums ${pending ? 'line-through text-[var(--color-danger)]' : 'text-[var(--color-info)]'}`}>{formatEuro0(r.acconto)}</p>
+                    {isGenericMovement(r) ? (
+                      <div className={`mt-3 border-t border-[#eadfca] pt-3 text-center text-[11px] font-black uppercase tracking-[0.16em] ${
+                        pending ? 'line-through text-[var(--color-danger)]' : 'text-[#946318]'
+                      }`}>
+                        Operazione generica
                       </div>
-                      <div>
-                        <p className="text-[10px] uppercase text-[var(--color-text-muted)]">Recupero</p>
-                        <p className={`text-[13px] font-semibold tabular-nums ${pending ? 'line-through text-[var(--color-danger)]' : 'text-[var(--color-warning)]'}`}>{formatEuro0(r.recupero)}</p>
+                    ) : (
+                      <div className="mt-3 grid grid-cols-3 gap-2 border-t border-[#eadfca] pt-3">
+                        <div>
+                          <p className="text-[10px] uppercase text-[var(--color-text-muted)]">Acconto</p>
+                          <p className={`text-[13px] font-black tabular-nums ${pending ? 'line-through text-[var(--color-danger)]' : 'text-[#3d2a0b]'}`}>{formatEuro0(r.acconto)}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] uppercase text-[var(--color-text-muted)]">Recupero</p>
+                          <p className={`text-[13px] font-black tabular-nums ${pending ? 'line-through text-[var(--color-danger)]' : 'text-[#765116]'}`}>{formatEuro0(r.recupero)}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] uppercase text-[var(--color-text-muted)]">Da Riportare</p>
+                          <p className={`text-[13px] font-black tabular-nums ${pending ? 'line-through text-[var(--color-danger)]' : 'text-slate-700'}`}>{formatEuro0(r.da_riportare)}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-[10px] uppercase text-[var(--color-text-muted)]">Da Riportare</p>
-                        <p className={`text-[13px] font-semibold tabular-nums ${pending ? 'line-through text-[var(--color-danger)]' : 'text-[var(--color-success)]'}`}>{formatEuro0(r.da_riportare)}</p>
-                      </div>
-                    </div>
+                    )}
                   </div>
                 )
               })}
-
-              {/* Totali mobile */}
-              {!loading && rows.length > 0 && (
-<div className="bg-[var(--color-surface)] px-3 py-4">
-                  <p className="mb-2 text-[11px] uppercase tracking-wide text-[var(--color-text-muted)]">Totali</p>
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="rounded-xl bg-[var(--color-info-soft)] px-2 py-2.5 text-center">
-                      <p className="text-[10px] font-semibold uppercase text-[var(--color-info)]">Acconto</p>
-                      <p className="text-[17px] font-extrabold tabular-nums text-[var(--color-info)]">{formatEuro0(totals.acconto)}</p>
-                    </div>
-                    <div className="rounded-xl bg-[var(--color-warning-soft)] px-2 py-2.5 text-center">
-                      <p className="text-[10px] font-semibold uppercase text-[var(--color-warning)]">Recupero</p>
-                      <p className="text-[17px] font-extrabold tabular-nums text-[var(--color-warning)]">{formatEuro0(totals.recupero)}</p>
-                    </div>
-                    <div className="rounded-xl bg-[var(--color-success-soft)] px-2 py-2.5 text-center">
-                      <p className="text-[10px] font-semibold uppercase text-[var(--color-success)]">Da Riportare</p>
-                      <p className="text-[17px] font-extrabold tabular-nums text-[var(--color-success)]">{formatEuro0(totals.da_riportare)}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
-          </Card>
+          </section>
+          </div>
         </div>
       </PageBody>
 
-      {/* Modal filtri mobile */}
-      <Modal open={filtersOpen} onClose={() => setFiltersOpen(false)} title="Filtri di ricerca" width="md"
-        footer={<Button variant="primary" onClick={() => setFiltersOpen(false)}>Applica</Button>}
-      >
-        {filterBanners}
-      </Modal>
+      {!loading && rows.length > 0 && (
+        <div className="relative z-30 shrink-0 border-t border-[#d4b86f] bg-[linear-gradient(135deg,#fffdf8_0%,#f2e2b9_100%)] px-3 py-2.5 shadow-[0_-14px_34px_-24px_rgba(72,45,5,.72)] md:px-6">
+<div className="mx-auto grid max-w-[1720px] grid-cols-3 items-center md:grid-cols-[40px_27fr_13fr_20fr_12fr_10fr_12fr_6fr]">
+  <p className="hidden pr-4 text-right text-[11px] font-black tracking-[0.2em] text-[#946318] md:col-start-4 md:block">
+    TOTALI
+  </p>
+
+  <div className="text-center md:col-start-5 md:pr-4 md:text-right">
+    <p className="text-[9px] font-black tracking-[0.1em] text-[#946318]">
+      ACCONTO
+    </p>
+    <p className="text-[17px] font-black tabular-nums text-[#3d2a0b] md:text-[20px]">
+      {formatEuro0(totals.acconto)}
+    </p>
+  </div>
+
+  <div className="border-x border-[#ddcda8] text-center md:col-start-6 md:border-0 md:pr-4 md:text-right">
+    <p className="text-[9px] font-black tracking-[0.1em] text-[#946318]">
+      RECUPERO
+    </p>
+    <p className="text-[17px] font-black tabular-nums text-[#765116] md:text-[20px]">
+      {formatEuro0(totals.recupero)}
+    </p>
+  </div>
+
+  <div className="text-center md:col-start-7 md:pr-4 md:text-right">
+    <p className="text-[9px] font-black tracking-[0.1em] text-[#946318]">
+      DA RIPORTARE
+    </p>
+    <p className="text-[17px] font-black tabular-nums text-slate-700 md:text-[20px]">
+      {formatEuro0(totals.da_riportare)}
+    </p>
+  </div>
+</div>
+        </div>
+      )}
 
       {/* New movement */}
       <Modal
@@ -859,32 +876,6 @@ async function deleteMovement(row) {
     </Field>
   </div>
 </Modal>
-
-      {/* PDF export */}
-      <Modal
-        open={pdfOpen}
-        onClose={() => setPdfOpen(false)}
-        title="Esporta PDF movimenti"
-        width="sm"
-        footer={
-          <>
-            <Button variant="ghost" onClick={() => setPdfOpen(false)}>Annulla</Button>
-            <Button icon={FileDown} variant="primary" onClick={generatePdf}>Genera PDF</Button>
-          </>
-        }
-      >
-        <div className="flex flex-col gap-3">
-          <Field label="Giorno">
-            <Input type="date" value={pdfDate} onChange={(e) => setPdfDate(e.target.value)} />
-          </Field>
-          <Field label="Agente">
-            <Select value={pdfEmployee} onChange={(e) => setPdfEmployee(e.target.value)}>
-              <option value="all">Tutti gli operatori</option>
-              {dipendenti.map((d) => (<option key={dipendenteId(d)} value={dipendenteId(d)}>{dipendenteName(d)}</option>))}
-            </Select>
-          </Field>
-        </div>
-      </Modal>
 
 <ConfirmDialog
   open={!!confirmDeleteOne}

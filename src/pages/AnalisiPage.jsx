@@ -1,17 +1,27 @@
 import { useEffect, useMemo, useState } from 'react'
-import { RefreshCw, FileDown, Users, Wallet, Car, ChevronDown, Pencil, Trash2 } from 'lucide-react'
+import { RefreshCw, FileDown, Users, ChevronDown, Pencil, Trash2, CalendarDays } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import {
-  IconButton, Input, EmptyState, Card, Stat, Modal, Button, Field,
+  Input, EmptyState, Modal, Button, Field,
 } from '../components/ui'
-import { PageLayout, PageHeader, PageBody } from '../components/PageLayout'
+import { PageLayout, PageBody } from '../components/PageLayout'
 import { SkeletonCard } from '../components/Skeleton'
 import { ConfirmDialog } from '../components/FormDialog'
 import { useToast } from '../components/Toast'
 import {
   todayISO, toIT, formatEuro0,
-  dipendenteName, dipendenteId, initials, avatarColor,
+  dipendenteName, dipendenteId, initials,
 } from '../lib/helpers'
+
+function formatInsertedAt(value) {
+  if (!value) return '—'
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return '—'
+  return new Intl.DateTimeFormat('it-IT', {
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  }).format(parsed)
+}
 
 async function toDataUrl(url) {
   const res = await fetch(url)
@@ -492,6 +502,7 @@ export default function AnalisiPage() {
       },
       movements: userMovements.map((m) => ({
         venueName: venueLabel(m.venue_id),
+        insertedAt: formatInsertedAt(m.created_at),
         acconto: m.acconto,
         recupero: m.recupero,
         da_riportare: m.da_riportare,
@@ -503,41 +514,55 @@ export default function AnalisiPage() {
 
   return (
     <PageLayout>
-      <PageHeader
-        title="Analisi giornaliera"
-        subtitle={`Riepilogo giornaliero · ${toIT(data)}`}
-        actions={
-          <>
-            <Input
-              type="date"
-              value={data}
-              onChange={(e) => setData(e.target.value)}
-              className="w-full md:w-44"
-            />
-            <IconButton icon={RefreshCw} onClick={loadData} title="Aggiorna" />
-          </>
-        }
-      />
-
       <PageBody>
-        <div className="mx-auto max-w-[1600px] space-y-3 px-3 py-3 md:space-y-4 md:px-5 md:py-4">
-          <div className="grid grid-cols-2 gap-2 md:grid-cols-5 md:gap-3">
-            <Stat label="Agenti" value={agentRows.length} icon={Users} />
-            <Stat label="Acconti" value={formatEuro0(grandTotals.acconti)} tone="accent" icon={Wallet} />
-            <Stat label="Recuperi" value={formatEuro0(grandTotals.recuperi)} />
-            <Stat label="Da riportare" value={formatEuro0(grandTotals.da_riportare)} tone="success" />
-            <Stat label="Rifornimento" value={formatEuro0(grandTotals.rifornimento)} tone="warning" icon={Car} />
-          </div>
+        <div className="min-h-full bg-[radial-gradient(circle_at_15%_0%,rgba(226,186,99,.16),transparent_28%),linear-gradient(180deg,#f7f2e8_0%,#f4f0e8_100%)] px-3 py-3 md:px-6 md:py-5">
+          <div className="mx-auto max-w-[1720px] space-y-4">
+            <section className="relative overflow-hidden rounded-[30px] border border-[#dfc98f] bg-[linear-gradient(135deg,#fffdf8_0%,#f4e5bf_100%)] px-4 py-5 shadow-[0_24px_60px_-38px_rgba(80,55,15,.62)] md:px-7">
+              <div className="pointer-events-none absolute -left-16 -top-24 h-60 w-60 rounded-full bg-white/75 blur-3xl" />
+              <div className="pointer-events-none absolute -right-12 -top-20 h-64 w-64 rounded-full bg-amber-400/20 blur-3xl" />
+              <div className="relative flex min-h-[92px] flex-col items-center justify-center text-center">
+                <h1 className="text-[29px] font-black tracking-[0.13em] text-[#3d2a0b] md:text-[35px]">ANALISI GIORNALIERA</h1>
+                <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+                  <span className="text-[16px] font-black tabular-nums text-[#6d4a11] md:text-[19px]">{toIT(data)}</span>
+                  <label className="group flex h-10 items-center gap-2 rounded-[13px] border border-[#d8b86c] bg-white/70 px-3 text-[#755019] shadow-[0_10px_20px_-16px_rgba(116,79,17,.48)] transition hover:bg-white">
+                    <CalendarDays size={15} />
+                    <Input type="date" value={data} onChange={(e) => setData(e.target.value)} className="h-8 w-[132px] border-0 bg-transparent p-0 text-[11px] font-black text-[#5d3e0c] shadow-none" />
+                  </label>
+                  <button type="button" onClick={loadData} title="Aggiorna" className="flex h-10 w-10 items-center justify-center rounded-[13px] border border-[#d8b86c] bg-[linear-gradient(145deg,#fffaf0,#ecd18f)] text-[#755019] shadow-[0_10px_20px_-16px_rgba(116,79,17,.48)] transition hover:-translate-y-0.5 active:scale-95">
+                    <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+                  </button>
+                </div>
+              </div>
+            </section>
 
-          <Card>
-            <div className="border-b border-[var(--color-border)] px-3 py-3 md:px-4">
-              <p className="text-[13px] font-medium text-[var(--color-text)]">
-                Lista agenti <span className="text-[var(--color-text-muted)]">(record: {agentRows.length})</span>
-              </p>
-            </div>
+            <section className="overflow-hidden rounded-[28px] border border-[#dfcfaa] bg-[#fffdf9] shadow-[0_24px_55px_-38px_rgba(65,43,8,.68)]">
+              <div className="border-b border-[#eadfca] px-4 py-4 text-center">
+                <h2 className="text-[21px] font-black tracking-[0.18em] text-[#946318] md:text-[26px]">RIEPILOGO GENERALE</h2>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
+                {[
+                  ['AGENTI', agentRows.length],
+                  ['ACCONTI', formatEuro0(grandTotals.acconti)],
+                  ['RECUPERI', formatEuro0(grandTotals.recuperi)],
+                  ['DA RIPORTARE', formatEuro0(grandTotals.da_riportare)],
+                  ['MONETE', formatEuro0(grandTotals.monete)],
+                  ['RIFORNIMENTO', formatEuro0(grandTotals.rifornimento)],
+                ].map(([label, value]) => (
+                  <div key={label} className="border-b border-r border-[#eee5d4] px-3 py-6 text-center xl:border-b-0">
+                    <p className="text-[10px] font-black tracking-[0.16em] text-slate-500 md:text-[11px]">{label}</p>
+                    <p className="mt-3 text-[23px] font-black tabular-nums text-[#33250f] md:text-[27px]">{value}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section>
+              <div className="mb-4 text-center">
+                <h2 className="text-[20px] font-black tracking-[0.17em] text-[#8d5f17] md:text-[24px]">LISTA AGENTI</h2>
+              </div>
 
             {loading && (
-              <div className="space-y-2 p-3">
+              <div className="space-y-2 rounded-[24px] border border-[#e3d8c2] bg-white p-3">
                 {Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} />)}
               </div>
             )}
@@ -552,31 +577,31 @@ export default function AnalisiPage() {
               const isExpanded = expandedAgentId === String(r.id)
 
               return (
-                <div
+                <article
                   key={r.id}
-                  className="border-b border-[var(--color-border)] px-3 py-3 last:border-0 hover:bg-[var(--color-surface-hover)] md:px-4"
+                  className="mb-3 overflow-hidden rounded-[24px] border border-[#d5b76e] bg-[#fffdf9] shadow-[0_20px_42px_-34px_rgba(61,39,4,.75)] last:mb-0"
                 >
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start justify-between gap-3 border-b border-[#eee3cf] bg-[linear-gradient(135deg,#fff4d5,#e9c977)] px-3 py-3 md:px-4">
                     <div className="flex min-w-0 flex-1 items-start gap-3">
-                      <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[12px] font-semibold ${avatarColor(r.name)}`}>
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] border border-[#d6b76e] bg-white/75 text-[12px] font-black text-[#765116]">
                         {initials(r.name)}
                       </div>
 
                       <div className="min-w-0 flex-1">
-                        <p className="text-[14px] font-semibold text-[var(--color-text)]">{r.name}</p>
+                        <p className="text-[14px] font-black uppercase tracking-[0.04em] text-[#3b2a0e]">{r.name}</p>
 
-                        <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-[var(--color-success)] md:text-[11px]">
-                          <span>Fondo: <strong className="tabular-nums">{formatEuro0(r.monete)}</strong></span>
-                          <span>Flusso: <strong className="tabular-nums">{formatEuro0(r.acconti + r.recuperi - r.da_riportare)}</strong></span>
-                          <span>Cassa Gen: <strong className="tabular-nums">{formatEuro0(cassaGenerale)}</strong></span>
-                          <span>Km: <strong className="tabular-nums">{r.km || '—'}</strong></span>
-                          <span>Rifornimento: <strong className="tabular-nums">{formatEuro0(r.rifornimento)}</strong></span>
+                        <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-[9px] font-black uppercase tracking-[0.1em] text-[#856127] md:text-[10px]">
+                          <span>MONETE <strong className="tabular-nums text-[#33250f]">{formatEuro0(r.monete)}</strong></span>
+                          <span>FLUSSO <strong className="tabular-nums text-[#33250f]">{formatEuro0(r.acconti + r.recuperi - r.da_riportare)}</strong></span>
+                          <span>CASSA GENERALE <strong className="tabular-nums text-[#33250f]">{formatEuro0(cassaGenerale)}</strong></span>
+                          <span>KM <strong className="tabular-nums text-[#33250f]">{r.km || '—'}</strong></span>
+                          <span>RIFORNIMENTO <strong className="tabular-nums text-[#33250f]">{formatEuro0(r.rifornimento)}</strong></span>
                         </div>
 
                         <button
                           type="button"
                           onClick={() => setExpandedAgentId(isExpanded ? null : String(r.id))}
-                          className="mt-3 inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[11px] font-bold text-emerald-700 transition hover:bg-emerald-100"
+                          className="mt-3 inline-flex h-8 items-center gap-1 rounded-[10px] border border-[#d2b36a] bg-white/70 px-2.5 text-[10px] font-black tracking-[0.08em] text-[#68450e] transition hover:bg-white active:scale-95"
                         >
                           Movimenti
                           <ChevronDown
@@ -589,7 +614,7 @@ export default function AnalisiPage() {
 
                     <button
                       onClick={() => exportPdf(r)}
-                      className="shrink-0 inline-flex items-center justify-center gap-1.5 rounded-xl border border-blue-500 bg-blue-600 px-4 py-2 text-[12px] font-bold text-white shadow-sm transition hover:bg-blue-700"
+                      className="shrink-0 inline-flex h-10 items-center justify-center gap-2 rounded-[13px] border border-[#d3b469] bg-[linear-gradient(145deg,#fff8e6,#e9cd86)] px-3.5 text-[10px] font-black tracking-[0.11em] text-[#68450e] shadow-[0_10px_20px_-14px_rgba(111,72,10,.52)] transition hover:-translate-y-0.5 active:scale-95"
                     >
                       <FileDown size={14} strokeWidth={2.4} />
                       PDF
@@ -597,12 +622,14 @@ export default function AnalisiPage() {
                   </div>
 
                   {isExpanded && (
-                    <div className="mt-3 overflow-hidden rounded-xl border border-[var(--color-border)] bg-white">
-                      <div className="grid grid-cols-[minmax(0,1fr)_90px_90px_90px_72px] border-b border-[var(--color-border)] bg-slate-50 px-3 py-2 text-[10px] font-black uppercase tracking-wide text-slate-500">
+                    <div className="overflow-x-auto border-b border-[#e8dcc5] bg-[#faf7f1] p-3">
+                     <div className="min-w-[820px] overflow-hidden rounded-[16px] border border-[#e2d4b9] bg-white">
+                      <div className="grid grid-cols-[minmax(180px,1fr)_150px_90px_90px_110px_72px] border-b border-[#e4d6bc] bg-[#f2e5cd] px-3 py-2.5 text-[9px] font-black uppercase tracking-[0.12em] text-[#79571f]">
                         <div>Locale</div>
-                        <div className="text-right text-blue-600">Acconto</div>
-                        <div className="text-right text-orange-600">Recupero</div>
-                        <div className="text-right text-emerald-600">Da riportare</div>
+                        <div>Data e ora inserimento</div>
+                        <div className="text-right">Acconto</div>
+                        <div className="text-right">Recupero</div>
+                        <div className="text-right">Da riportare</div>
                         <div className="text-right">Azioni</div>
                       </div>
 
@@ -614,21 +641,23 @@ export default function AnalisiPage() {
                         agentMovements.map((m) => (
                           <div
                             key={m.id}
-                            className="grid grid-cols-[minmax(0,1fr)_90px_90px_90px_72px] items-center border-b border-slate-100 px-3 py-2 text-[12px] last:border-0"
+                            className="grid grid-cols-[minmax(180px,1fr)_150px_90px_90px_110px_72px] items-center border-b border-[#eee7da] px-3 py-2.5 text-[11px] last:border-0 even:bg-[#fffaf1]"
                           >
                             <div className="truncate font-semibold text-slate-700">
                               {venueLabel(m.venue_id)}
                             </div>
 
-                            <div className="text-right font-bold tabular-nums text-blue-600">
+                            <div className="font-bold tabular-nums text-slate-500">{formatInsertedAt(m.created_at)}</div>
+
+                            <div className="text-right font-black tabular-nums text-slate-800">
                               {formatEuro0(m.acconto || 0)}
                             </div>
 
-                            <div className="text-right font-bold tabular-nums text-orange-600">
+                            <div className="text-right font-black tabular-nums text-slate-800">
                               {formatEuro0(m.recupero || 0)}
                             </div>
 
-                            <div className="text-right font-bold tabular-nums text-emerald-600">
+                            <div className="text-right font-black tabular-nums text-slate-800">
                               {formatEuro0(m.da_riportare || 0)}
                             </div>
 
@@ -653,29 +682,31 @@ export default function AnalisiPage() {
                           </div>
                         ))
 )}
+                     </div>
                     </div>
                   )}
 
                   {/* Totali del singolo agente */}
-                  <div className="mt-3 grid grid-cols-3 gap-2 md:gap-3">
-                    <div className="rounded-xl bg-blue-50 px-3 py-2 text-center">
-                      <p className="text-[9px] font-bold uppercase tracking-wide text-blue-600 md:text-[10px]">Acconti</p>
-                      <p className="text-[16px] font-extrabold tabular-nums text-blue-600 md:text-[19px]">{formatEuro0(r.acconti)}</p>
+                  <div className="grid grid-cols-3 divide-x divide-[#eee5d4] border-t border-[#eee5d4] bg-[#fffdf9]">
+                    <div className="px-3 py-3 text-center">
+                      <p className="text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">Acconti</p>
+                      <p className="mt-1 text-[17px] font-black tabular-nums text-[#33250f]">{formatEuro0(r.acconti)}</p>
                     </div>
-                    <div className="rounded-xl bg-orange-50 px-3 py-2 text-center">
-                      <p className="text-[9px] font-bold uppercase tracking-wide text-orange-600 md:text-[10px]">Recuperi</p>
-                      <p className="text-[16px] font-extrabold tabular-nums text-orange-600 md:text-[19px]">{formatEuro0(r.recuperi)}</p>
+                    <div className="px-3 py-3 text-center">
+                      <p className="text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">Recuperi</p>
+                      <p className="mt-1 text-[17px] font-black tabular-nums text-[#33250f]">{formatEuro0(r.recuperi)}</p>
                     </div>
-                    <div className="rounded-xl bg-emerald-50 px-3 py-2 text-center">
-                      <p className="text-[9px] font-bold uppercase tracking-wide text-emerald-600 md:text-[10px]">Da riportare</p>
-                      <p className="text-[16px] font-extrabold tabular-nums text-emerald-600 md:text-[19px]">{formatEuro0(r.da_riportare)}</p>
+                    <div className="px-3 py-3 text-center">
+                      <p className="text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">Da riportare</p>
+                      <p className="mt-1 text-[17px] font-black tabular-nums text-[#33250f]">{formatEuro0(r.da_riportare)}</p>
                     </div>
                   </div>
-                </div>
+                </article>
               )
             })}
 
-          </Card>
+            </section>
+          </div>
         </div>
       </PageBody>
 
