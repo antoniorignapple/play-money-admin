@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  Plus, Lock, Unlock, RefreshCw, Search, Users, Building2, FileText, TrendingUp,
-  Download, Eye, Trash2, ChevronDown, ChevronUp, MapPin, Calendar, Filter, Archive,
-  TriangleAlert, MoreVertical, Pencil, Save, X, CheckCircle2, CircleX, ChevronRight,
+  Lock, Unlock, RefreshCw, Search, Users, Building2, FileText, TrendingUp,
+  Download, Eye, ChevronDown, ChevronUp, MapPin, Calendar, Filter, Archive,
+  TriangleAlert, MoreVertical, Pencil, Save, X, CheckCircle2, CircleX, ChevronRight, RotateCcw,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import generateConteggiPdf from '../lib/generateConteggiPdf'
@@ -10,7 +10,6 @@ import {
   Button, IconButton, Input, Select, Badge, EmptyState, Stat, Card, Field, Modal,
 } from '../components/ui'
 import { PageLayout, PageHeader, PageBody } from '../components/PageLayout'
-import { ConfirmDialog } from '../components/FormDialog'
 import { Skeleton } from '../components/Skeleton'
 import { useToast } from '../components/Toast'
 import { initials, avatarColor } from '../lib/helpers'
@@ -39,8 +38,6 @@ function formatPeriodTitle(dateFrom, dateTo) {
   return `Conteggi ${formatITDate(dateFrom)} - ${formatITDate(dateTo)}`
 }
 
-
-const todayKey = () => new Date().toISOString().slice(0, 10)
 
 function sortVenueIds(a, b) {
   const aId = String(a?.id || a?.venue_id || '')
@@ -124,9 +121,9 @@ export default function ConteggiPage() {
   const [signFilter, setSignFilter] = useState('all')
   const [selectedRow, setSelectedRow] = useState(null)
 
-  const [showNewPeriod, setShowNewPeriod] = useState(false)
-  const [confirmDeletePeriod, setConfirmDeletePeriod] = useState(false)
-  const [confirmArchivePeriod, setConfirmArchivePeriod] = useState(false)
+  const [finalization, setFinalization] = useState({
+    open: false, step: 'carryovers', preview: null, newDateTo: '', loading: false,
+  })
   const [showMissing, setShowMissing] = useState(true)
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [operatorsOpen, setOperatorsOpen] = useState(true)
@@ -134,8 +131,6 @@ export default function ConteggiPage() {
   const [expandedOperators, setExpandedOperators] = useState({})
   const [periodMenuOpen, setPeriodMenuOpen] = useState(false)
   const [venueStatusPopup, setVenueStatusPopup] = useState(null)
-
-  const [newPeriod, setNewPeriod] = useState({ date_from: todayKey(), date_to: todayKey() })
 
   const venueById = useMemo(() => {
     const map = {}
@@ -231,9 +226,15 @@ export default function ConteggiPage() {
           inputsMap[key] = String(value)
         })
         const depositMap = {}
+        const archivedRealDeposits = { D01: 0, D02: 0, D03: 0, D04: 0, D05: 0 }
         archivedMovements.forEach((item) => {
           const venueId = String(item.venue_id || '').trim()
-          if (!venueId || venueId.toUpperCase().startsWith('D')) return
+          if (!venueId) return
+          if (Object.prototype.hasOwnProperty.call(archivedRealDeposits, venueId.toUpperCase())) {
+            archivedRealDeposits[venueId.toUpperCase()] += Math.trunc(Number(item.acconto) || 0)
+            return
+          }
+          if (venueId.toUpperCase().startsWith('D')) return
           if (!depositMap[venueId]) depositMap[venueId] = { acconti: 0, recuperi: 0, daRiportare: 0 }
           depositMap[venueId].acconti += Math.trunc(Number(item.acconto) || 0)
           depositMap[venueId].recuperi += Math.trunc(Number(item.recupero) || 0)
@@ -245,6 +246,7 @@ export default function ConteggiPage() {
         setAdminOverridesByOperator(overridesMap)
         setOverrideInputsByOperator(inputsMap)
         setMissingVenueDeposits(depositMap)
+        setRealDepositsByCode(archivedRealDeposits)
         return
       }
 
@@ -310,7 +312,6 @@ export default function ConteggiPage() {
     }
 
     if (period.status === 'closed') {
-      setRealDepositsByCode(empty)
       return
     }
 
@@ -508,7 +509,7 @@ export default function ConteggiPage() {
   const missingVenues = useMemo(() => {
     const counted = new Set(rows.map((r) => String(r.venue_id)))
     return venues
-      .filter((v) => !counted.has(String(v.id)))
+      .filter((v) => v.active !== false && !String(v.id || '').toUpperCase().startsWith('D') && !counted.has(String(v.id)))
       .map((v) => {
         const movements = missingVenueDeposits[String(v.id)] || {}
         const availableAcconti = Math.trunc(Number(movements.acconti) || 0)
@@ -526,54 +527,91 @@ export default function ConteggiPage() {
       .sort(sortVenueIds)
   }, [rows, venues, missingVenueDeposits])
 
-  async function createPeriod() {
-    if (!newPeriod.date_from || !newPeriod.date_to) return toast.warning('Inserisci le date')
-    const title = formatPeriodTitle(newPeriod.date_from, newPeriod.date_to)
-    const { error: deactivateError } = await supabase
-      .from('conteggi_periods')
-      .update({ status: 'inactive' })
-      .eq('status', 'open')
-    if (deactivateError) return toast.error(deactivateError.message)
-    const { error } = await supabase.from('conteggi_periods').insert({
-      title, date_from: newPeriod.date_from, date_to: newPeriod.date_to, status: 'open', note: null,
-    })
-    if (error) return toast.error(error.message)
-    setShowNewPeriod(false)
-    setNewPeriod({ date_from: todayKey(), date_to: todayKey() })
-    toast.success(`Periodo "${title}" creato`)
-    await loadPeriods()
-  }
-
-  async function deletePeriod() {
-    if (!selectedPeriod) return
-    const title = formatPeriodTitle(selectedPeriod.date_from, selectedPeriod.date_to)
-    await supabase.from('conteggi_admin_rows').update({ period_id: null, locked: false }).eq('period_id', selectedPeriod.id)
-    const { error } = await supabase.from('conteggi_periods').delete().eq('id', selectedPeriod.id)
-    if (error) { toast.error(error.message); return }
-    setSelectedPeriodId('')
-    setConfirmDeletePeriod(false)
-    toast.success(`"${title}" eliminato`)
-    await loadPeriods()
-  }
-
-  async function archivePeriod() {
-    if (!selectedPeriod) return
-
+  async function openFinalization() {
+    if (!selectedPeriod || isClosed) return
+    setPeriodMenuOpen(false)
+    setFinalization({ open: true, step: 'carryovers', preview: null, newDateTo: '', loading: true })
     try {
-      const { data, error } = await supabase.rpc('chiudi_e_archivia_conteggi', {
+      const { data, error } = await supabase.rpc('prepara_finalizzazione_conteggi', {
         p_period_id: selectedPeriod.id,
       })
       if (error) throw error
-      if (!data?.success) throw new Error('La chiusura non è stata confermata dal server')
-
-      setConfirmArchivePeriod(false)
-      toast.success(`Periodo archiviato • ${data.movimenti_archiviati_eliminati || 0} movimenti rimossi dalla Cassa`)
-      await loadPeriods()
-      setPeriodView('archive')
-      setSelectedPeriodId(selectedPeriod.id)
-      await loadDashboard(selectedPeriod.id, true)
+      setFinalization({
+        open: true,
+        step: 'carryovers',
+        preview: data,
+        newDateTo: data?.suggested_date_to || data?.new_date_from || '',
+        loading: false,
+      })
     } catch (e) {
-      toast.error(`Chiusura archivio: ${e.message}`)
+      setFinalization({ open: false, step: 'carryovers', preview: null, newDateTo: '', loading: false })
+      toast.error(`Preparazione finalizzazione: ${e.message}`)
+    }
+  }
+
+  function closeFinalization() {
+    if (finalization.loading) return
+    setFinalization({ open: false, step: 'carryovers', preview: null, newDateTo: '', loading: false })
+  }
+
+  function advanceFinalization() {
+    const hasMissing = (finalization.preview?.missing_venues || []).length > 0
+    setFinalization((current) => ({
+      ...current,
+      step: current.step === 'carryovers'
+        ? (hasMissing ? 'missing' : 'archive')
+        : current.step === 'missing'
+          ? 'archive'
+          : current.step === 'archive'
+            ? 'new-period'
+            : current.step,
+    }))
+  }
+
+  function backFinalization() {
+    const hasMissing = (finalization.preview?.missing_venues || []).length > 0
+    setFinalization((current) => ({
+      ...current,
+      step: current.step === 'new-period'
+        ? 'archive'
+        : current.step === 'archive'
+          ? (hasMissing ? 'missing' : 'carryovers')
+          : 'carryovers',
+    }))
+  }
+
+  async function finalizePeriod() {
+    const preview = finalization.preview
+    if (!selectedPeriod || !preview) return
+    if (!finalization.newDateTo || finalization.newDateTo < preview.new_date_from) {
+      toast.warning('La data finale deve essere uguale o successiva alla data iniziale')
+      return
+    }
+    try {
+      setFinalization((current) => ({ ...current, loading: true }))
+      const { data, error } = await supabase.rpc('finalizza_periodo_conteggi', {
+        p_period_id: selectedPeriod.id,
+        p_new_date_to: finalization.newDateTo,
+        p_preview_fingerprint: preview.fingerprint,
+        p_missing_venues_confirmed: (preview.missing_venues || []).length > 0,
+      })
+      if (error) throw error
+      if (!data?.success) throw new Error('La finalizzazione non è stata confermata dal server')
+
+      setFinalization({ open: false, step: 'carryovers', preview: null, newDateTo: '', loading: false })
+      await loadPeriods()
+      setPeriodView('active')
+      setSelectedPeriodId(data.new_period_id)
+      toast.success(`Periodo finalizzato • ${fmtEuro(data.da_riportare_trasferiti)} trasferiti`)
+    } catch (e) {
+      const changed = /cambiati|fingerprint|controlla nuovamente/i.test(e?.message || '')
+      if (changed) {
+        toast.warning('I dati sono cambiati: controlla nuovamente i Da Riportare')
+        await openFinalization()
+      } else {
+        setFinalization((current) => ({ ...current, loading: false }))
+        toast.error(`Finalizzazione: ${e.message}`)
+      }
     }
   }
 
@@ -720,7 +758,16 @@ export default function ConteggiPage() {
                   </div>
                 </div>
 
-                <div className="absolute right-0 top-0 z-40">
+                <div className="absolute right-0 top-0 z-40 flex items-start gap-2">
+                  <button
+                    type="button"
+                    onClick={() => loadDashboard()}
+                    disabled={!selectedPeriodId || loading}
+                    className="flex h-12 items-center justify-center gap-2 rounded-[16px] border border-[#d8b86c] bg-white px-4 text-[10px] font-black tracking-[0.08em] text-[#755019] shadow-[0_13px_24px_-17px_rgba(116,79,17,.48)] transition hover:-translate-y-0.5 active:scale-95 disabled:opacity-45"
+                  >
+                    <RefreshCw size={15} className={loading ? 'animate-spin' : ''}/> AGGIORNA
+                  </button>
+                  <div className="relative">
                   <button
                     type="button"
                     onClick={() => setPeriodMenuOpen((v) => !v)}
@@ -733,22 +780,16 @@ export default function ConteggiPage() {
 
                   {periodMenuOpen && (
                     <div className="absolute right-0 mt-2 w-[300px] overflow-hidden rounded-[22px] border border-[#d9c28d] bg-[#fffdf8] p-3 shadow-[0_28px_70px_-30px_rgba(45,28,4,.85)]">
-                      <p className="px-1 pb-2 text-[9px] font-black tracking-[0.22em] text-[#a0711f]">GESTIONE PERIODO</p>
-                      <select value={selectedPeriodId} onChange={(e)=>setSelectedPeriodId(e.target.value)} className="h-11 w-full rounded-[14px] border border-[#ddcaa2] bg-white px-3 text-[11px] font-black text-[#4d3510] outline-none">
-                        {visiblePeriods.length===0&&<option value="">Nessun periodo</option>}
-                        {visiblePeriods.map(p=><option key={p.id} value={p.id}>{formatPeriodTitle(p.date_from,p.date_to)}</option>)}
-                      </select>
-                      <div className="mt-2 grid grid-cols-2 gap-2">
-                        <button onClick={()=>{loadDashboard();setPeriodMenuOpen(false)}} className="flex h-10 items-center justify-center gap-2 rounded-[13px] border border-[#dfcfad] bg-white text-[10px] font-black text-[#765116]"><RefreshCw size={14}/>AGGIORNA</button>
-                        <button onClick={()=>{setShowNewPeriod(true);setPeriodMenuOpen(false)}} disabled={isClosed} className="flex h-10 items-center justify-center gap-2 rounded-[13px] bg-[linear-gradient(135deg,#c99635,#8d5d13)] text-[10px] font-black text-white disabled:opacity-40"><Plus size={14}/>NUOVO</button>
-                        {!isClosed && selectedPeriod && <button onClick={()=>{setConfirmArchivePeriod(true);setPeriodMenuOpen(false)}} className="flex h-10 items-center justify-center gap-2 rounded-[13px] border border-[#dfcfad] bg-[#fbf5e8] text-[10px] font-black text-[#684613]"><Archive size={14}/>CHIUDI</button>}
-                        <button onClick={()=>setPeriodView(periodView==='active'?'archive':'active')} className="flex h-10 items-center justify-center gap-2 rounded-[13px] border border-[#dfcfad] bg-white text-[10px] font-black text-slate-600">
-                          {periodView==='active' ? <Archive size={14}/> : <Calendar size={14}/>} {periodView==='active'?'ARCHIVIO':'ATTIVI'}
+                      <p className="px-1 pb-2 text-[9px] font-black tracking-[0.22em] text-[#a0711f]">CONTEGGI</p>
+                      <div className="grid gap-2">
+                        <button onClick={()=>{setPeriodView(periodView==='active'?'archive':'active');setPeriodMenuOpen(false)}} className="flex h-11 items-center justify-center gap-2 rounded-[13px] border border-[#dfcfad] bg-white text-[10px] font-black text-slate-600">
+                          {periodView==='active' ? <Archive size={14}/> : <Calendar size={14}/>} {periodView==='active'?'ARCHIVIO':'PERIODO ATTIVO'}
                         </button>
-                        {selectedPeriod && !isClosed && <button onClick={()=>{setConfirmDeletePeriod(true);setPeriodMenuOpen(false)}} className="flex h-10 items-center justify-center gap-2 rounded-[13px] border border-rose-200 bg-rose-50 text-[10px] font-black text-rose-600"><Trash2 size={14}/>ELIMINA</button>}
+                        {!isClosed && selectedPeriod && <button onClick={openFinalization} className="flex h-11 items-center justify-center gap-2 rounded-[13px] bg-[linear-gradient(135deg,#c99635,#8d5d13)] text-[10px] font-black tracking-[0.08em] text-white"><CheckCircle2 size={15}/>FINALIZZA</button>}
                       </div>
                     </div>
                   )}
+                  </div>
                 </div>
               </div>
             </section>
@@ -914,34 +955,6 @@ export default function ConteggiPage() {
       )}
 
       <Modal
-        open={showNewPeriod}
-        onClose={() => setShowNewPeriod(false)}
-        title="Nuovo periodo"
-        width="sm"
-        footer={
-          <>
-            <Button variant="ghost" onClick={() => setShowNewPeriod(false)}>Annulla</Button>
-            <Button variant="primary" onClick={createPeriod}>Crea periodo</Button>
-          </>
-        }
-      >
-        <div className="flex flex-col gap-3">
-          <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2">
-            <p className="text-[11px] font-medium text-[var(--color-text-muted)]">Titolo automatico</p>
-            <p className="mt-0.5 text-[14px] font-medium text-[var(--color-text)]">{formatPeriodTitle(newPeriod.date_from, newPeriod.date_to)}</p>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Dal">
-              <Input type="date" value={newPeriod.date_from} onChange={(e) => setNewPeriod((p) => ({ ...p, date_from: e.target.value }))} />
-            </Field>
-            <Field label="Al">
-              <Input type="date" value={newPeriod.date_to} onChange={(e) => setNewPeriod((p) => ({ ...p, date_to: e.target.value }))} />
-            </Field>
-          </div>
-        </div>
-      </Modal>
-
-      <Modal
         open={filtersOpen}
         onClose={() => setFiltersOpen(false)}
         title="Filtri"
@@ -977,22 +990,14 @@ export default function ConteggiPage() {
         </div>
       </Modal>
 
-      <ConfirmDialog
-        open={confirmDeletePeriod}
-        onClose={() => setConfirmDeletePeriod(false)}
-        title="Elimina periodo"
-        message={selectedPeriod ? `Vuoi eliminare il periodo "${formatPeriodTitle(selectedPeriod.date_from, selectedPeriod.date_to)}"? I conteggi non verranno cancellati ma scollegati dal periodo.` : ''}
-        confirmLabel="Elimina"
-        onConfirm={deletePeriod}
-      />
-
-      <ConfirmDialog
-        open={confirmArchivePeriod}
-        onClose={() => setConfirmArchivePeriod(false)}
-        title="Chiudi e archivia conteggi"
-        message={selectedPeriod ? `Stai per chiudere definitivamente "${formatPeriodTitle(selectedPeriod.date_from, selectedPeriod.date_to)}". Verrà creata una fotografia permanente; conteggi e movimenti Cassa del periodo saranno rimossi dall'operatività e non saranno più modificabili. I Da Riportare del periodo successivo resteranno attivi.` : ''}
-        confirmLabel="Chiudi e archivia"
-        onConfirm={archivePeriod}
+      <FinalizationWizard
+        state={finalization}
+        period={selectedPeriod}
+        onClose={closeFinalization}
+        onNext={advanceFinalization}
+        onBack={backFinalization}
+        onDateToChange={(value) => setFinalization((current) => ({ ...current, newDateTo: value }))}
+        onFinalize={finalizePeriod}
       />
 
       <Modal
@@ -1034,6 +1039,102 @@ export default function ConteggiPage() {
         )}
       </Modal>
     </PageLayout>
+  )
+}
+
+function FinalizationWizard({ state, period, onClose, onNext, onBack, onDateToChange, onFinalize }) {
+  if (!state.open) return null
+  const preview = state.preview
+  const employees = preview?.employee_totals || []
+  const missing = preview?.missing_venues || []
+  const isFirst = state.step === 'carryovers'
+  const isLast = state.step === 'new-period'
+  const titles = {
+    carryovers: 'CONFERMA DA RIPORTARE',
+    missing: 'LOCALI NON CONTEGGIATI',
+    archive: 'ARCHIVIO DEFINITIVO',
+    'new-period': 'NUOVO PERIODO',
+  }
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-3 backdrop-blur-sm">
+      <div className="max-h-[92vh] w-full max-w-[620px] overflow-hidden rounded-[28px] border border-[#d8bd7e] bg-[#fffdf8] shadow-[0_35px_90px_-30px_rgba(0,0,0,.85)]">
+        <div className="border-b border-[#e6d8ba] bg-[linear-gradient(135deg,#fff4d4,#e8c875)] px-5 py-4 text-center">
+          <p className="text-[9px] font-black tracking-[0.22em] text-[#9a6a18]">FINALIZZA PERIODO</p>
+          <h2 className="mt-1 text-[19px] font-black tracking-[0.08em] text-[#3e2a0b]">{titles[state.step]}</h2>
+          {period && <p className="mt-1 text-[11px] font-bold text-[#7a5619]">{formatITDate(period.date_from)} — {formatITDate(period.date_to)}</p>}
+        </div>
+
+        <div className="max-h-[66vh] overflow-y-auto p-5">
+          {state.loading && !preview ? (
+            <div className="flex min-h-[220px] flex-col items-center justify-center gap-3 text-[#8b641f]">
+              <RefreshCw size={26} className="animate-spin"/>
+              <p className="text-[11px] font-black uppercase tracking-[0.12em]">Controllo dati in corso…</p>
+            </div>
+          ) : state.step === 'carryovers' ? (
+            <>
+              <p className="mb-4 text-center text-[13px] font-bold text-slate-700">Confermi che i Da Riportare indicati di seguito sono corretti?</p>
+              <div className="overflow-hidden rounded-[18px] border border-[#e3d7c0]">
+                {employees.map((employee) => (
+                  <div key={employee.auth_user_id || employee.full_name} className="flex items-center justify-between border-b border-[#eee5d5] bg-white px-4 py-3 last:border-b-0">
+                    <span className="text-[12px] font-black uppercase text-slate-700">{employee.full_name}</span>
+                    <span className="text-[15px] font-black tabular-nums text-[#785116]">{fmtEuro(employee.total_da_riportare)}</span>
+                  </div>
+                ))}
+                <div className="flex items-center justify-between bg-[#f5e8cc] px-4 py-4">
+                  <span className="text-[11px] font-black tracking-[0.12em] text-[#6a4710]">TOTALE GENERALE</span>
+                  <span className="text-[20px] font-black tabular-nums text-[#5e3e0d]">{fmtEuro(preview?.total_da_riportare)}</span>
+                </div>
+              </div>
+            </>
+          ) : state.step === 'missing' ? (
+            <>
+              <div className="rounded-[18px] border border-orange-200 bg-orange-50 p-4 text-center">
+                <TriangleAlert className="mx-auto text-orange-600" size={28}/>
+                <p className="mt-2 text-[13px] font-black text-orange-900">Questi locali non sono stati conteggiati. Proseguire ugualmente?</p>
+              </div>
+              <div className="mt-3 space-y-2">
+                {missing.map((venue) => (
+                  <div key={venue.id} className="flex items-center gap-3 rounded-[14px] border border-[#e4dac7] bg-white px-4 py-3">
+                    <span className="font-mono text-[11px] font-black text-[#8c621c]">{venue.id}</span>
+                    <span className="text-[12px] font-black text-slate-700">{venue.name}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : state.step === 'archive' ? (
+            <div className="rounded-[20px] border border-[#dfcfad] bg-[#fbf6eb] p-5 text-center">
+              <Archive className="mx-auto text-[#99691b]" size={30}/>
+              <p className="mt-4 text-[15px] font-black text-[#3d2b0f]">Il periodo finirà nell’Archivio.</p>
+              <p className="mt-3 text-[13px] font-bold leading-relaxed text-slate-600">Sarà possibile visualizzare ed esportare i dati, ma conteggi, rettifiche e movimenti archiviati non saranno mai più modificabili, eliminabili o riapribili. Confermi?</p>
+            </div>
+          ) : (
+            <>
+              <p className="mb-4 text-center text-[13px] font-bold text-slate-700">Indica la data finale del nuovo periodo.</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="rounded-[16px] border border-[#dfd2b8] bg-[#f8f1e3] p-3">
+                  <span className="text-[9px] font-black tracking-[0.12em] text-slate-500">DATA INIZIALE · BLOCCATA</span>
+                  <input type="date" value={preview?.new_date_from || ''} disabled className="mt-2 h-11 w-full rounded-[12px] border border-[#ded2bc] bg-white px-3 font-black text-slate-600"/>
+                </label>
+                <label className="rounded-[16px] border border-[#d7b96e] bg-[#fff9eb] p-3">
+                  <span className="text-[9px] font-black tracking-[0.12em] text-[#8c621b]">DATA FINALE · OBBLIGATORIA</span>
+                  <input type="date" min={preview?.new_date_from || ''} value={state.newDateTo} onChange={(e) => onDateToChange(e.target.value)} className="mt-2 h-11 w-full rounded-[12px] border border-[#d2b56e] bg-white px-3 font-black text-slate-800 outline-none"/>
+                </label>
+              </div>
+              <div className="mt-4 rounded-[16px] border border-[#e3d8c2] bg-white p-4 text-[12px] font-bold text-slate-600">
+                <div className="flex justify-between"><span>Conteggi da archiviare</span><strong>{preview?.conteggi_count || 0}</strong></div>
+                <div className="mt-2 flex justify-between"><span>Da Riportare trasferiti</span><strong>{fmtEuro(preview?.total_da_riportare)}</strong></div>
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 border-t border-[#e8ddc7] bg-white p-4">
+          <button type="button" onClick={isFirst ? onClose : onBack} disabled={state.loading} className="h-12 rounded-[15px] border border-[#ddd1bb] bg-white text-[11px] font-black text-slate-600 disabled:opacity-50">{isFirst ? 'NO, ANNULLA' : 'INDIETRO'}</button>
+          <button type="button" onClick={isLast ? onFinalize : onNext} disabled={state.loading || !preview || (isLast && (!state.newDateTo || state.newDateTo < preview.new_date_from))} className="h-12 rounded-[15px] bg-[linear-gradient(135deg,#c99635,#8d5d13)] px-3 text-[11px] font-black text-white shadow-[0_12px_24px_-16px_rgba(100,61,5,.8)] disabled:opacity-45">{state.loading ? 'FINALIZZAZIONE…' : isLast ? 'FINALIZZA E CREA IL NUOVO PERIODO' : state.step === 'missing' ? 'PROSEGUI UGUALMENTE' : 'SÌ, PROSEGUI'}</button>
+        </div>
+      </div>
+    </div>
   )
 }
 
