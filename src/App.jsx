@@ -2,11 +2,12 @@ import { useState, useEffect, useCallback } from 'react'
 import {
   Wallet, Users, Building2, BarChart3, Car, Trash2, ShieldCheck, Calculator,
   Receipt, ClipboardCheck, Search, ChevronsLeft, ChevronsRight, Menu, X,
-  LockKeyhole, Mail, Eye, EyeOff, LogOut, Loader2, RefreshCw,
+  LockKeyhole, Mail, Eye, EyeOff, LogOut, Loader2, RefreshCw, CalendarDays,
 } from 'lucide-react'
 import CassaPage from './pages/CassaPage'
 import ConteggiPage from './pages/ConteggiPage'
 import DebitiBonusPage from './pages/DebitiBonusPage'
+import CalendarioConteggiPage from './pages/CalendarioConteggiPage'
 import SimulazioniPage from './pages/SimulazioniPage'
 import AgentiPage from './pages/AgentiPage'
 import LocaliPage from './pages/LocaliPage'
@@ -21,6 +22,7 @@ const NAV = [
   { id: 'cassa',       label: 'CASSA',               icon: 'Wallet',         iconCmp: Wallet,         hint: 'Movimenti cassa',           component: CassaPage,       shortcut: 'C' },
   { id: 'analisi',     label: 'ANALISI GIORNALIERA', icon: 'BarChart3',      iconCmp: BarChart3,      hint: 'Riepilogo giornaliero',     component: AnalisiPage,     shortcut: 'N' },
   { id: 'conteggi',    label: 'CONTEGGI',            icon: 'Calculator',     iconCmp: Calculator,     hint: 'Conteggi per periodo',      component: ConteggiPage,    shortcut: 'G' },
+  { id: 'calendario',  label: 'CALENDARIO CONTEGGI', icon: 'CalendarDays', iconCmp: CalendarDays, hint: 'Programma i giorni di conteggio', component: CalendarioConteggiPage, shortcut: 'D' },
   { id: 'debiti',      label: 'DEBITI E BONUS',      icon: 'Receipt',        iconCmp: Receipt,        hint: 'Debiti e bonus per locale', component: DebitiBonusPage, shortcut: 'B' },
   { id: 'simulazioni', label: 'SIMULAZIONI',         icon: 'ClipboardCheck', iconCmp: ClipboardCheck, hint: 'Simulazioni e richieste',    component: SimulazioniPage,shortcut: 'S' },
   { id: 'agenti',      label: 'AGENTI',               icon: 'Users',          iconCmp: Users,          hint: 'Gestione agenti e accessi', component: AgentiPage,      shortcut: 'A' },
@@ -239,7 +241,7 @@ function LoginScreen() {
               <img src="/app-icon.png" alt="" className="h-7 w-7 rounded object-contain" draggable={false} />
               <div>
                 <p className="text-[13px] font-semibold text-white">Play Money Admin</p>
-                <p className="text-[10px] text-slate-400">Versione 6.5</p>
+                <p className="text-[10px] text-slate-400">Versione 6.6</p>
               </div>
             </div>
             <div className="px-2 py-3">
@@ -380,7 +382,7 @@ function Sidebar({ page, setPage, collapsed, setCollapsed, openPalette, isMobile
   const isMac = typeof navigator !== 'undefined' && navigator.platform.toUpperCase().includes('MAC')
   const cmdKey = isMac ? '⌘' : 'Ctrl'
   const groups = [
-    { label: 'OPERATIVITÀ', ids: ['cassa', 'analisi', 'conteggi', 'debiti', 'simulazioni'] },
+    { label: 'OPERATIVITÀ', ids: ['cassa', 'analisi', 'conteggi', 'calendario', 'debiti', 'simulazioni'] },
     { label: 'CONTROLLO', ids: ['agenti', 'locali', 'automezzi', 'cestino'] },
   ]
   const [cassaTotale, setCassaTotale] = useState(0)
@@ -430,7 +432,7 @@ function Sidebar({ page, setPage, collapsed, setCollapsed, openPalette, isMobile
           <img src="/app-icon.png" alt="" className="relative z-10 h-10 w-10 object-contain" draggable={false} />
           <div className="absolute inset-0 bg-white/10" />
         </div>
-        {!collapsed && <div className="min-w-0 flex-1"><p className="truncate text-[16px] font-black tracking-[0.04em] text-white">PLAY MONEY</p><div className="mt-1 flex items-center gap-2"><span className="rounded-full border border-[#e1bb68]/40 bg-[#d5a441]/15 px-2 py-0.5 text-[9px] font-black tracking-[0.18em] text-[#f0cc7b]">ADMIN</span><span className="text-[10px] font-bold text-white/100">Ver. 6.5</span></div></div>}
+        {!collapsed && <div className="min-w-0 flex-1"><p className="truncate text-[16px] font-black tracking-[0.04em] text-white">PLAY MONEY</p><div className="mt-1 flex items-center gap-2"><span className="rounded-full border border-[#e1bb68]/40 bg-[#d5a441]/15 px-2 py-0.5 text-[9px] font-black tracking-[0.18em] text-[#f0cc7b]">ADMIN</span><span className="text-[10px] font-bold text-white/100">Ver. 6.6</span></div></div>}
         {isMobile && <button onClick={onClose} className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-white/10 bg-white/5 text-white/70 active:scale-95" aria-label="Chiudi menu"><X size={18}/></button>}
         {!collapsed && !isMobile && <button onClick={() => setCollapsed(true)} className="flex h-9 w-9 items-center justify-center rounded-[13px] border border-white/8 bg-white/[0.035] text-white/45 transition hover:border-[#d7ad55]/30 hover:text-[#efc872]" title="Comprimi"><ChevronsLeft size={16}/></button>}
       </div>
