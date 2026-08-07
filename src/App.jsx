@@ -19,10 +19,10 @@ import { CommandPalette } from './components/CommandPalette'
 import { supabase } from './lib/supabase'
 
 const NAV = [
-  { id: 'cassa',       label: 'CASSA',               icon: 'Wallet',         iconCmp: Wallet,         hint: 'Movimenti cassa',           component: CassaPage,       shortcut: 'C' },
   { id: 'analisi',     label: 'ANALISI GIORNALIERA', icon: 'BarChart3',      iconCmp: BarChart3,      hint: 'Riepilogo giornaliero',     component: AnalisiPage,     shortcut: 'N' },
+  { id: 'cassa',       label: 'CASSA',               icon: 'Wallet',         iconCmp: Wallet,         hint: 'Movimenti cassa',           component: CassaPage,       shortcut: 'C' },
   { id: 'conteggi',    label: 'CONTEGGI',            icon: 'Calculator',     iconCmp: Calculator,     hint: 'Conteggi per periodo',      component: ConteggiPage,    shortcut: 'G' },
-  { id: 'calendario',  label: 'CALENDARIO CONTEGGI', icon: 'CalendarDays', iconCmp: CalendarDays, hint: 'Programma i giorni di conteggio', component: CalendarioConteggiPage, shortcut: 'D' },
+  { id: 'calendario',  label: 'CALENDARIO',           icon: 'CalendarDays', iconCmp: CalendarDays, hint: 'Programma i giorni di conteggio', component: CalendarioConteggiPage, shortcut: 'D' },
   { id: 'debiti',      label: 'DEBITI E BONUS',      icon: 'Receipt',        iconCmp: Receipt,        hint: 'Debiti e bonus per locale', component: DebitiBonusPage, shortcut: 'B' },
   { id: 'simulazioni', label: 'SIMULAZIONI',         icon: 'ClipboardCheck', iconCmp: ClipboardCheck, hint: 'Simulazioni e richieste',    component: SimulazioniPage,shortcut: 'S' },
   { id: 'agenti',      label: 'AGENTI',               icon: 'Users',          iconCmp: Users,          hint: 'Gestione agenti e accessi', component: AgentiPage,      shortcut: 'A' },
@@ -32,7 +32,7 @@ const NAV = [
 ]
 
 export default function App() {
-  const [page, setPage] = useState('cassa')
+  const [page, setPage] = useState('analisi')
   const [collapsed, setCollapsed] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
@@ -62,7 +62,7 @@ export default function App() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
-    setPage('cassa')
+    setPage('analisi')
     setPaletteOpen(false)
     setMobileNavOpen(false)
   }
@@ -108,7 +108,7 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  const Current = NAV.find((n) => n.id === page)?.component || CassaPage
+  const Current = NAV.find((n) => n.id === page)?.component || AnalisiPage
   const currentLabel = NAV.find((n) => n.id === page)?.label || 'Play Money'
 
   if (authLoading) {
@@ -241,7 +241,7 @@ function LoginScreen() {
               <img src="/app-icon.png" alt="" className="h-7 w-7 rounded object-contain" draggable={false} />
               <div>
                 <p className="text-[13px] font-semibold text-white">Play Money Admin</p>
-                <p className="text-[10px] text-slate-400">Versione 6.7</p>
+                <p className="text-[10px] text-slate-400">Versione 6.8</p>
               </div>
             </div>
             <div className="px-2 py-3">
@@ -382,7 +382,7 @@ function Sidebar({ page, setPage, collapsed, setCollapsed, openPalette, isMobile
   const isMac = typeof navigator !== 'undefined' && navigator.platform.toUpperCase().includes('MAC')
   const cmdKey = isMac ? '⌘' : 'Ctrl'
   const groups = [
-    { label: 'OPERATIVITÀ', ids: ['cassa', 'analisi', 'conteggi', 'calendario', 'debiti', 'simulazioni'] },
+    { label: 'OPERATIVITÀ', ids: ['analisi', 'cassa', 'conteggi', 'calendario', 'debiti', 'simulazioni'] },
     { label: 'CONTROLLO', ids: ['agenti', 'locali', 'automezzi', 'cestino'] },
   ]
   const [cassaTotale, setCassaTotale] = useState(0)
@@ -432,20 +432,20 @@ function Sidebar({ page, setPage, collapsed, setCollapsed, openPalette, isMobile
           <img src="/app-icon.png" alt="" className="relative z-10 h-10 w-10 object-contain" draggable={false} />
           <div className="absolute inset-0 bg-white/10" />
         </div>
-        {!collapsed && <div className="min-w-0 flex-1"><p className="truncate text-[16px] font-black tracking-[0.04em] text-white">PLAY MONEY</p><div className="mt-1 flex items-center gap-2"><span className="rounded-full border border-[#e1bb68]/40 bg-[#d5a441]/15 px-2 py-0.5 text-[9px] font-black tracking-[0.18em] text-[#f0cc7b]">ADMIN</span><span className="text-[10px] font-bold text-white/100">Ver. 6.7</span></div></div>}
+        {!collapsed && <div className="min-w-0 flex-1"><p className="truncate text-[16px] font-black tracking-[0.04em] text-white">PLAY MONEY</p><div className="mt-1 flex items-center gap-2"><span className="rounded-full border border-[#e1bb68]/40 bg-[#d5a441]/15 px-2 py-0.5 text-[9px] font-black tracking-[0.18em] text-[#f0cc7b]">ADMIN</span><span className="text-[10px] font-bold text-white/100">Ver. 6.8</span></div></div>}
         {isMobile && <button onClick={onClose} className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-white/10 bg-white/5 text-white/70 active:scale-95" aria-label="Chiudi menu"><X size={18}/></button>}
         {!collapsed && !isMobile && <button onClick={() => setCollapsed(true)} className="flex h-9 w-9 items-center justify-center rounded-[13px] border border-white/8 bg-white/[0.035] text-white/45 transition hover:border-[#d7ad55]/30 hover:text-[#efc872]" title="Comprimi"><ChevronsLeft size={16}/></button>}
       </div>
 
       {!isMobile && <div className="relative px-3 py-3"><button onClick={openPalette} className={`flex h-11 w-full items-center gap-3 rounded-[15px] border border-white/8 bg-white/[0.035] px-3 text-left text-white/45 transition hover:border-[#d5aa51]/25 hover:bg-white/[0.06] hover:text-white ${collapsed ? 'justify-center px-0' : ''}`}><Search size={16}/>{!collapsed && <><span className="flex-1 text-[12px] font-bold">Cerca nell'app</span><kbd className="rounded-lg border border-white/10 bg-black/20 px-1.5 py-1 font-mono text-[9px] text-white/35">{cmdKey}K</kbd></>}</button></div>}
 
-      <nav className="relative flex-1 overflow-y-auto px-3 pb-3 no-scrollbar">
+      <nav className="relative flex flex-1 flex-col overflow-y-auto px-3 pb-3 no-scrollbar">
         {groups.map((group, gi) => <div key={group.label} className={gi ? 'mt-5' : ''}>
           {!collapsed && <p className="mb-2 px-2 text-[9px] font-black tracking-[0.24em] text-[#d8b35f]/55">{group.label}</p>}
           <div className="space-y-1.5">{group.ids.map(id => { const item=NAV.find(n=>n.id===id); return <NavItem key={id} item={item} active={page===id} collapsed={collapsed} isMobile={isMobile} onClick={()=>setPage(id)}/> })}</div>
         </div>)}
         {!collapsed && (
-          <section className="mt-5 overflow-hidden rounded-[22px] border border-[#d9b45f]/30 bg-[linear-gradient(145deg,rgba(217,180,95,.16),rgba(255,255,255,.035))] p-4 shadow-[0_18px_42px_-24px_rgba(215,171,75,.65)]">
+          <section className="order-first mb-4 overflow-hidden rounded-[22px] border border-[#d9b45f]/30 bg-[linear-gradient(145deg,rgba(217,180,95,.16),rgba(255,255,255,.035))] p-4 shadow-[0_18px_42px_-24px_rgba(215,171,75,.65)]">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-[9px] font-black tracking-[0.24em] text-[#e9c873]/65">CASSA TOTALE</p>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { RefreshCw, FileDown, Users, ChevronDown, Pencil, Trash2, CalendarDays } from 'lucide-react'
+import { RefreshCw, FileDown, Users, ChevronDown, Pencil, Trash2, CalendarDays, Lock, Unlock } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import {
   Input, EmptyState, Modal, Button, Field,
@@ -342,6 +342,8 @@ export default function AnalisiPage() {
   const [fondi, setFondi] = useState([])
   const [venues, setVenues] = useState([])
   const [dipendenti, setDipendenti] = useState([])
+  const [locks, setLocks] = useState([])
+  const [lockSavingId, setLockSavingId] = useState(null)
   const [loading, setLoading] = useState(true)
   const [expandedAgentId, setExpandedAgentId] = useState(null)
 
@@ -355,7 +357,7 @@ export default function AnalisiPage() {
 
   async function loadData() {
     setLoading(true)
-    const [movRes, fondoRes, venRes, dipRes] = await Promise.all([
+    const [movRes, fondoRes, venRes, dipRes, lockRes] = await Promise.all([
       supabase
   .from('movements_cassa')
   .select('*')
@@ -365,13 +367,37 @@ export default function AnalisiPage() {
       supabase.from('fondo_cassa_giornaliero').select('*').eq('work_date', data),
       supabase.from('venues').select('*'),
       supabase.from('dipendenti').select('*'),
+      supabase.from('daily_edit_locks').select('*').eq('work_date', data),
     ])
     if (movRes.error) toast.error(`Errore: ${movRes.error.message}`)
     setMovements(movRes.data || [])
     setFondi(fondoRes.data || [])
     setVenues(venRes.data || [])
     setDipendenti(dipRes.data || [])
+    if (lockRes.error) toast.error(`Lucchetti non disponibili: ${lockRes.error.message}`)
+    setLocks(lockRes.data || [])
     setLoading(false)
+  }
+
+  function isAgentLocked(agentId) {
+    return locks.some((row) => String(row.created_by) === String(agentId) && row.locked)
+  }
+
+  async function toggleAgentLock(agentId) {
+    const nextLocked = !isAgentLocked(agentId)
+    setLockSavingId(String(agentId))
+    const { data: updated, error } = await supabase.rpc('set_daily_edit_lock', {
+      p_work_date: data,
+      p_created_by: agentId,
+      p_locked: nextLocked,
+    })
+    setLockSavingId(null)
+    if (error) return toast.error(error.message)
+    setLocks((prev) => [
+      ...prev.filter((row) => String(row.created_by) !== String(agentId)),
+      updated,
+    ])
+    toast.success(nextLocked ? 'Giornata bloccata' : 'Modifiche riaperte')
   }
 
   function venueLabel(id) {
@@ -575,6 +601,7 @@ export default function AnalisiPage() {
               const cassaGenerale = r.monete + r.acconti + r.recuperi - r.da_riportare
               const agentMovements = movements.filter((m) => String(m.created_by) === String(r.id))
               const isExpanded = expandedAgentId === String(r.id)
+              const agentLocked = isAgentLocked(r.id)
 
               return (
                 <article
@@ -590,10 +617,8 @@ export default function AnalisiPage() {
                       <div className="min-w-0 flex-1">
                         <p className="text-[14px] font-black uppercase tracking-[0.04em] text-[#3b2a0e]">{r.name}</p>
 
-                        <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-[9px] font-black uppercase tracking-[0.1em] text-[#856127] md:text-[10px]">
-                          <span>MONETE <strong className="tabular-nums text-[#33250f]">{formatEuro0(r.monete)}</strong></span>
-                          <span>FLUSSO <strong className="tabular-nums text-[#33250f]">{formatEuro0(r.acconti + r.recuperi - r.da_riportare)}</strong></span>
-                          <span>CASSA GENERALE <strong className="tabular-nums text-[#33250f]">{formatEuro0(cassaGenerale)}</strong></span>
+                        <div className="mt-1.5 flex flex-wrap gap-x-5 gap-y-1 text-[9px] font-black uppercase tracking-[0.1em] text-[#856127] md:text-[10px]">
+                          <span>MEZZO <strong className="text-[#33250f]">{r.mezzo || '—'}</strong></span>
                           <span>KM <strong className="tabular-nums text-[#33250f]">{r.km || '—'}</strong></span>
                           <span>RIFORNIMENTO <strong className="tabular-nums text-[#33250f]">{formatEuro0(r.rifornimento)}</strong></span>
                         </div>
@@ -612,13 +637,22 @@ export default function AnalisiPage() {
                       </div>
                     </div>
 
-                    <button
-                      onClick={() => exportPdf(r)}
-                      className="shrink-0 inline-flex h-10 items-center justify-center gap-2 rounded-[13px] border border-[#d3b469] bg-[linear-gradient(145deg,#fff8e6,#e9cd86)] px-3.5 text-[10px] font-black tracking-[0.11em] text-[#68450e] shadow-[0_10px_20px_-14px_rgba(111,72,10,.52)] transition hover:-translate-y-0.5 active:scale-95"
-                    >
-                      <FileDown size={14} strokeWidth={2.4} />
-                      PDF
-                    </button>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <button
+                        onClick={() => toggleAgentLock(r.id)}
+                        disabled={lockSavingId === String(r.id)}
+                        title={agentLocked ? 'Riapri le modifiche' : 'Blocca le modifiche'}
+                        className={`inline-flex h-10 w-10 items-center justify-center rounded-[13px] border transition active:scale-95 disabled:opacity-50 ${agentLocked ? 'border-red-300 bg-red-600 text-white shadow-[0_10px_20px_-14px_rgba(220,38,38,.8)]' : 'border-[#d3b469] bg-white/75 text-[#68450e]'}`}
+                      >
+                        {agentLocked ? <Lock size={16} /> : <Unlock size={16} />}
+                      </button>
+                      <button
+                        onClick={() => exportPdf(r)}
+                        className="inline-flex h-10 items-center justify-center gap-2 rounded-[13px] border border-[#d3b469] bg-[linear-gradient(145deg,#fff8e6,#e9cd86)] px-3.5 text-[10px] font-black tracking-[0.11em] text-[#68450e] shadow-[0_10px_20px_-14px_rgba(111,72,10,.52)] transition hover:-translate-y-0.5 active:scale-95"
+                      >
+                        <FileDown size={14} strokeWidth={2.4} /> PDF
+                      </button>
+                    </div>
                   </div>
 
                   {isExpanded && (
@@ -687,7 +721,15 @@ export default function AnalisiPage() {
                   )}
 
                   {/* Totali del singolo agente */}
-                  <div className="grid grid-cols-3 divide-x divide-[#eee5d4] border-t border-[#eee5d4] bg-[#fffdf9]">
+                  <div className="grid grid-cols-2 divide-x divide-y divide-[#eee5d4] border-t border-[#eee5d4] bg-[#fffdf9] md:grid-cols-5 md:divide-y-0">
+                    <div className="bg-[#fff6dc] px-3 py-3 text-center">
+                      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#946318]">Totale</p>
+                      <p className="mt-1 text-[23px] font-black tabular-nums text-[#241806]">{formatEuro0(cassaGenerale)}</p>
+                    </div>
+                    <div className="px-3 py-3 text-center">
+                      <p className="text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">Fondo cassa</p>
+                      <p className="mt-1 text-[17px] font-black tabular-nums text-[#33250f]">{formatEuro0(r.monete)}</p>
+                    </div>
                     <div className="px-3 py-3 text-center">
                       <p className="text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">Acconti</p>
                       <p className="mt-1 text-[17px] font-black tabular-nums text-[#33250f]">{formatEuro0(r.acconti)}</p>
