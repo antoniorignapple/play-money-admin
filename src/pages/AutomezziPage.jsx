@@ -4,7 +4,7 @@ import {
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import {
-  Button, IconButton, Input, Select, Badge, EmptyState, Card, Field, Modal, FilterBanner,
+  Button, IconButton, Input, Select, Badge, EmptyState, Card, Field, Modal, FilterBanner, Stat,
 } from '../components/ui'
 import { PageLayout, PageHeader, PageBody } from '../components/PageLayout'
 import { ConfirmDialog } from '../components/FormDialog'
@@ -18,6 +18,8 @@ export default function AutomezziPage() {
   const toast = useToast()
   const [records, setRecords] = useState([])
   const [dipendenti, setDipendenti] = useState([])
+  const [vehicles, setVehicles] = useState([])
+  const [vehicleDraft, setVehicleDraft] = useState({ name: '', plate: '', notes: '' })
   const [loading, setLoading] = useState(true)
 
   // Default: oggi → oggi (giornata corrente)
@@ -46,13 +48,15 @@ export default function AutomezziPage() {
 
   async function loadData() {
     setLoading(true)
-    const [recRes, dipRes] = await Promise.all([
+    const [recRes, dipRes, vehicleRes] = await Promise.all([
       supabase.from('fondo_cassa_giornaliero').select('*').order('work_date', { ascending: false }),
       supabase.from('dipendenti').select('*'),
+      supabase.from('automezzi').select('*').order('name'),
     ])
     if (recRes.error) toast.error(`Errore: ${recRes.error.message}`)
     setRecords(recRes.data || [])
     setDipendenti(dipRes.data || [])
+    if (!vehicleRes.error) setVehicles(vehicleRes.data || [])
     setPendingDeletes(new Set())
     setLoading(false)
   }
@@ -144,6 +148,18 @@ export default function AutomezziPage() {
 
   const hasPending = pendingDeletes.size > 0
 
+  async function createVehicle() {
+    const name = vehicleDraft.name.trim(); const plate = vehicleDraft.plate.replace(/[^a-z0-9]/gi, '').toUpperCase()
+    if (!name || !plate) return toast.warning('Nome e targa sono obbligatori')
+    const { error } = await supabase.from('automezzi').insert({ name, plate, notes: vehicleDraft.notes.trim() || null })
+    if (error) return toast.error(error.message)
+    setVehicleDraft({ name: '', plate: '', notes: '' }); toast.success('Mezzo aggiunto'); await loadData()
+  }
+  async function toggleVehicle(vehicle) {
+    const { error } = await supabase.from('automezzi').update({ active: !vehicle.active, updated_at: new Date().toISOString() }).eq('id', vehicle.id)
+    if (error) toast.error(error.message); else await loadData()
+  }
+
   const filterBanners = (
     <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
       <FilterBanner tone="info" icon={Calendar} label="Ricerca per data">
@@ -186,6 +202,12 @@ export default function AutomezziPage() {
 
       <PageBody>
         <div className="mx-auto max-w-[1600px] space-y-3 px-3 py-3 md:space-y-4 md:px-5 md:py-4">
+          <div className="grid gap-3 sm:grid-cols-3"><Stat label="Mezzi registrati" value={vehicles.length} icon={Car} tone="accent"/><Stat label="Disponibili" value={vehicles.filter(v => v.active).length} tone="success"/><Stat label="Rifornimenti filtrati" value={formatEuro(totals.rifornimento)} tone="warning"/></div>
+          <Card padding>
+            <div className="flex items-center justify-between"><div><p className="text-sm font-semibold">ARCHIVIO MEZZI AZIENDALI</p><p className="text-xs text-slate-500">I mezzi non disponibili restano leggibili nello storico.</p></div><Badge variant="accent">{vehicles.length}</Badge></div>
+            <div className="mt-3 grid gap-2 md:grid-cols-[1fr_170px_1fr_auto]"><Input value={vehicleDraft.name} onChange={e => setVehicleDraft(p => ({...p,name:e.target.value}))} placeholder="Nome, es. Clio"/><Input value={vehicleDraft.plate} onChange={e => setVehicleDraft(p => ({...p,plate:e.target.value.toUpperCase()}))} placeholder="Targa"/><Input value={vehicleDraft.notes} onChange={e => setVehicleDraft(p => ({...p,notes:e.target.value}))} placeholder="Note facoltative"/><Button variant="primary" icon={Plus} onClick={createVehicle}>AGGIUNGI</Button></div>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">{vehicles.map(v => <div key={v.id} className={`rounded-lg border p-3 ${v.active ? 'border-amber-200 bg-[#fffaf0]' : 'border-slate-200 bg-slate-50 opacity-70'}`}><div className="flex items-start justify-between"><div><p className="font-semibold text-[#432f0e]">{v.name}</p><p className="text-sm font-black tracking-wider text-slate-700">{v.plate}</p></div><Badge variant={v.active ? 'success' : 'default'}>{v.active ? 'DISPONIBILE' : 'NON DISPONIBILE'}</Badge></div>{v.notes && <p className="mt-2 text-xs text-slate-500">{v.notes}</p>}<Button className="mt-2 w-full" size="sm" variant="ghost" onClick={() => toggleVehicle(v)}>{v.active ? 'RENDI NON DISPONIBILE' : 'RIATTIVA'}</Button></div>)}</div>
+          </Card>
           <div className="hidden md:block">
             {filterBanners}
           </div>

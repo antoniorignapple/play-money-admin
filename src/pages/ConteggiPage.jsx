@@ -122,7 +122,7 @@ export default function ConteggiPage() {
   const [selectedRow, setSelectedRow] = useState(null)
 
   const [finalization, setFinalization] = useState({
-    open: false, step: 'carryovers', preview: null, newDateTo: '', loading: false,
+    open: false, step: 'carryovers', preview: null, newDateTo: '', loading: false, progress: 1, progressMessage: '', error: '',
   })
   const [showMissing, setShowMissing] = useState(true)
   const [filtersOpen, setFiltersOpen] = useState(false)
@@ -587,8 +587,19 @@ export default function ConteggiPage() {
       toast.warning('La data finale deve essere uguale o successiva alla data iniziale')
       return
     }
+    let timer
     try {
-      setFinalization((current) => ({ ...current, loading: true }))
+      setFinalization((current) => ({ ...current, loading: true, step: 'processing', progress: 1, progressMessage: 'Preparazione dati', error: '' }))
+      const started = Date.now()
+      timer = window.setInterval(() => {
+        setFinalization(current => {
+          if (current.step !== 'processing') return current
+          const elapsed = Date.now() - started
+          const next = Math.min(93, Math.max(current.progress + 1, Math.round(1 + elapsed / 120)))
+          const message = next < 18 ? 'Preparazione dati' : next < 36 ? 'Verifica conteggi' : next < 55 ? 'Archiviazione periodo' : next < 72 ? 'Trasferimento Da riportare' : 'Creazione nuovo periodo'
+          return { ...current, progress: next, progressMessage: message }
+        })
+      }, 120)
       const { data, error } = await supabase.rpc('finalizza_periodo_conteggi', {
         p_period_id: selectedPeriod.id,
         p_new_date_to: finalization.newDateTo,
@@ -597,19 +608,22 @@ export default function ConteggiPage() {
       })
       if (error) throw error
       if (!data?.success) throw new Error('La finalizzazione non è stata confermata dal server')
-
-      setFinalization({ open: false, step: 'carryovers', preview: null, newDateTo: '', loading: false })
+      window.clearInterval(timer)
+      setFinalization(current => ({ ...current, progress: 100, progressMessage: 'Operazione completata', loading: false }))
       await loadPeriods()
       setPeriodView('active')
       setSelectedPeriodId(data.new_period_id)
+      await new Promise(resolve => window.setTimeout(resolve, 850))
+      setFinalization({ open: false, step: 'carryovers', preview: null, newDateTo: '', loading: false, progress: 1, progressMessage: '', error: '' })
       toast.success(`Periodo finalizzato • ${fmtEuro(data.da_riportare_trasferiti)} trasferiti`)
     } catch (e) {
+      window.clearInterval(timer)
       const changed = /cambiati|fingerprint|controlla nuovamente/i.test(e?.message || '')
       if (changed) {
         toast.warning('I dati sono cambiati: controlla nuovamente i Da Riportare')
         await openFinalization()
       } else {
-        setFinalization((current) => ({ ...current, loading: false }))
+        setFinalization((current) => ({ ...current, step: 'new-period', loading: false, error: e.message, progressMessage: 'Operazione interrotta' }))
         toast.error(`Finalizzazione: ${e.message}`)
       }
     }
@@ -1054,6 +1068,7 @@ function FinalizationWizard({ state, period, onClose, onNext, onBack, onDateToCh
     missing: 'LOCALI NON CONTEGGIATI',
     archive: 'ARCHIVIO DEFINITIVO',
     'new-period': 'NUOVO PERIODO',
+    processing: 'FINALIZZAZIONE IN CORSO',
   }
 
   return (
@@ -1066,7 +1081,14 @@ function FinalizationWizard({ state, period, onClose, onNext, onBack, onDateToCh
         </div>
 
         <div className="max-h-[66vh] overflow-y-auto p-5">
-          {state.loading && !preview ? (
+          {state.step === 'processing' ? (
+            <div className="flex min-h-[260px] flex-col items-center justify-center px-2 text-center">
+              <div className="flex h-20 w-20 items-center justify-center rounded-full border-4 border-[#ead7aa] bg-white shadow-inner"><span className="text-[22px] font-black tabular-nums text-[#8b5d14]">{state.progress || 1}%</span></div>
+              <div className="mt-6 h-3 w-full overflow-hidden rounded-full border border-[#dfc98f] bg-[#f5ead0]"><div className="h-full rounded-full bg-[linear-gradient(90deg,#e7c977,#a96f16)] transition-[width] duration-200" style={{ width: `${state.progress || 1}%` }} /></div>
+              <p className="mt-4 text-[13px] font-black uppercase tracking-[.12em] text-[#6d480d]">{state.progressMessage}</p>
+              {state.error ? <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-[12px] font-bold text-red-700">{state.error}</div> : <p className="mt-2 text-[11px] text-slate-500">Non chiudere la pagina. Il 100% apparirà solo dopo la conferma di Supabase.</p>}
+            </div>
+          ) : state.loading && !preview ? (
             <div className="flex min-h-[220px] flex-col items-center justify-center gap-3 text-[#8b641f]">
               <RefreshCw size={26} className="animate-spin"/>
               <p className="text-[11px] font-black uppercase tracking-[0.12em]">Controllo dati in corso…</p>
@@ -1129,10 +1151,10 @@ function FinalizationWizard({ state, period, onClose, onNext, onBack, onDateToCh
           )}
         </div>
 
-        <div className="grid grid-cols-2 gap-2 border-t border-[#e8ddc7] bg-white p-4">
+        {state.step !== 'processing' && <div className="grid grid-cols-2 gap-2 border-t border-[#e8ddc7] bg-white p-4">
           <button type="button" onClick={isFirst ? onClose : onBack} disabled={state.loading} className="h-12 rounded-[15px] border border-[#ddd1bb] bg-white text-[11px] font-black text-slate-600 disabled:opacity-50">{isFirst ? 'NO, ANNULLA' : 'INDIETRO'}</button>
           <button type="button" onClick={isLast ? onFinalize : onNext} disabled={state.loading || !preview || (isLast && (!state.newDateTo || state.newDateTo < preview.new_date_from))} className="h-12 rounded-[15px] bg-[linear-gradient(135deg,#c99635,#8d5d13)] px-3 text-[11px] font-black text-white shadow-[0_12px_24px_-16px_rgba(100,61,5,.8)] disabled:opacity-45">{state.loading ? 'FINALIZZAZIONE…' : isLast ? 'FINALIZZA E CREA IL NUOVO PERIODO' : state.step === 'missing' ? 'PROSEGUI UGUALMENTE' : 'SÌ, PROSEGUI'}</button>
-        </div>
+        </div>}
       </div>
     </div>
   )

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import {
   Wallet, Users, Building2, BarChart3, Car, Trash2, ShieldCheck, Calculator,
   Receipt, ClipboardCheck, Search, ChevronsLeft, ChevronsRight, Menu, X,
-  LockKeyhole, Mail, Eye, EyeOff, LogOut, Loader2, RefreshCw, CalendarDays,
+  LockKeyhole, Mail, Eye, EyeOff, LogOut, Loader2, RefreshCw, CalendarDays, Route,
 } from 'lucide-react'
 import CassaPage from './pages/CassaPage'
 import ConteggiPage from './pages/ConteggiPage'
@@ -14,6 +14,7 @@ import LocaliPage from './pages/LocaliPage'
 import AnalisiPage from './pages/AnalisiPage'
 import AutomezziPage from './pages/AutomezziPage'
 import CestinoPage from './pages/CestinoPage'
+import GiriPage from './pages/GiriPage'
 import { ToastProvider } from './components/Toast'
 import { CommandPalette } from './components/CommandPalette'
 import { supabase } from './lib/supabase'
@@ -27,6 +28,7 @@ const NAV = [
   { id: 'simulazioni', label: 'SIMULAZIONI',         icon: 'ClipboardCheck', iconCmp: ClipboardCheck, hint: 'Simulazioni e richieste',    component: SimulazioniPage,shortcut: 'S' },
   { id: 'agenti',      label: 'AGENTI',               icon: 'Users',          iconCmp: Users,          hint: 'Gestione agenti e accessi', component: AgentiPage,      shortcut: 'A' },
   { id: 'locali',      label: 'LOCALI',               icon: 'Building2',      iconCmp: Building2,      hint: 'Locali e change machines',  component: LocaliPage,      shortcut: 'L' },
+  { id: 'giri',        label: 'GIRI',                 icon: 'Route',          iconCmp: Route,          hint: 'Assegnazione locali ai giri', component: GiriPage,       shortcut: 'R' },
   { id: 'automezzi',   label: 'AUTOMEZZI',            icon: 'Car',            iconCmp: Car,            hint: 'Km, mezzi e rifornimenti',  component: AutomezziPage,   shortcut: 'M' },
   { id: 'cestino',     label: 'CESTINO',              icon: 'Trash2',         iconCmp: Trash2,         hint: 'Movimenti cancellati',      component: CestinoPage,     shortcut: 'T' },
 ]
@@ -241,7 +243,7 @@ function LoginScreen() {
               <img src="/app-icon.png" alt="" className="h-7 w-7 rounded object-contain" draggable={false} />
               <div>
                 <p className="text-[13px] font-semibold text-white">Play Money Admin</p>
-                <p className="text-[10px] text-slate-400">Versione 6.8</p>
+                <p className="text-[10px] text-slate-400">Versione 7.1</p>
               </div>
             </div>
             <div className="px-2 py-3">
@@ -383,7 +385,7 @@ function Sidebar({ page, setPage, collapsed, setCollapsed, openPalette, isMobile
   const cmdKey = isMac ? '⌘' : 'Ctrl'
   const groups = [
     { label: 'OPERATIVITÀ', ids: ['analisi', 'cassa', 'conteggi', 'calendario', 'debiti', 'simulazioni'] },
-    { label: 'CONTROLLO', ids: ['agenti', 'locali', 'automezzi', 'cestino'] },
+    { label: 'CONTROLLO', ids: ['agenti', 'locali', 'giri', 'automezzi', 'cestino'] },
   ]
   const [cassaTotale, setCassaTotale] = useState(0)
   const [cassaUpdatedAt, setCassaUpdatedAt] = useState(null)
@@ -432,7 +434,7 @@ function Sidebar({ page, setPage, collapsed, setCollapsed, openPalette, isMobile
           <img src="/app-icon.png" alt="" className="relative z-10 h-10 w-10 object-contain" draggable={false} />
           <div className="absolute inset-0 bg-white/10" />
         </div>
-        {!collapsed && <div className="min-w-0 flex-1"><p className="truncate text-[16px] font-black tracking-[0.04em] text-white">PLAY MONEY</p><div className="mt-1 flex items-center gap-2"><span className="rounded-full border border-[#e1bb68]/40 bg-[#d5a441]/15 px-2 py-0.5 text-[9px] font-black tracking-[0.18em] text-[#f0cc7b]">ADMIN</span><span className="text-[10px] font-bold text-white/100">Ver. 6.8</span></div></div>}
+        {!collapsed && <div className="min-w-0 flex-1"><p className="truncate text-[16px] font-black tracking-[0.04em] text-white">PLAY MONEY</p><div className="mt-1 flex items-center gap-2"><span className="rounded-full border border-[#e1bb68]/40 bg-[#d5a441]/15 px-2 py-0.5 text-[9px] font-black tracking-[0.18em] text-[#f0cc7b]">ADMIN</span><span className="text-[10px] font-bold text-white/100">Ver. 7.1</span></div></div>}
         {isMobile && <button onClick={onClose} className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-white/10 bg-white/5 text-white/70 active:scale-95" aria-label="Chiudi menu"><X size={18}/></button>}
         {!collapsed && !isMobile && <button onClick={() => setCollapsed(true)} className="flex h-9 w-9 items-center justify-center rounded-[13px] border border-white/8 bg-white/[0.035] text-white/45 transition hover:border-[#d7ad55]/30 hover:text-[#efc872]" title="Comprimi"><ChevronsLeft size={16}/></button>}
       </div>
@@ -445,7 +447,7 @@ function Sidebar({ page, setPage, collapsed, setCollapsed, openPalette, isMobile
           <div className="space-y-1.5">{group.ids.map(id => { const item=NAV.find(n=>n.id===id); return <NavItem key={id} item={item} active={page===id} collapsed={collapsed} isMobile={isMobile} onClick={()=>setPage(id)}/> })}</div>
         </div>)}
         {!collapsed && (
-          <section className="order-first mb-4 overflow-hidden rounded-[22px] border border-[#d9b45f]/30 bg-[linear-gradient(145deg,rgba(217,180,95,.16),rgba(255,255,255,.035))] p-4 shadow-[0_18px_42px_-24px_rgba(215,171,75,.65)]">
+          <section className="order-first mb-4 min-h-[142px] shrink-0 overflow-hidden rounded-[22px] border border-[#d9b45f]/30 bg-[linear-gradient(145deg,rgba(217,180,95,.16),rgba(255,255,255,.035))] p-4 shadow-[0_18px_42px_-24px_rgba(215,171,75,.65)]">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-[9px] font-black tracking-[0.24em] text-[#e9c873]/65">CASSA TOTALE</p>

@@ -35,6 +35,7 @@ export default function LocaliPage() {
   const [savingKey, setSavingKey] = useState(null)
 
   const [createVenueOpen, setCreateVenueOpen] = useState(false)
+  const [generatedCode, setGeneratedCode] = useState('')
   const [editVenueOpen, setEditVenueOpen] = useState(false)
   const [deleteVenueOpen, setDeleteVenueOpen] = useState(false)
   const [createMachineOpen, setCreateMachineOpen] = useState(false)
@@ -83,11 +84,15 @@ export default function LocaliPage() {
   }
 
   async function handleCreateVenue(v) {
-    const { data, error } = await supabase.from('venues').insert({
-      id: v.id, code: v.code, name: v.name, city: v.city, active: true,
-      created_at: new Date().toISOString(),
-    }).select('*').single()
-    if (error) throw new Error(error.message)
+    let data; let lastError
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      const code = attempt === 0 ? v.code : (await supabase.rpc('generate_venue_code')).data
+      const result = await supabase.from('venues').insert({ id: v.id, code, name: v.name, city: v.city, active: true, created_at: new Date().toISOString() }).select('*').single()
+      if (!result.error) { data = result.data; break }
+      lastError = result.error
+      if (result.error.code !== '23505') break
+    }
+    if (!data) throw new Error(lastError?.message || 'Impossibile generare un codice univoco')
     setVenues((c) => [...c, data].sort(venueSortFn))
     setCreateVenueOpen(false)
     await selectVenue(data)
@@ -95,6 +100,7 @@ export default function LocaliPage() {
   }
 
   async function handleEditVenue(v) {
+    if (String(v.code) !== String(selectedVenue.code) && !window.confirm('Stai cambiando il codice di un locale già salvato. Confermi questa modifica?')) return
     const { data, error } = await supabase.from('venues')
       .update({
         name: v.name, code: v.code, city: v.city,
@@ -108,18 +114,21 @@ export default function LocaliPage() {
     toast.success('Locale aggiornato')
   }
 
+  async function openCreateVenue() {
+    const { data, error } = await supabase.rpc('generate_venue_code')
+    if (error) return toast.error(`Generazione codice: ${error.message}`)
+    setGeneratedCode(data); setCreateVenueOpen(true)
+  }
+
   async function handleDeleteVenue() {
     if (!selectedVenue?.id) return
     const name = selectedVenue.name
-    const { error: e1 } = await supabase.from('machines').delete().eq('venue_id', selectedVenue.id)
-    if (e1) throw new Error(e1.message)
-    const { error: e2 } = await supabase.from('venues').delete().eq('id', selectedVenue.id)
-    if (e2) throw new Error(e2.message)
-    const next = venues.filter((v) => v.id !== selectedVenue.id)
-    setVenues(next)
-    setSelectedVenue(null)
+    const { error } = await supabase.from('venues').update({ active: false }).eq('id', selectedVenue.id)
+    if (error) throw new Error(error.message)
+    setVenues(c => c.map(v => v.id === selectedVenue.id ? { ...v, active: false } : v))
+    setSelectedVenue(c => ({ ...c, active: false }))
     setDeleteVenueOpen(false)
-    toast.success(`"${name}" eliminato`)
+    toast.success(`"${name}" disattivato senza eliminare lo storico`)
   }
 
   async function handleCreateMachine(v) {
@@ -163,11 +172,11 @@ export default function LocaliPage() {
 
   async function handleDeleteMachine() {
     const m = deleteMachineTarget
-    const { error } = await supabase.from('machines').delete().eq('id', m.id)
+    const { error } = await supabase.from('machines').update({ active: false }).eq('id', m.id)
     if (error) throw new Error(error.message)
-    setSelectedVenue((c) => ({ ...c, machines: (c.machines || []).filter((x) => x.id !== m.id) }))
+    setSelectedVenue((c) => ({ ...c, machines: (c.machines || []).map(x => x.id === m.id ? { ...x, active: false } : x) }))
     setDeleteMachineTarget(null)
-    toast.success('Change eliminato')
+    toast.success('Change disattivato; storico conservato')
   }
 
   const sortedMachines = useMemo(() => {
@@ -219,7 +228,7 @@ export default function LocaliPage() {
         actions={
           <>
             <IconButton icon={RefreshCw} onClick={loadVenues} title="Aggiorna" />
-            <Button variant="primary" icon={Plus} onClick={() => setCreateVenueOpen(true)}>
+            <Button variant="primary" icon={Plus} onClick={openCreateVenue}>
               <span className="hidden md:inline">Nuovo locale</span>
             </Button>
           </>
@@ -408,10 +417,11 @@ export default function LocaliPage() {
         onClose={() => setCreateVenueOpen(false)}
         title="Nuovo locale"
         submitLabel="Crea locale"
+        initialValues={{ code: generatedCode }}
         fields={[
           { name: 'name', label: 'Nome locale', required: true, placeholder: 'es. ROXY BAR', autoUpper: true },
           { name: 'id', label: 'Sigla', required: true, placeholder: 'es. K99', autoUpper: true, hint: 'Identificatore breve (K... per priorità)' },
-          { name: 'code', label: 'Codice numerico', required: true, placeholder: 'es. 998899' },
+          { name: 'code', label: 'Codice numerico generato', required: true, pattern: '^[0-9]{6}$', patternError: 'Il codice deve contenere esattamente sei cifre', hint: 'Generato da Supabase e verificato nuovamente al salvataggio.' },
           { name: 'city', label: 'Città', placeholder: 'es. Manfredonia' },
         ]}
         onSubmit={handleCreateVenue}
@@ -428,7 +438,7 @@ export default function LocaliPage() {
         }}
         fields={[
           { name: 'name', label: 'Nome locale', required: true, autoUpper: true },
-          { name: 'code', label: 'Codice numerico', required: true },
+          { name: 'code', label: 'Codice numerico', required: true, pattern: '^[0-9]{6}$', patternError: 'Servono esattamente sei cifre', hint: 'La modifica richiederà una conferma specifica.' },
           { name: 'city', label: 'Città' },
           { name: 'active', label: 'Stato', type: 'select', options: [
             { value: 'true', label: 'Attivo' },
@@ -441,9 +451,9 @@ export default function LocaliPage() {
       <ConfirmDialog
         open={deleteVenueOpen}
         onClose={() => setDeleteVenueOpen(false)}
-        title="Elimina locale"
-        message={`Vuoi eliminare definitivamente "${selectedVenue?.name}"? Verranno eliminati anche tutti i change collegati. Operazione irreversibile.`}
-        confirmLabel="Elimina"
+        title="DISATTIVARE IL LOCALE?"
+        message={`"${selectedVenue?.name}" non sarà più operativo, ma movimenti, Conteggi e Change storici resteranno conservati.`}
+        confirmLabel="DISATTIVA"
         onConfirm={handleDeleteVenue}
       />
 

@@ -10,7 +10,7 @@ import { ConfirmDialog } from '../components/FormDialog'
 import { useToast } from '../components/Toast'
 import {
   todayISO, toIT, formatEuro0,
-  dipendenteName, dipendenteId, initials,
+  dipendenteName, dipendenteId,
 } from '../lib/helpers'
 
 function formatInsertedAt(value) {
@@ -344,6 +344,7 @@ export default function AnalisiPage() {
   const [dipendenti, setDipendenti] = useState([])
   const [locks, setLocks] = useState([])
   const [lockSavingId, setLockSavingId] = useState(null)
+  const [lockTarget, setLockTarget] = useState(null)
   const [loading, setLoading] = useState(true)
   const [expandedAgentId, setExpandedAgentId] = useState(null)
 
@@ -398,6 +399,7 @@ export default function AnalisiPage() {
       updated,
     ])
     toast.success(nextLocked ? 'Giornata bloccata' : 'Modifiche riaperte')
+    setLockTarget(null)
   }
 
   function venueLabel(id) {
@@ -610,12 +612,8 @@ export default function AnalisiPage() {
                 >
                   <div className="flex items-start justify-between gap-3 border-b border-[#eee3cf] bg-[linear-gradient(135deg,#fff4d5,#e9c977)] px-3 py-3 md:px-4">
                     <div className="flex min-w-0 flex-1 items-start gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] border border-[#d6b76e] bg-white/75 text-[12px] font-black text-[#765116]">
-                        {initials(r.name)}
-                      </div>
-
                       <div className="min-w-0 flex-1">
-                        <p className="text-[14px] font-black uppercase tracking-[0.04em] text-[#3b2a0e]">{r.name}</p>
+                        <p className="text-[18px] font-black uppercase tracking-[0.05em] text-[#3b2a0e]">{r.name}</p>
 
                         <div className="mt-1.5 flex flex-wrap gap-x-5 gap-y-1 text-[9px] font-black uppercase tracking-[0.1em] text-[#856127] md:text-[10px]">
                           <span>MEZZO <strong className="text-[#33250f]">{r.mezzo || '—'}</strong></span>
@@ -639,7 +637,7 @@ export default function AnalisiPage() {
 
                     <div className="flex shrink-0 items-center gap-2">
                       <button
-                        onClick={() => toggleAgentLock(r.id)}
+                        onClick={() => setLockTarget({ id: r.id, name: r.name, locked: agentLocked })}
                         disabled={lockSavingId === String(r.id)}
                         title={agentLocked ? 'Riapri le modifiche' : 'Blocca le modifiche'}
                         className={`inline-flex h-10 w-10 items-center justify-center rounded-[13px] border transition active:scale-95 disabled:opacity-50 ${agentLocked ? 'border-red-300 bg-red-600 text-white shadow-[0_10px_20px_-14px_rgba(220,38,38,.8)]' : 'border-[#d3b469] bg-white/75 text-[#68450e]'}`}
@@ -753,6 +751,18 @@ export default function AnalisiPage() {
       </PageBody>
 
       {/* MODIFICA MOVIMENTO */}
+      <ConfirmDialog
+        open={!!lockTarget}
+        onClose={() => setLockTarget(null)}
+        title={lockTarget?.locked ? 'RIAPRIRE IL GIRO?' : 'CHIUDERE IL GIRO?'}
+        message={lockTarget?.locked
+          ? `${lockTarget?.name} tornerà a poter aggiungere, modificare ed eliminare movimenti e Fondo cassa.`
+          : `${lockTarget?.name} potrà consultare i dati, ma non aggiungere, modificare o eliminare movimenti e Fondo cassa.`}
+        confirmLabel="OK"
+        variant={lockTarget?.locked ? 'success' : 'danger'}
+        onConfirm={() => toggleAgentLock(lockTarget.id)}
+      />
+
       <Modal
         open={!!editMov}
         onClose={() => setEditMov(null)}
