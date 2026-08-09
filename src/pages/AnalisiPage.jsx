@@ -551,7 +551,6 @@ export default function AnalisiPage() {
               <div className="relative flex min-h-[92px] flex-col items-center justify-center text-center">
                 <h1 className="text-[29px] font-black tracking-[0.13em] text-[#3d2a0b] md:text-[35px]">ANALISI GIORNALIERA</h1>
                 <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
-                  <span className="text-[16px] font-black tabular-nums text-[#6d4a11] md:text-[19px]">{toIT(data)}</span>
                   <label className="group flex h-10 items-center gap-2 rounded-[13px] border border-[#d8b86c] bg-white/70 px-3 text-[#755019] shadow-[0_10px_20px_-16px_rgba(116,79,17,.48)] transition hover:bg-white">
                     <CalendarDays size={15} />
                     <Input type="date" value={data} onChange={(e) => setData(e.target.value)} className="h-8 w-[132px] border-0 bg-transparent p-0 text-[11px] font-black text-[#5d3e0c] shadow-none" />
@@ -613,12 +612,12 @@ export default function AnalisiPage() {
                   <div className="flex items-start justify-between gap-3 border-b border-[#eee3cf] bg-[linear-gradient(135deg,#fff4d5,#e9c977)] px-3 py-3 md:px-4">
                     <div className="flex min-w-0 flex-1 items-start gap-3">
                       <div className="min-w-0 flex-1">
-                        <p className="text-[18px] font-black uppercase tracking-[0.05em] text-[#3b2a0e]">{r.name}</p>
+                        <p className="text-[22px] font-black uppercase tracking-[0.04em] text-[#2f210b] md:text-[25px]">{r.name}</p>
 
-                        <div className="mt-1.5 flex flex-wrap gap-x-5 gap-y-1 text-[9px] font-black uppercase tracking-[0.1em] text-[#856127] md:text-[10px]">
-                          <span>MEZZO <strong className="text-[#33250f]">{r.mezzo || '—'}</strong></span>
-                          <span>KM <strong className="tabular-nums text-[#33250f]">{r.km || '—'}</strong></span>
-                          <span>RIFORNIMENTO <strong className="tabular-nums text-[#33250f]">{formatEuro0(r.rifornimento)}</strong></span>
+                        <div className="mt-2 flex flex-wrap items-center gap-x-6 gap-y-2 text-[12px] font-black uppercase tracking-[0.06em] md:text-[14px]">
+                          <span className="text-slate-500">MEZZO <strong className="ml-1 text-[#281d0b]">{r.mezzo || '—'}</strong></span>
+                          <span className="text-slate-500">KM: <strong className="ml-1 tabular-nums text-[#281d0b]">{r.km || '—'}</strong></span>
+                          <span className="text-slate-500">RIFORNIMENTO: <strong className="ml-1 tabular-nums text-[#281d0b]">{formatEuro0(r.rifornimento)}</strong></span>
                         </div>
 
                         <button
