@@ -11,15 +11,18 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'app-icon.png', 'logo192.png.png', 'logo512.png.png'],
       manifest: {
+        id: '/',
         name: 'Play Money Admin',
         short_name: 'Play Money',
         description: 'Gestione cassa, agenti, locali e automezzi',
-        theme_color: '#1F2937',
-        background_color: '#FFFFFF',
+        theme_color: '#A87318',
+        background_color: '#F7F2E8',
         display: 'standalone',
-        orientation: 'portrait',
+        display_override: ['window-controls-overlay', 'standalone', 'minimal-ui'],
+        orientation: 'any',
         scope: '/',
         start_url: '/',
+        categories: ['business', 'finance', 'productivity'],
         icons: [
           {
             src: '/logo192.png.png',

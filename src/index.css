@@ -3,7 +3,8 @@
 @layer base {
   :root {
     /* ============ LIGHT THEME ============ */
-    --color-bg: #FFFFFF;
+    --color-bg: #F7F2E8;
+    --app-page-background: radial-gradient(circle at 15% 0%, rgba(226, 186, 99, .16), transparent 28%), linear-gradient(180deg, #F7F2E8 0%, #F4F0E8 100%);
     --color-surface: #FAFAFA;
     --color-surface-raised: #FFFFFF;
     --color-surface-hover: #F3F4F6;
@@ -70,10 +71,37 @@ html, body, #root {
   touch-action: manipulation;
 }
 
+  #root {
+    min-height: 100%;
+    min-height: 100dvh;
+  }
+
   body {
     margin: 0;
     /* Evita bounce su iOS */
     overscroll-behavior-y: none;
+  }
+
+  button, [role="button"], a, input, select, textarea {
+    touch-action: manipulation;
+  }
+
+  button, [role="button"] {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  .app-page-body {
+    background: var(--app-page-background);
+    -webkit-overflow-scrolling: touch;
+    scrollbar-gutter: stable;
+  }
+
+  /* Ogni pagina usa lo stesso fondale bianco-oro, anche se il primo
+     contenitore possiede ancora una vecchia tinta locale. */
+  .app-page-body > div:first-child {
+    background-color: transparent !important;
+    background-image: var(--app-page-background) !important;
   }
 
   /* Input non zoomano su iOS solo se font-size >= 16px */
@@ -106,6 +134,11 @@ html, body, #root {
     *::-webkit-scrollbar {
       width: 0;
       height: 0;
+    }
+
+    .app-page-body {
+      padding-bottom: env(safe-area-inset-bottom);
+      scrollbar-gutter: auto;
     }
   }
 
