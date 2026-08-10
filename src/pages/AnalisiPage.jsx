@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { RefreshCw, FileDown, Users, ChevronDown, Pencil, Trash2, CalendarDays, Lock, Unlock } from 'lucide-react'
+import { RefreshCw, FileDown, Users, ChevronDown, ChevronLeft, ChevronRight, Pencil, Trash2, CalendarDays, Lock, Unlock } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import {
   Input, EmptyState, Modal, Button, Field,
@@ -356,6 +356,18 @@ export default function AnalisiPage() {
 
   useEffect(() => { loadData() }, [data])
 
+  function moveDay(amount) {
+    const [year, month, day] = data.split('-').map(Number)
+    const next = new Date(Date.UTC(year, month - 1, day + amount))
+    setData(next.toISOString().slice(0, 10))
+  }
+
+  function isGenericMovement(row) {
+    return Number(row?.acconto || 0) === 0 &&
+      Number(row?.recupero || 0) === 0 &&
+      Number(row?.da_riportare || 0) === 0
+  }
+
   async function loadData() {
     setLoading(true)
     const [movRes, fondoRes, venRes, dipRes, lockRes] = await Promise.all([
@@ -551,10 +563,16 @@ export default function AnalisiPage() {
               <div className="relative flex min-h-[92px] flex-col items-center justify-center text-center">
                 <h1 className="text-[29px] font-black tracking-[0.13em] text-[#3d2a0b] md:text-[35px]">ANALISI GIORNALIERA</h1>
                 <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+                  <button type="button" onClick={() => moveDay(-1)} title="Giorno precedente" aria-label="Vai al giorno precedente" className="flex h-10 w-10 items-center justify-center rounded-[13px] border border-[#d8b86c] bg-[linear-gradient(145deg,#fffaf0,#ecd18f)] text-[#755019] shadow-[0_10px_20px_-16px_rgba(116,79,17,.48)] transition hover:-translate-y-0.5 active:scale-95">
+                    <ChevronLeft size={19} strokeWidth={2.7} />
+                  </button>
                   <label className="group flex h-10 items-center gap-2 rounded-[13px] border border-[#d8b86c] bg-white/70 px-3 text-[#755019] shadow-[0_10px_20px_-16px_rgba(116,79,17,.48)] transition hover:bg-white">
                     <CalendarDays size={15} />
                     <Input type="date" value={data} onChange={(e) => setData(e.target.value)} className="h-8 w-[132px] border-0 bg-transparent p-0 text-[11px] font-black text-[#5d3e0c] shadow-none" />
                   </label>
+                  <button type="button" onClick={() => moveDay(1)} title="Giorno successivo" aria-label="Vai al giorno successivo" className="flex h-10 w-10 items-center justify-center rounded-[13px] border border-[#d8b86c] bg-[linear-gradient(145deg,#fffaf0,#ecd18f)] text-[#755019] shadow-[0_10px_20px_-16px_rgba(116,79,17,.48)] transition hover:-translate-y-0.5 active:scale-95">
+                    <ChevronRight size={19} strokeWidth={2.7} />
+                  </button>
                   <button type="button" onClick={loadData} title="Aggiorna" className="flex h-10 w-10 items-center justify-center rounded-[13px] border border-[#d8b86c] bg-[linear-gradient(145deg,#fffaf0,#ecd18f)] text-[#755019] shadow-[0_10px_20px_-16px_rgba(116,79,17,.48)] transition hover:-translate-y-0.5 active:scale-95">
                     <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
                   </button>
@@ -680,17 +698,15 @@ export default function AnalisiPage() {
 
                             <div className="font-bold tabular-nums text-slate-500">{formatInsertedAt(m.created_at)}</div>
 
-                            <div className="text-right font-black tabular-nums text-slate-800">
-                              {formatEuro0(m.acconto || 0)}
-                            </div>
-
-                            <div className="text-right font-black tabular-nums text-slate-800">
-                              {formatEuro0(m.recupero || 0)}
-                            </div>
-
-                            <div className="text-right font-black tabular-nums text-slate-800">
-                              {formatEuro0(m.da_riportare || 0)}
-                            </div>
+                            {isGenericMovement(m) ? (
+                              <div className="col-span-3 text-center text-[10px] font-black uppercase tracking-[0.16em] text-[#946318]">OPERAZIONE GENERICA</div>
+                            ) : (
+                              <>
+                                <div className="text-right font-black tabular-nums text-slate-800">{formatEuro0(m.acconto || 0)}</div>
+                                <div className="text-right font-black tabular-nums text-slate-800">{formatEuro0(m.recupero || 0)}</div>
+                                <div className="text-right font-black tabular-nums text-slate-800">{formatEuro0(m.da_riportare || 0)}</div>
+                              </>
+                            )}
 
                             <div className="flex items-center justify-end gap-1">
                               <button

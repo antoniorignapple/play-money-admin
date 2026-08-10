@@ -1,588 +1,193 @@
-import { useEffect, useMemo, useState, useRef } from 'react'
-import {
-  Plus, Search, Pencil, Trash2, Check, X, MapPin, Building2, Boxes, Calendar, User, RefreshCw,
-  ArrowLeft,
-} from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { ArrowLeft, Building2, CalendarDays, Check, ChevronDown, ChevronUp, Clock3, Database, MapPin, Pencil, Plus, RefreshCw, Search, ShieldAlert, Trash2, User, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
-import {
-  Button, IconButton, Input, Badge, EmptyState, Card,
-} from '../components/ui'
-import { PageLayout, PageHeader, PageBody } from '../components/PageLayout'
+import { Button, EmptyState, Input } from '../components/ui'
+import { PageLayout, PageBody } from '../components/PageLayout'
 import { FormDialog, ConfirmDialog } from '../components/FormDialog'
 import { SkeletonList } from '../components/Skeleton'
 import { useToast } from '../components/Toast'
-import { venueSortFn, formatEuro, formatEuro0, formatDateTime } from '../lib/helpers'
+import { venueSortFn, formatEuro0, formatDateTime } from '../lib/helpers'
+
+const PROTECTED_VENUES = new Set(['D01', 'D02', 'D03', 'D04', 'D05'])
+const impactLabels = {
+  machines: 'Change', change_reports: 'Report Change', movements_cassa: 'Movimenti Cassa', conteggi_tool: 'Conteggi', conteggi_admin_rows: 'Riepiloghi conteggi', calendario_conteggi: 'Calendario conteggi',
+  giro_venue_assignments: 'Assegnazioni Giro', change_favorites: 'Preferiti Change', codici_favorites: 'Preferiti Codici',
+  debiti: 'Debiti', debiti_movimenti: 'Movimenti Debiti', bonus: 'Bonus', bonus_movimenti: 'Movimenti Bonus',
+  note_generiche: 'Note', simulazioni: 'Simulazioni', simulazioni_richieste: 'Richieste simulazioni',
+}
 
 function getChangeImage(name = '') {
-  const n = String(name).toLowerCase()
-  if (n.includes('apex')) return '/change-machine/apex-icon.png'
-  if (n.includes('pocket')) return '/change-machine/pocket-icon.png'
-  if (n.includes('twin')) return '/change-machine/twin-icon.png'
-  if (n.includes('bell')) return '/change-machine/bell-icon.png'
+  const value = String(name).toLowerCase()
+  if (value.includes('apex')) return '/change-machine/apex-icon.png'
+  if (value.includes('pocket')) return '/change-machine/pocket-icon.png'
+  if (value.includes('twin')) return '/change-machine/twin-icon.png'
+  if (value.includes('bell')) return '/change-machine/bell-icon.png'
   return '/change-machine/generic.png'
+}
+function generateVenueCode() {
+  const values = new Uint32Array(1); crypto.getRandomValues(values)
+  return String(100000 + (values[0] % 900000))
 }
 
 export default function LocaliPage() {
   const toast = useToast()
   const [venues, setVenues] = useState([])
   const [selectedVenue, setSelectedVenue] = useState(null)
+  const [profiles, setProfiles] = useState([])
+  const [history, setHistory] = useState([])
+  const [historyOpen, setHistoryOpen] = useState({})
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
-  const [profiles, setProfiles] = useState([])
-
-  const [editingMachineId, setEditingMachineId] = useState(null)
-  const [machineDraft, setMachineDraft] = useState(null)
-  const [savingKey, setSavingKey] = useState(null)
-
   const [createVenueOpen, setCreateVenueOpen] = useState(false)
   const [generatedCode, setGeneratedCode] = useState('')
   const [editVenueOpen, setEditVenueOpen] = useState(false)
-  const [deleteVenueOpen, setDeleteVenueOpen] = useState(false)
   const [createMachineOpen, setCreateMachineOpen] = useState(false)
+  const [editingMachineId, setEditingMachineId] = useState(null)
+  const [machineDraft, setMachineDraft] = useState(null)
   const [deleteMachineTarget, setDeleteMachineTarget] = useState(null)
-
+  const [dangerOpen, setDangerOpen] = useState(false)
+  const [impact, setImpact] = useState(null)
+  const [impactLoading, setImpactLoading] = useState(false)
+  const [deleteConfirmation, setDeleteConfirmation] = useState('')
+  const [deleteAccepted, setDeleteAccepted] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const searchRef = useRef(null)
 
   useEffect(() => { loadVenues() }, [])
 
-  useEffect(() => {
-    function onKey(e) {
-      const tag = (e.target?.tagName || '').toLowerCase()
-      if (tag === 'input' || tag === 'textarea') return
-      if (e.metaKey || e.ctrlKey || e.altKey) return
-      if (e.key === '/') { e.preventDefault(); searchRef.current?.focus() }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [])
-
   async function loadVenues() {
     setLoading(true)
-    const { data, error } = await supabase.from('venues').select('*').order('name', { ascending: true })
-    const { data: profilesData } = await supabase.from('profiles').select('*')
-    setProfiles(profilesData || [])
-    if (error) {
-      toast.error(`Errore: ${error.message}`)
-      setVenues([])
-    } else {
-      const sorted = [...(data || [])].sort(venueSortFn)
-      setVenues(sorted)
-      // Su mobile NON seleziono auto il primo (così vede la lista)
-      if (window.innerWidth >= 768 && !selectedVenue && sorted.length) {
-        await selectVenue(sorted[0])
-      }
-    }
+    const [venueResult, profileResult, employeeResult] = await Promise.all([
+      supabase.from('venues').select('*').order('name'),
+      supabase.from('profiles').select('*'),
+      supabase.from('dipendenti').select('auth_user_id,full_name'),
+    ])
+    if (venueResult.error) toast.error(venueResult.error.message)
+    const people = [...(profileResult.data || []), ...(employeeResult.data || []).map((row) => ({ id: row.auth_user_id, display_name: row.full_name }))]
+    setProfiles(people)
+    const list = [...(venueResult.data || [])].sort(venueSortFn)
+    setVenues(list)
+    if (selectedVenue) {
+      const refreshed = list.find((venue) => String(venue.id) === String(selectedVenue.id))
+      if (refreshed) await selectVenue(refreshed)
+    } else if (window.innerWidth >= 768 && list.length) await selectVenue(list[0])
     setLoading(false)
   }
 
   async function selectVenue(venue) {
-    const { data, error } = await supabase
-      .from('machines').select('*').eq('venue_id', venue.id).order('name', { ascending: true })
-    setSelectedVenue({ ...venue, machines: error ? [] : (data || []) })
+    const machineResult = await supabase.from('machines').select('*').eq('venue_id', venue.id).order('name')
+    const machines = machineResult.data || []
+    let reports = []
+    if (machines.length) {
+      const historyResult = await supabase.from('machine_level_history').select('*').in('machine_id', machines.map((machine) => machine.id)).order('updated_at', { ascending: false })
+      reports = historyResult.data || []
+    }
+    setSelectedVenue({ ...venue, machines })
+    setHistory(reports)
+    setHistoryOpen({})
     setEditingMachineId(null)
     setMachineDraft(null)
   }
 
-  async function handleCreateVenue(v) {
-    let data; let lastError
+  async function createVenue(values) {
+    let created; let lastError
     for (let attempt = 0; attempt < 4; attempt += 1) {
-      const code = attempt === 0 ? v.code : (await supabase.rpc('generate_venue_code')).data
-      const result = await supabase.from('venues').insert({ id: v.id, code, name: v.name, city: v.city, active: true, created_at: new Date().toISOString() }).select('*').single()
-      if (!result.error) { data = result.data; break }
+      const code = attempt ? generateVenueCode() : values.code
+      const result = await supabase.from('venues').insert({ id: values.id, code, name: values.name, city: values.city, active: true, created_at: new Date().toISOString() }).select('*').single()
+      if (!result.error) { created = result.data; break }
       lastError = result.error
       if (result.error.code !== '23505') break
     }
-    if (!data) throw new Error(lastError?.message || 'Impossibile generare un codice univoco')
-    setVenues((c) => [...c, data].sort(venueSortFn))
-    setCreateVenueOpen(false)
-    await selectVenue(data)
-    toast.success(`Locale "${v.name}" creato`)
+    if (!created) throw new Error(lastError?.message || 'Impossibile creare il locale')
+    setCreateVenueOpen(false); await loadVenues(); await selectVenue(created); toast.success('Locale creato')
   }
 
-  async function handleEditVenue(v) {
-    if (String(v.code) !== String(selectedVenue.code) && !window.confirm('Stai cambiando il codice di un locale già salvato. Confermi questa modifica?')) return
-    const { data, error } = await supabase.from('venues')
-      .update({
-        name: v.name, code: v.code, city: v.city,
-        active: v.active === 'true' || v.active === true,
-      })
-      .eq('id', selectedVenue.id).select('*').single()
+  async function editVenue(values) {
+    const { data, error } = await supabase.from('venues').update({ name: values.name, code: values.code, city: values.city, active: true }).eq('id', selectedVenue.id).select('*').single()
     if (error) throw new Error(error.message)
-    setVenues((c) => c.map((x) => x.id === data.id ? { ...x, ...data } : x).sort(venueSortFn))
-    setSelectedVenue((c) => ({ ...c, ...data }))
-    setEditVenueOpen(false)
-    toast.success('Locale aggiornato')
+    setEditVenueOpen(false); await loadVenues(); await selectVenue(data); toast.success('Locale aggiornato')
   }
 
-  async function openCreateVenue() {
-    const { data, error } = await supabase.rpc('generate_venue_code')
-    if (error) return toast.error(`Generazione codice: ${error.message}`)
-    setGeneratedCode(data); setCreateVenueOpen(true)
-  }
-
-  async function handleDeleteVenue() {
-    if (!selectedVenue?.id) return
-    const name = selectedVenue.name
-    const { error } = await supabase.from('venues').update({ active: false }).eq('id', selectedVenue.id)
+  async function createMachine(values) {
+    const { data, error } = await supabase.from('machines').insert({ id: crypto.randomUUID(), venue_id: selectedVenue.id, name: values.name, fondo: Number(values.fondo || 0), level: 0, last_update: new Date().toISOString(), active: true }).select('*').single()
     if (error) throw new Error(error.message)
-    setVenues(c => c.map(v => v.id === selectedVenue.id ? { ...v, active: false } : v))
-    setSelectedVenue(c => ({ ...c, active: false }))
-    setDeleteVenueOpen(false)
-    toast.success(`"${name}" disattivato senza eliminare lo storico`)
+    setCreateMachineOpen(false); await selectVenue(selectedVenue); toast.success(`Change ${data.name} aggiunto`)
   }
 
-  async function handleCreateMachine(v) {
-    const { data, error } = await supabase.from('machines').insert({
-      id: crypto.randomUUID(),
-      venue_id: selectedVenue.id,
-      name: v.name,
-      fondo: Number(v.fondo || 0),
-      level: 0,
-      last_update: new Date().toISOString(),
-    }).select('*').single()
+  async function saveMachine(machine) {
+    const { error } = await supabase.from('machines').update({ name: machineDraft.name, fondo: Number(machineDraft.fondo || 0) }).eq('id', machine.id)
+    if (error) return toast.error(error.message)
+    setEditingMachineId(null); setMachineDraft(null); await selectVenue(selectedVenue); toast.success('Change aggiornato')
+  }
+
+  async function deleteMachine() {
+    const { error } = await supabase.from('machines').update({ active: false }).eq('id', deleteMachineTarget.id)
     if (error) throw new Error(error.message)
-    setSelectedVenue((c) => ({ ...c, machines: [...(c.machines || []), data] }))
-    setCreateMachineOpen(false)
-    toast.success(`Change "${v.name}" aggiunto`)
+    setDeleteMachineTarget(null); await selectVenue(selectedVenue); toast.success('Change rimosso dalla visualizzazione')
   }
 
-  function startEditMachine(machine) {
-    setEditingMachineId(machine.id)
-    setMachineDraft({ name: machine.name || '', fondo: machine.fondo || 0 })
-  }
-  function cancelEditMachine() {
-    setEditingMachineId(null)
-    setMachineDraft(null)
-  }
-  async function saveEditMachine(machine) {
-    if (!machineDraft) return
-    setSavingKey(`machine-${machine.id}`)
-    const { data, error } = await supabase.from('machines').update({
-      name: machineDraft.name, fondo: Number(machineDraft.fondo || 0),
-    }).eq('id', machine.id).select('*').single()
-    setSavingKey(null)
-    if (error) { toast.error(`Errore salvataggio: ${error.message}`); return }
-    setSelectedVenue((c) => ({
-      ...c, machines: (c.machines || []).map((m) => m.id === data.id ? data : m),
-    }))
-    setEditingMachineId(null)
-    setMachineDraft(null)
-    toast.success('Change aggiornato')
+  async function openDangerArea() {
+    if (PROTECTED_VENUES.has(String(selectedVenue.id).toUpperCase())) return toast.warning('I locali deposito D01-D05 sono protetti')
+    setDangerOpen(true); setImpact(null); setImpactLoading(true); setDeleteConfirmation(''); setDeleteAccepted(false)
+    const { data, error } = await supabase.rpc('preview_venue_deletion', { p_venue_id: selectedVenue.id })
+    setImpactLoading(false)
+    if (error) return toast.error(`Anteprima non disponibile: ${error.message}`)
+    setImpact(data || {})
   }
 
-  async function handleDeleteMachine() {
-    const m = deleteMachineTarget
-    const { error } = await supabase.from('machines').update({ active: false }).eq('id', m.id)
-    if (error) throw new Error(error.message)
-    setSelectedVenue((c) => ({ ...c, machines: (c.machines || []).map(x => x.id === m.id ? { ...x, active: false } : x) }))
-    setDeleteMachineTarget(null)
-    toast.success('Change disattivato; storico conservato')
+  async function deleteVenuePermanently() {
+    if (deleteConfirmation !== selectedVenue.id || !deleteAccepted) return
+    setDeleting(true)
+    const venueId = selectedVenue.id
+    const { error } = await supabase.rpc('delete_venue_permanently', { p_venue_id: venueId, p_confirmation: deleteConfirmation })
+    setDeleting(false)
+    if (error) return toast.error(error.message)
+    setDangerOpen(false); setSelectedVenue(null); setHistory([]); await loadVenues(); toast.success(`${venueId} eliminato definitivamente`)
   }
-
-  const sortedMachines = useMemo(() => {
-    const getPriority = (name = '') => {
-      const n = String(name).toLowerCase()
-      if (n.includes('apex')) return 1
-      if (n.includes('pocket')) return 2
-      if (n.includes('twin')) return 3
-      if (n.includes('bell')) return 4
-      return 999
-    }
-    return [...(selectedVenue?.machines || [])].sort((a, b) => {
-      const pa = getPriority(a.name), pb = getPriority(b.name)
-      if (pa !== pb) return pa - pb
-      return Number(b.fondo || 0) - Number(a.fondo || 0)
-    })
-  }, [selectedVenue])
 
   const filteredVenues = useMemo(() => {
-    const s = search.trim().toLowerCase()
-    if (!s) return venues
-    return venues.filter((v) =>
-      String(v.name || '').toLowerCase().includes(s) ||
-      String(v.code || '').toLowerCase().includes(s) ||
-      String(v.city || '').toLowerCase().includes(s) ||
-      String(v.id || '').toLowerCase().includes(s)
-    )
+    const query = search.trim().toLowerCase()
+    return venues.filter((venue) => !query || `${venue.id} ${venue.code} ${venue.name} ${venue.city || ''}`.toLowerCase().includes(query))
   }, [venues, search])
-
-  const groupedVenues = useMemo(() => {
-    const groups = []
-    let currentLetter = null
-    for (const v of filteredVenues) {
-      const letter = String(v.id || '?').charAt(0).toUpperCase()
-      if (letter !== currentLetter) {
-        currentLetter = letter
-        groups.push({ letter, items: [] })
-      }
-      groups[groups.length - 1].items.push(v)
-    }
-    return groups
-  }, [filteredVenues])
+  const sortedMachines = useMemo(() => [...(selectedVenue?.machines || [])].filter((machine) => machine.active !== false).sort((a, b) => String(a.name).localeCompare(String(b.name))), [selectedVenue])
+  const recentHistory = useMemo(() => history.filter((row) => new Date(row.updated_at || row.created_at).getTime() >= Date.now() - 31 * 86400000), [history])
+  const totalLevel = sortedMachines.reduce((sum, machine) => sum + Number(machine.level || 0), 0)
+  const totalFondo = sortedMachines.reduce((sum, machine) => sum + Number(machine.fondo || 0), 0)
+  const lastUpdate = sortedMachines.map((machine) => machine.last_update).filter(Boolean).sort().at(-1)
+  const personName = (id) => profiles.find((profile) => String(profile.id) === String(id))?.display_name || profiles.find((profile) => String(profile.id) === String(id))?.full_name || 'Operatore non disponibile'
 
   return (
     <PageLayout>
-      <PageHeader
-        title="LOCALI"
-        subtitle={`${venues.length} locali`}
-        actions={
-          <>
-            <IconButton icon={RefreshCw} onClick={loadVenues} title="Aggiorna" />
-            <Button variant="primary" icon={Plus} onClick={openCreateVenue}>
-              <span className="hidden md:inline">Nuovo locale</span>
-            </Button>
-          </>
-        }
-      />
+      <PageBody>
+        <div className="flex min-h-full bg-[radial-gradient(circle_at_12%_0%,rgba(226,186,99,.18),transparent_27%),linear-gradient(180deg,#f7f2e8,#f3eee5)]">
+          <aside className={`${selectedVenue ? 'hidden md:flex' : 'flex'} w-full shrink-0 flex-col border-r border-[#dfcfaa] bg-[#fffdf9]/95 md:w-[345px]`}>
+            <div className="border-b border-[#e5d8bd] bg-[linear-gradient(135deg,#fff7e5,#ead08b)] p-4"><p className="text-[9px] font-black tracking-[.22em] text-[#9b6a19]">ANAGRAFICA</p><div className="mt-1 flex items-center justify-between"><h1 className="text-[24px] font-black tracking-[.12em] text-[#3c290b]">LOCALI</h1><button onClick={() => { setGeneratedCode(generateVenueCode()); setCreateVenueOpen(true) }} className="flex h-10 w-10 items-center justify-center rounded-[13px] bg-[linear-gradient(135deg,#a97218,#6d470c)] text-white shadow-lg"><Plus size={17}/></button></div></div>
+            <div className="border-b border-[#eadfca] p-3"><Input ref={searchRef} leftIcon={Search} value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Cerca locale, sigla, città…" /></div>
+            <div className="flex-1 overflow-y-auto p-2">{loading ? <SkeletonList count={8}/> : filteredVenues.length === 0 ? <EmptyState icon={Building2} title="Nessun locale" description="Nessun risultato disponibile."/> : <div className="space-y-1">{filteredVenues.map((venue) => { const active = selectedVenue?.id === venue.id; return <button key={venue.id} onClick={() => selectVenue(venue)} className={`flex w-full items-center gap-3 rounded-[16px] border p-2.5 text-left transition ${active ? 'border-[#ad781d] bg-[linear-gradient(135deg,#fff1c8,#e8c874)] shadow-[0_12px_24px_-20px_rgba(85,52,2,.8)]' : 'border-transparent hover:border-[#e1d0aa] hover:bg-[#fff8e9]'}`}><span className={`flex h-10 min-w-14 items-center justify-center rounded-[12px] px-2 font-mono text-[11px] font-black ${active ? 'bg-[#80530d] text-white' : 'bg-[#f0e4cc] text-[#7b5518]'}`}>{venue.id}</span><span className="min-w-0 flex-1"><span className="block truncate text-[12px] font-black uppercase text-[#33250f]">{venue.name}</span><span className="mt-0.5 flex items-center gap-1 truncate text-[9px] font-bold text-slate-400"><MapPin size={9}/>{venue.city || 'Città non indicata'}</span></span></button>})}</div>}</div>
+          </aside>
 
-      <div className="flex flex-1 overflow-hidden">
-        {/* LIST: full su mobile se nessun locale selezionato, fissa su desktop */}
-        <aside className={`${selectedVenue ? 'hidden md:flex' : 'flex'} w-full shrink-0 flex-col border-r border-[var(--color-border)] bg-white md:w-[320px]`}>
-          <div className="border-b border-[var(--color-border)] px-3 py-2.5">
-            <Input
-              ref={searchRef}
-              leftIcon={Search}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Cerca locale, codice, città…"
-            />
-          </div>
+          <main className={`${selectedVenue ? 'block' : 'hidden md:block'} min-w-0 flex-1 overflow-y-auto p-3 md:p-5`}>
+            {!selectedVenue ? <div className="flex min-h-[70vh] items-center justify-center"><EmptyState icon={Building2} title="Seleziona un locale" description="Scegli un locale per visualizzare la sua scheda premium."/></div> : <div className="mx-auto max-w-[1450px] space-y-4">
+              <button onClick={() => setSelectedVenue(null)} className="inline-flex items-center gap-1 text-[12px] font-black text-[#8d5d13] md:hidden"><ArrowLeft size={14}/> TORNA AI LOCALI</button>
+              <section className="relative overflow-hidden rounded-[30px] border border-[#d6b76c] bg-[linear-gradient(135deg,#fffdf8_0%,#f1dca9_100%)] p-5 shadow-[0_25px_60px_-38px_rgba(72,43,3,.8)] md:p-7"><div className="absolute -right-14 -top-20 h-64 w-64 rounded-full bg-amber-300/25 blur-3xl"/><div className="relative flex flex-col gap-4 md:flex-row md:items-center md:justify-between"><div className="flex min-w-0 items-center gap-4"><span className="flex h-16 min-w-20 items-center justify-center rounded-[19px] bg-[linear-gradient(135deg,#4b3008,#a26c17)] px-3 font-mono text-[18px] font-black text-white shadow-xl">{selectedVenue.id}</span><div className="min-w-0"><p className="text-[9px] font-black tracking-[.2em] text-[#9b6a19]">SCHEDA LOCALE</p><h2 className="truncate text-[25px] font-black uppercase tracking-[.05em] text-[#30210a] md:text-[32px]">{selectedVenue.name}</h2><p className="mt-1 flex items-center gap-1 text-[11px] font-bold text-[#76521b]"><MapPin size={12}/>{selectedVenue.city || 'Città non indicata'} · CODICE {selectedVenue.code}</p></div></div><div className="flex gap-2"><button onClick={() => setEditVenueOpen(true)} className="flex h-11 items-center gap-2 rounded-[14px] border border-[#d0b16c] bg-white/75 px-4 text-[10px] font-black text-[#775016]"><Pencil size={14}/> MODIFICA</button><button onClick={() => setCreateMachineOpen(true)} className="flex h-11 items-center gap-2 rounded-[14px] bg-[linear-gradient(135deg,#a97218,#70490d)] px-4 text-[10px] font-black text-white"><Plus size={14}/> NUOVO CHANGE</button></div></div></section>
 
-          <div className="flex-1 overflow-y-auto p-2">
-            {loading && <SkeletonList count={8} />}
+              <section className="grid grid-cols-2 overflow-hidden rounded-[25px] border border-[#dfcfaa] bg-[#fffdf9] shadow-[0_20px_45px_-36px_rgba(62,38,3,.7)] md:grid-cols-5">{[['CHANGE',sortedMachines.length],['LIVELLO TOTALE',formatEuro0(totalLevel)],['FONDO TOTALE',formatEuro0(totalFondo)],['REPORT 31 GIORNI',recentHistory.length],['ULTIMO AGGIORNAMENTO',lastUpdate ? formatDateTime(lastUpdate) : '—']].map(([label,value])=><div key={label} className="border-b border-r border-[#eee4d1] px-3 py-5 text-center"><p className="text-[9px] font-black tracking-[.13em] text-slate-400">{label}</p><p className="mt-2 text-[17px] font-black text-[#33250f]">{value}</p></div>)}</section>
 
-            {!loading && filteredVenues.length === 0 && (
-              <EmptyState
-                icon={Building2}
-                title="Nessun locale"
-                description={search ? `Nessun risultato per "${search}".` : 'Crea il primo locale.'}
-              />
-            )}
+              <div className="flex items-center justify-between"><div><p className="text-[9px] font-black tracking-[.2em] text-[#a06c17]">PARCO MACCHINE</p><h3 className="text-[21px] font-black tracking-[.1em] text-[#3d2a0b]">CHANGE DEL LOCALE</h3></div><button onClick={() => selectVenue(selectedVenue)} className="flex h-10 w-10 items-center justify-center rounded-[13px] border border-[#d6bd84] bg-white text-[#805718]"><RefreshCw size={15}/></button></div>
+              {sortedMachines.length === 0 ? <div className="rounded-[25px] border border-[#e1d4b9] bg-white p-8"><EmptyState title="Nessun Change" description="Aggiungi il primo Change a questo locale."/></div> : <div className="grid gap-4 xl:grid-cols-2">{sortedMachines.map((machine) => { const reports = history.filter((row) => String(row.machine_id) === String(machine.id)); const open = !!historyOpen[machine.id]; const editing = editingMachineId === machine.id; return <article key={machine.id} className="overflow-hidden rounded-[26px] border border-[#d9c18a] bg-[#fffdf9] shadow-[0_22px_48px_-35px_rgba(66,39,3,.75)]"><div className="grid min-h-[235px] grid-cols-[145px_1fr]"><div className="relative flex items-end justify-center overflow-hidden border-r border-[#e2d3b3] bg-[radial-gradient(circle_at_50%_70%,#f0cb70,transparent_48%),linear-gradient(180deg,#fff8e6,#f1e0bd)] p-2"><img src={getChangeImage(machine.name)} alt={machine.name} className="relative z-10 max-h-[205px] w-auto object-contain drop-shadow-xl" onError={(event) => { event.currentTarget.src='/change-machine/generic.png' }}/></div><div className="flex flex-col p-4"><div className="flex items-start justify-between gap-2">{editing ? <Input value={machineDraft.name} onChange={(event)=>setMachineDraft((draft)=>({...draft,name:event.target.value.toUpperCase()}))}/> : <div><p className="text-[9px] font-black tracking-[.18em] text-[#a16d18]">CHANGE MACHINE</p><h4 className="mt-1 text-[20px] font-black uppercase text-[#30210a]">{machine.name}</h4></div>}<div className="flex gap-1">{editing ? <><button onClick={()=>saveMachine(machine)} className="flex h-9 w-9 items-center justify-center rounded-[11px] bg-[#8e6015] text-white"><Check size={14}/></button><button onClick={()=>{setEditingMachineId(null);setMachineDraft(null)}} className="flex h-9 w-9 items-center justify-center rounded-[11px] border border-[#ddd0b5]"><X size={14}/></button></> : <><button onClick={()=>{setEditingMachineId(machine.id);setMachineDraft({name:machine.name,fondo:machine.fondo})}} className="flex h-9 w-9 items-center justify-center rounded-[11px] border border-[#dac493] text-[#815718]"><Pencil size={14}/></button><button onClick={()=>setDeleteMachineTarget(machine)} className="flex h-9 w-9 items-center justify-center rounded-[11px] border border-red-200 text-red-600"><Trash2 size={14}/></button></>}</div></div><div className="mt-4 grid grid-cols-2 gap-2"><div className="rounded-[15px] bg-[#f6ecd7] p-3"><p className="text-[8px] font-black tracking-[.13em] text-[#987025]">LIVELLO ATTUALE</p><p className="mt-1 text-[23px] font-black text-emerald-700">{formatEuro0(machine.level)}</p></div><div className="rounded-[15px] bg-[#f6ecd7] p-3"><p className="text-[8px] font-black tracking-[.13em] text-[#987025]">FONDO</p>{editing ? <Input type="number" value={machineDraft.fondo} onChange={(event)=>setMachineDraft((draft)=>({...draft,fondo:event.target.value}))}/> : <p className="mt-1 text-[23px] font-black text-[#39270c]">{formatEuro0(machine.fondo)}</p>}</div></div><div className="mt-auto grid gap-1 pt-3 text-[10px] font-bold text-slate-400"><span className="flex items-center gap-1"><User size={11}/>{personName(machine.updated_by)}</span><span className="flex items-center gap-1"><Clock3 size={11}/>{formatDateTime(machine.last_update)}</span></div></div></div><button onClick={()=>setHistoryOpen((current)=>({...current,[machine.id]:!open}))} className="flex h-12 w-full items-center justify-between border-t border-[#e5d7bb] bg-[#faf2e2] px-4 text-[10px] font-black tracking-[.12em] text-[#805718]"><span>VEDI STORICO · {reports.length} REPORT</span>{open?<ChevronUp size={15}/>:<ChevronDown size={15}/>}</button>{open&&<div className="max-h-[330px] overflow-y-auto border-t border-[#eadfca] p-3">{reports.length===0?<p className="py-6 text-center text-xs font-bold text-slate-400">Nessun report disponibile</p>:<div className="space-y-2">{reports.map((report,index)=>{const current=Number(report.level ?? report.new_level ?? 0); const previous=Number(report.previous_level ?? reports[index+1]?.level ?? current); const delta=current-previous; return <div key={report.id || `${machine.id}-${index}`} className="flex items-center gap-3 rounded-[15px] border border-[#e6dcc8] bg-white p-3"><span className={`h-10 w-1 rounded-full ${delta>0?'bg-emerald-500':delta<0?'bg-red-500':'bg-amber-400'}`}/><div className="min-w-0 flex-1"><p className="text-[11px] font-black text-slate-800">{formatDateTime(report.updated_at || report.created_at)}</p><p className="mt-0.5 truncate text-[9px] font-bold text-slate-400">{personName(report.updated_by || report.created_by)}</p></div><div className="text-right"><p className="text-[13px] font-black text-slate-800">{formatEuro0(previous)} → {formatEuro0(current)}</p><p className={`text-[10px] font-black ${delta>0?'text-emerald-600':delta<0?'text-red-600':'text-amber-600'}`}>{delta>0?'+':''}{formatEuro0(delta)}</p></div></div>})}</div>}</div>}</article>})}</div>}
 
-            {!loading && groupedVenues.map((group) => (
-              <div key={group.letter} className="mb-2">
-                <div className="sticky top-0 z-10 -mx-2 mb-0.5 bg-white px-3 pt-1 pb-1">
-                  <p className="font-mono text-[10px] font-medium uppercase tracking-wider text-[var(--color-text-muted)]">
-                    {group.letter === 'K' ? 'KIOSCHI · GRUPPO K' : `GRUPPO ${group.letter}`}
-                  </p>
-                </div>
-                <div className="flex flex-col gap-0.5">
-                  {group.items.map((venue) => {
-                    const isSelected = selectedVenue?.id === venue.id
-                    return (
-                      <button
-                        key={venue.id}
-                        onClick={() => selectVenue(venue)}
-                        className={`group flex w-full items-center gap-2 rounded-md border px-2.5 py-2 text-left transition-colors ${
-                          isSelected
-                            ? 'border-[var(--color-accent-border)] bg-[var(--color-accent-soft)]'
-                            : 'border-transparent hover:bg-[var(--color-surface-hover)]'
-                        }`}
-                      >
-                        <div className={`flex h-8 w-10 shrink-0 items-center justify-center rounded font-mono text-[11px] font-bold ${
-                          isSelected
-                            ? 'bg-[var(--color-accent)] text-white'
-                            : 'bg-[var(--color-surface)] text-[var(--color-text-secondary)]'
-                        }`}>
-                          {venue.id}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-[13px] font-medium text-[var(--color-text)]">{venue.name}</p>
-                          {venue.city && (
-                            <p className="flex items-center gap-0.5 truncate text-[11px] text-[var(--color-text-muted)]">
-                              <MapPin size={9} strokeWidth={2} />{venue.city}
-                            </p>
-                          )}
-                        </div>
-                        <span
-                          className={`h-1.5 w-1.5 shrink-0 rounded-full ${venue.active ? 'bg-[var(--color-success)]' : 'bg-[var(--color-text-muted)]'}`}
-                          title={venue.active ? 'Attivo' : 'Disattivato'}
-                        />
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-        </aside>
+              <section className="overflow-hidden rounded-[26px] border border-red-200 bg-white shadow-[0_20px_45px_-38px_rgba(185,28,28,.65)]"><div className="flex flex-col gap-3 p-5 md:flex-row md:items-center md:justify-between"><div className="flex items-start gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-[14px] bg-red-50 text-red-600"><ShieldAlert size={20}/></span><div><p className="text-[9px] font-black tracking-[.18em] text-red-500">AREA PERICOLOSA</p><h3 className="mt-1 text-[17px] font-black text-red-900">ELIMINA DEFINITIVAMENTE IL LOCALE</h3><p className="mt-1 text-[11px] font-bold text-red-700/65">Rimuove il locale, i Change e tutti i dati collegati. Operazione irreversibile.</p></div></div><button disabled={PROTECTED_VENUES.has(String(selectedVenue.id).toUpperCase())} onClick={openDangerArea} className="h-11 rounded-[14px] border border-red-300 bg-red-600 px-5 text-[10px] font-black tracking-[.1em] text-white disabled:cursor-not-allowed disabled:opacity-35">{PROTECTED_VENUES.has(String(selectedVenue.id).toUpperCase())?'LOCALE PROTETTO':'APRI AREA PERICOLOSA'}</button></div></section>
+            </div>}
+          </main>
+        </div>
+      </PageBody>
 
-        {/* DETAIL */}
-        <PageBody className={`${selectedVenue ? 'block' : 'hidden md:block'} bg-[var(--color-surface)]`}>
-          {!selectedVenue && !loading && (
-            <div className="hidden md:flex h-full items-center justify-center">
-              <EmptyState
-                icon={Building2}
-                title="Nessun locale selezionato"
-                description="Scegli un locale dalla lista per vedere i dettagli."
-              />
-            </div>
-          )}
+      <FormDialog open={createVenueOpen} onClose={()=>setCreateVenueOpen(false)} title="Nuovo locale" submitLabel="Crea locale" initialValues={{code:generatedCode}} fields={[{name:'name',label:'Nome locale',required:true,autoUpper:true},{name:'id',label:'Sigla',required:true,autoUpper:true},{name:'code',label:'Codice numerico',required:true,pattern:'^[0-9]{6}$',patternError:'Servono sei cifre'},{name:'city',label:'Città'}]} onSubmit={createVenue}/>
+      <FormDialog open={editVenueOpen} onClose={()=>setEditVenueOpen(false)} title="Modifica locale" submitLabel="Salva" initialValues={selectedVenue || {}} fields={[{name:'name',label:'Nome locale',required:true,autoUpper:true},{name:'code',label:'Codice numerico',required:true,pattern:'^[0-9]{6}$',patternError:'Servono sei cifre'},{name:'city',label:'Città'}]} onSubmit={editVenue}/>
+      <FormDialog open={createMachineOpen} onClose={()=>setCreateMachineOpen(false)} title="Nuovo Change" submitLabel="Aggiungi" fields={[{name:'name',label:'Nome Change',required:true,autoUpper:true},{name:'fondo',label:'Fondo cassa',type:'number',defaultValue:0}]} onSubmit={createMachine}/>
+      <ConfirmDialog open={!!deleteMachineTarget} onClose={()=>setDeleteMachineTarget(null)} title="RIMUOVERE IL CHANGE?" message={deleteMachineTarget?`Il Change ${deleteMachineTarget.name} non sarà più visibile. Lo storico resta conservato.`:''} confirmLabel="RIMUOVI" onConfirm={deleteMachine}/>
 
-          {selectedVenue && (
-            <div className="mx-auto max-w-[1200px] px-3 py-3 md:px-6 md:py-5">
-              {/* Torna lista mobile */}
-              <button
-                onClick={() => setSelectedVenue(null)}
-                className="mb-3 inline-flex items-center gap-1 text-[13px] font-medium text-[var(--color-accent)] md:hidden"
-              >
-                <ArrowLeft size={14} strokeWidth={2} /> Torna alla lista
-              </button>
-
-              {/* Header detail */}
-              <Card className="mb-3 md:mb-5">
-                <div className="flex flex-col gap-3 p-3 md:flex-row md:items-start md:justify-between md:gap-4 md:p-4">
-                  <div className="flex items-start gap-3 min-w-0">
-                    <div className="flex h-12 w-16 shrink-0 items-center justify-center rounded-md bg-[var(--color-accent)] font-mono text-[15px] font-bold text-white">
-                      {selectedVenue.id}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h2 className="text-[17px] font-semibold tracking-tight text-[var(--color-text)] md:text-[19px]">
-                          {selectedVenue.name || 'Senza nome'}
-                        </h2>
-                        <Badge variant={selectedVenue.active ? 'success' : 'default'} size="sm">
-                          <span className={`inline-block h-1.5 w-1.5 rounded-full ${selectedVenue.active ? 'bg-[var(--color-success)]' : 'bg-[var(--color-text-muted)]'}`} />
-                          {selectedVenue.active ? 'Attivo' : 'Disattivato'}
-                        </Badge>
-                      </div>
-                      {selectedVenue.city && (
-                        <p className="mt-0.5 flex items-center gap-1 text-[13px] text-[var(--color-text-muted)]">
-                          <MapPin size={12} strokeWidth={2} />{selectedVenue.city}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Button icon={Pencil} onClick={() => setEditVenueOpen(true)}>Modifica</Button>
-                    <IconButton icon={Trash2} variant="danger" onClick={() => setDeleteVenueOpen(true)} title="Elimina locale" />
-                  </div>
-                </div>
-
-                {/* Info grid */}
-                <div className="grid grid-cols-2 gap-px border-t border-[var(--color-border)] bg-[var(--color-border)] md:grid-cols-4">
-                  <InfoTile label="Codice numerico" value={selectedVenue.code || '—'} mono />
-                  <InfoTile label="Sigla" value={selectedVenue.id || '—'} mono />
-                  <InfoTile label="Città" value={selectedVenue.city || '—'} />
-                  <InfoTile label="Change" value={String(sortedMachines.length)} />
-                </div>
-              </Card>
-
-              {/* Machines section */}
-              <div className="mb-3 flex items-center justify-between">
-                <h3 className="text-[15px] font-semibold text-[var(--color-text)]">
-                  Change machines <span className="ml-1 text-[12px] font-normal text-[var(--color-text-muted)]">({sortedMachines.length})</span>
-                </h3>
-                <Button icon={Plus} variant="primary" onClick={() => setCreateMachineOpen(true)}>
-                  <span className="hidden sm:inline">Aggiungi</span>
-                </Button>
-              </div>
-
-              {sortedMachines.length === 0 ? (
-                <Card>
-                  <EmptyState
-                    icon={Boxes}
-                    title="Nessun change"
-                    description="Aggiungi il primo change machine a questo locale."
-                    action={<Button icon={Plus} variant="primary" onClick={() => setCreateMachineOpen(true)}>Aggiungi change</Button>}
-                  />
-                </Card>
-              ) : (
-                <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
-                  {sortedMachines.map((m) => (
-                    <MachineCard
-                      key={m.id}
-                      machine={m}
-                      profiles={profiles}
-                      editing={editingMachineId === m.id}
-                      draft={editingMachineId === m.id ? machineDraft : null}
-                      saving={savingKey === `machine-${m.id}`}
-                      onEditStart={() => startEditMachine(m)}
-                      onEditCancel={cancelEditMachine}
-                      onEditChange={(patch) => setMachineDraft((d) => ({ ...d, ...patch }))}
-                      onEditSave={() => saveEditMachine(m)}
-                      onDelete={() => setDeleteMachineTarget(m)}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </PageBody>
-      </div>
-
-      {/* DIALOGS */}
-      <FormDialog
-        open={createVenueOpen}
-        onClose={() => setCreateVenueOpen(false)}
-        title="Nuovo locale"
-        submitLabel="Crea locale"
-        initialValues={{ code: generatedCode }}
-        fields={[
-          { name: 'name', label: 'Nome locale', required: true, placeholder: 'es. ROXY BAR', autoUpper: true },
-          { name: 'id', label: 'Sigla', required: true, placeholder: 'es. K99', autoUpper: true, hint: 'Identificatore breve (K... per priorità)' },
-          { name: 'code', label: 'Codice numerico generato', required: true, pattern: '^[0-9]{6}$', patternError: 'Il codice deve contenere esattamente sei cifre', hint: 'Generato da Supabase e verificato nuovamente al salvataggio.' },
-          { name: 'city', label: 'Città', placeholder: 'es. Manfredonia' },
-        ]}
-        onSubmit={handleCreateVenue}
-      />
-
-      <FormDialog
-        open={editVenueOpen}
-        onClose={() => setEditVenueOpen(false)}
-        title="Modifica locale"
-        submitLabel="Salva"
-        initialValues={{
-          ...selectedVenue,
-          active: selectedVenue?.active ? 'true' : 'false',
-        }}
-        fields={[
-          { name: 'name', label: 'Nome locale', required: true, autoUpper: true },
-          { name: 'code', label: 'Codice numerico', required: true, pattern: '^[0-9]{6}$', patternError: 'Servono esattamente sei cifre', hint: 'La modifica richiederà una conferma specifica.' },
-          { name: 'city', label: 'Città' },
-          { name: 'active', label: 'Stato', type: 'select', options: [
-            { value: 'true', label: 'Attivo' },
-            { value: 'false', label: 'Disattivato' },
-          ]},
-        ]}
-        onSubmit={handleEditVenue}
-      />
-
-      <ConfirmDialog
-        open={deleteVenueOpen}
-        onClose={() => setDeleteVenueOpen(false)}
-        title="DISATTIVARE IL LOCALE?"
-        message={`"${selectedVenue?.name}" non sarà più operativo, ma movimenti, Conteggi e Change storici resteranno conservati.`}
-        confirmLabel="DISATTIVA"
-        onConfirm={handleDeleteVenue}
-      />
-
-      <FormDialog
-        open={createMachineOpen}
-        onClose={() => setCreateMachineOpen(false)}
-        title="Nuovo change"
-        submitLabel="Aggiungi"
-        fields={[
-          { name: 'name', label: 'Nome change', required: true, placeholder: 'es. APEX / POCKET 2 / TWIN / BELL', autoUpper: true },
-          { name: 'fondo', label: 'Fondo cassa', type: 'number', placeholder: '0', defaultValue: 0 },
-        ]}
-        onSubmit={handleCreateMachine}
-      />
-
-      <ConfirmDialog
-        open={!!deleteMachineTarget}
-        onClose={() => setDeleteMachineTarget(null)}
-        title="Elimina change"
-        message={deleteMachineTarget ? `Vuoi eliminare il change "${deleteMachineTarget.name}"?` : ''}
-        confirmLabel="Elimina"
-        onConfirm={handleDeleteMachine}
-      />
+      {dangerOpen&&<div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/70 p-3 backdrop-blur-sm" onClick={()=>!deleting&&setDangerOpen(false)}><div className="max-h-[94vh] w-full max-w-[620px] overflow-y-auto rounded-[30px] border border-red-400/45 bg-[#fffdf9] shadow-[0_40px_100px_-28px_rgba(0,0,0,.95)]" onClick={(event)=>event.stopPropagation()}><div className="relative bg-[linear-gradient(135deg,#4b0909,#9f1d1d)] p-5 text-center text-white"><button onClick={()=>setDangerOpen(false)} className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-[12px] border border-white/15 bg-white/10"><X size={15}/></button><ShieldAlert className="mx-auto" size={30}/><p className="mt-2 text-[9px] font-black tracking-[.24em] text-red-200">CANCELLAZIONE IRREVERSIBILE</p><h2 className="mt-1 text-[21px] font-black">ELIMINA {selectedVenue?.id} · {selectedVenue?.name}</h2></div><div className="p-5">{impactLoading?<div className="py-12 text-center"><RefreshCw className="mx-auto animate-spin text-red-600"/><p className="mt-3 text-xs font-black text-slate-500">Analisi dei dati collegati…</p></div>:impact?<><div className="grid grid-cols-2 gap-2 md:grid-cols-3">{Object.entries(impact).map(([key,value])=><div key={key} className="rounded-[15px] border border-red-100 bg-red-50/55 p-3 text-center"><p className="text-[8px] font-black uppercase tracking-[.1em] text-red-500">{impactLabels[key]||key}</p><p className="mt-1 text-[21px] font-black text-red-900">{Number(value)||0}</p></div>)}</div><div className="mt-4 rounded-[17px] border border-amber-200 bg-amber-50 p-3 text-[11px] font-bold leading-relaxed text-amber-900"><Database size={15} className="mb-1"/>Tutti questi dati verranno eliminati in un’unica operazione. Se una sola eliminazione fallisce, il database annullerà tutto.</div><label className="mt-4 block text-[10px] font-black uppercase tracking-[.1em] text-slate-600">Scrivi esattamente {selectedVenue?.id}</label><Input value={deleteConfirmation} onChange={(event)=>setDeleteConfirmation(event.target.value.toUpperCase())} className="mt-1 text-center font-mono font-black"/><label className="mt-3 flex cursor-pointer items-start gap-2 rounded-[14px] border border-red-100 p-3 text-[11px] font-bold text-red-900"><input type="checkbox" checked={deleteAccepted} onChange={(event)=>setDeleteAccepted(event.target.checked)} className="mt-0.5 h-4 w-4 accent-red-600"/>Ho compreso che il locale e tutti i dati collegati saranno eliminati definitivamente.</label><button disabled={deleteConfirmation!==selectedVenue?.id||!deleteAccepted||deleting} onClick={deleteVenuePermanently} className="mt-4 h-13 w-full rounded-[15px] bg-[linear-gradient(135deg,#c51f1f,#7d0c0c)] text-[11px] font-black tracking-[.11em] text-white disabled:opacity-35">{deleting?'ELIMINAZIONE IN CORSO…':`ELIMINA DEFINITIVAMENTE ${selectedVenue?.id}`}</button></>:<p className="py-10 text-center text-sm font-bold text-red-700">Impossibile caricare l’anteprima. Nessun dato può essere eliminato.</p>}</div></div></div>}
     </PageLayout>
-  )
-}
-
-function InfoTile({ label, value, mono = false }) {
-  return (
-    <div className="bg-white px-3 py-2.5">
-      <p className="text-[10px] font-medium uppercase tracking-wide text-[var(--color-text-muted)]">{label}</p>
-      <p className={`mt-0.5 text-[14px] font-medium text-[var(--color-text)] ${mono ? 'font-mono tabular-nums' : ''}`}>
-        {value}
-      </p>
-    </div>
-  )
-}
-
-function MachineCard({
-  machine, profiles, editing, draft, saving,
-  onEditStart, onEditCancel, onEditChange, onEditSave, onDelete,
-}) {
-  const operatorName = profiles.find((p) => p.id === machine.updated_by)?.display_name
-    || machine.updated_by_name || machine.operator || '—'
-
-  return (
-    <div className="group relative overflow-hidden rounded-lg border border-[var(--color-border)] bg-white shadow-sm transition-colors hover:border-[var(--color-border-strong)]">
-      <div className="grid grid-cols-[110px_minmax(0,1fr)] md:grid-cols-[140px_minmax(0,1fr)]">
-        <div className="relative flex items-end justify-center border-r border-[var(--color-border)] bg-[var(--color-surface)] p-2">
-          <div className="absolute bottom-3 left-1/2 h-8 w-24 -translate-x-1/2 rounded-full bg-[var(--color-accent)]/10 blur-xl" />
-          <img
-            src="/change-machine/change-base-orange.png"
-            alt=""
-            className="pointer-events-none absolute bottom-2 left-1/2 z-0 w-[85px] -translate-x-1/2 opacity-90 md:w-[110px]"
-            onError={(e) => { e.currentTarget.style.display = 'none' }}
-          />
-          <img
-            src={getChangeImage(machine.name)}
-            alt={machine.name}
-            className="relative z-10 h-[120px] w-auto object-contain drop-shadow-md md:h-[160px]"
-            draggable={false}
-            onError={(e) => { e.currentTarget.src = '/change-machine/generic.png' }}
-          />
-        </div>
-
-        <div className="flex flex-col gap-2.5 p-3">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0 flex-1">
-              {editing ? (
-                <Input
-                  value={draft.name}
-                  onChange={(e) => onEditChange({ name: e.target.value.toUpperCase() })}
-                  placeholder="Nome change"
-                />
-              ) : (
-                <p className="text-[14px] font-semibold text-[var(--color-text)]">{machine.name || '—'}</p>
-              )}
-            </div>
-            <div className={`flex items-center gap-0.5 ${editing ? '' : 'md:opacity-0 md:transition-opacity md:group-hover:opacity-100'}`}>
-              {editing ? (
-                <>
-                  <IconButton icon={Check} variant="accent" onClick={onEditSave} disabled={saving} title="Salva" size="sm" />
-                  <IconButton icon={X} onClick={onEditCancel} disabled={saving} title="Annulla" size="sm" />
-                </>
-              ) : (
-                <>
-                  <IconButton icon={Pencil} onClick={onEditStart} title="Modifica" size="sm" />
-                  <IconButton icon={Trash2} variant="danger" onClick={onDelete} title="Elimina" size="sm" />
-                </>
-              )}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <p className="text-[10px] font-medium uppercase tracking-wide text-[var(--color-text-muted)]">Fondo</p>
-              {editing ? (
-                <Input
-                  type="number"
-                  value={draft.fondo}
-                  onChange={(e) => onEditChange({ fondo: e.target.value })}
-                  className="mt-1"
-                />
-              ) : (
-                <p className="mt-0.5 text-[14px] font-semibold tabular-nums text-[var(--color-text)]">
-                  {formatEuro0(machine.fondo)}
-                </p>
-              )}
-            </div>
-            <div>
-              <p className="text-[10px] font-medium uppercase tracking-wide text-[var(--color-text-muted)]">Livello</p>
-              <p className="mt-0.5 text-[14px] font-semibold tabular-nums text-[var(--color-success)]">
-                {formatEuro0(machine.level)}
-              </p>
-            </div>
-          </div>
-
-          <div className="space-y-1 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1.5 text-[11px] text-[var(--color-text-muted)]">
-            <div className="flex items-center gap-1.5">
-              <User size={10} strokeWidth={2} />
-              <span className="truncate">{operatorName}</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <Calendar size={10} strokeWidth={2} />
-              <span className="tabular-nums">{formatDateTime(machine.last_update)}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
   )
 }

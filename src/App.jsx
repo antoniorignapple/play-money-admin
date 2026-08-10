@@ -243,7 +243,7 @@ function LoginScreen() {
               <img src="/app-icon.png" alt="" className="h-7 w-7 rounded object-contain" draggable={false} />
               <div>
                 <p className="text-[13px] font-semibold text-white">Play Money Admin</p>
-                <p className="text-[10px] text-slate-400">Versione 7.2</p>
+                <p className="text-[10px] text-slate-400">Versione 7.5</p>
               </div>
             </div>
             <div className="px-2 py-3">
@@ -434,7 +434,7 @@ function Sidebar({ page, setPage, collapsed, setCollapsed, openPalette, isMobile
           <img src="/app-icon.png" alt="" className="relative z-10 h-10 w-10 object-contain" draggable={false} />
           <div className="absolute inset-0 bg-white/10" />
         </div>
-        {!collapsed && <div className="min-w-0 flex-1"><p className="truncate text-[16px] font-black tracking-[0.04em] text-white">PLAY MONEY</p><div className="mt-1 flex items-center gap-2"><span className="rounded-full border border-[#e1bb68]/40 bg-[#d5a441]/15 px-2 py-0.5 text-[9px] font-black tracking-[0.18em] text-[#f0cc7b]">ADMIN</span><span className="text-[10px] font-bold text-white/100">Ver. 7.2</span></div></div>}
+        {!collapsed && <div className="min-w-0 flex-1"><p className="truncate text-[16px] font-black tracking-[0.04em] text-white">PLAY MONEY</p><div className="mt-1 flex items-center gap-2"><span className="rounded-full border border-[#e1bb68]/40 bg-[#d5a441]/15 px-2 py-0.5 text-[9px] font-black tracking-[0.18em] text-[#f0cc7b]">ADMIN</span><span className="text-[10px] font-bold text-white/100">Ver. 7.5</span></div></div>}
         {isMobile && <button onClick={onClose} className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-white/10 bg-white/5 text-white/70 active:scale-95" aria-label="Chiudi menu"><X size={18}/></button>}
         {!collapsed && !isMobile && <button onClick={() => setCollapsed(true)} className="flex h-9 w-9 items-center justify-center rounded-[13px] border border-white/8 bg-white/[0.035] text-white/45 transition hover:border-[#d7ad55]/30 hover:text-[#efc872]" title="Comprimi"><ChevronsLeft size={16}/></button>}
       </div>

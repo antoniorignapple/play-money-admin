@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   Lock, Unlock, RefreshCw, Search, Users, Building2, FileText, TrendingUp,
-  Download, Eye, ChevronDown, ChevronUp, MapPin, Calendar, Filter, Archive,
+  Eye, ChevronDown, ChevronUp, MapPin, Calendar, Filter, Archive,
   TriangleAlert, MoreVertical, Pencil, Save, X, CheckCircle2, CircleX, ChevronRight, RotateCcw,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
@@ -12,7 +12,6 @@ import {
 import { PageLayout, PageHeader, PageBody } from '../components/PageLayout'
 import { Skeleton } from '../components/Skeleton'
 import { useToast } from '../components/Toast'
-import { initials, avatarColor } from '../lib/helpers'
 
 const fmtEuro = (n) => `${Math.trunc(Number(n) || 0).toLocaleString('it-IT')} €`
 const fmtEuroPlain = (n) => `${Math.trunc(Number(n) || 0).toLocaleString('it-IT')} €`
@@ -170,6 +169,12 @@ export default function ConteggiPage() {
       return String(row.user_id).slice(0, 8)
     }
     return 'Operaio sconosciuto'
+  }
+
+  function getGiroName(operator) {
+    const snapshot = operator?.rows?.find((row) => String(row.giro_name_snapshot || '').trim())?.giro_name_snapshot
+    if (snapshot) return String(snapshot).replace(/^GIRO\s*:?[\s-]*/i, '').trim()
+    return String(operator?.name || '').trim().split(/\s+/)[0] || '—'
   }
 
   async function loadBaseData() {
@@ -844,11 +849,9 @@ export default function ConteggiPage() {
                     <div className="absolute -right-8 -top-12 h-28 w-28 rounded-full bg-amber-300/20 blur-3xl"/>
                     <div className="relative flex items-center gap-2">
                       <button type="button" onClick={()=>setExpandedOperators(prev=>({...prev,[op.name]:!prev[op.name]}))} className="flex min-w-0 flex-1 items-center gap-2 text-left">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] border border-[#d6b76e] bg-white/75 text-[12px] font-black text-[#765116]">{initials(op.name)}</div>
-                        <p className="min-w-0 flex-1 truncate text-[13px] font-black uppercase tracking-[0.04em] text-[#3b2a0e]">{op.name}</p>
+                        <p className="min-w-0 flex-1 truncate text-[15px] font-black uppercase tracking-[0.055em] text-[#3b2a0e]">GIRO: {getGiroName(op)}</p>
                       </button>
                       <span className="flex h-7 min-w-7 items-center justify-center rounded-full border border-[#d1b266] bg-[linear-gradient(145deg,#fff6db,#e8c97c)] px-2 text-[10px] font-black tabular-nums text-[#68450e] shadow-[0_6px_12px_-9px_rgba(98,60,5,.38)]">{op.rows.length}</span>
-                      <button type="button" onClick={()=>handleGeneratePdf(op.name,op.rows)} disabled={!op.rows.length} className="flex h-8 min-w-[52px] items-center justify-center rounded-[10px] border border-[#d2b36a] bg-[linear-gradient(145deg,#fff7df,#e7c879)] px-2 text-[9px] font-black tracking-[0.08em] text-[#68450e] shadow-[0_8px_16px_-10px_rgba(95,58,4,.42)] transition hover:brightness-102 active:scale-95 disabled:opacity-35" aria-label={`Genera PDF ${op.name}`}>PDF</button>
                       <button type="button" onClick={()=>setExpandedOperators(prev=>({...prev,[op.name]:!prev[op.name]}))} className="flex h-8 w-8 items-center justify-center rounded-[10px] text-[#8f651d] transition hover:bg-white/55" aria-label={`Apri dettagli ${op.name}`}>{open?<ChevronUp size={16}/>:<ChevronDown size={16}/>}</button>
                     </div>
                   </div>
@@ -867,7 +870,7 @@ export default function ConteggiPage() {
                   </div>
 
                   <button type="button" onClick={()=>setExpandedOperators(prev=>({...prev,[op.name]:!prev[op.name]}))} className="w-full text-left"><div className="divide-y divide-[#eee7da] px-3">{[['ACCONTI',op.acconti],['DA RIPORTARE',op.riporto],['DEPOSITI',op.cassaDepositi],['DEBITI',op.debiti]].map(([label,value])=><div key={label} className="flex items-center justify-between py-2.5"><span className="text-[9px] font-black tracking-[0.12em] text-slate-400">{label}</span><span className="text-[13px] font-black tabular-nums text-slate-800">{fmtEuro(value)}</span></div>)}</div><div className={`flex items-center justify-between px-4 py-3 ${op.finale>0?'bg-emerald-50':op.finale<0?'bg-rose-50':'bg-[#f6eedf]'}`}><span className="text-[10px] font-black tracking-[0.14em] text-[#7d5819]">TOTALE</span><span className={`text-[20px] font-black tabular-nums ${clsSigned(op.finale)}`}>{fmtSigned(op.finale)}</span></div></button>
-                  {open&&<div className="border-t border-[#e8dcc5] bg-[#faf7f1] p-3"><div className="space-y-2">{op.rows.map(r=><button key={r.id} onClick={()=>setSelectedRow(r)} className="flex w-full items-center justify-between rounded-[13px] border border-[#e8dfcf] bg-white px-3 py-2 text-left"><div className="min-w-0"><p className="truncate text-[11px] font-black text-slate-800">{getVenueName(r)}</p><p className="text-[9px] font-bold text-slate-400">{formatITDate(r.conteggio_date)}</p></div><span className={`text-[12px] font-black ${clsSigned(r.totale_finale)}`}>{fmtSigned(r.totale_finale)}</span></button>)}</div></div>}
+                  {open&&<div className="border-t border-[#e8dcc5] bg-[#faf7f1] p-3"><div className="space-y-2">{op.rows.map(r=><button key={r.id} onClick={()=>setSelectedRow(r)} className="flex w-full items-center justify-between rounded-[13px] border border-[#e8dfcf] bg-white px-3 py-2 text-left"><div className="min-w-0"><p className="truncate text-[11px] font-black text-slate-800">{getVenueName(r)}</p><p className="text-[9px] font-bold text-slate-400">{formatITDate(r.conteggio_date)} · Effettuato da {getOperatorName(r)}</p></div><span className={`text-[12px] font-black ${clsSigned(r.totale_finale)}`}>{fmtSigned(r.totale_finale)}</span></button>)}</div></div>}
                 </article>})}</div>}
             </section>
 
@@ -1014,44 +1017,46 @@ export default function ConteggiPage() {
         onFinalize={finalizePeriod}
       />
 
-      <Modal
-        open={!!selectedRow}
-        onClose={() => setSelectedRow(null)}
-        title="Dettaglio conteggio"
-        width="lg"
-        footer={selectedRow && <Button icon={Download} variant="primary" onClick={() => handleGeneratePdf(`PDF ${getVenueName(selectedRow)}`, [selectedRow])}>Scarica PDF</Button>}
-      >
-        {selectedRow && (
-          <>
-            <div className="mb-4 flex items-start justify-between gap-3">
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12px] text-[var(--color-text-muted)]">
-                  <span className="font-mono tabular-nums">{selectedRow.venue_id}</span>
-                  <span>·</span>
-                  <span className="truncate">{getOperatorName(selectedRow)}</span>
-                  <span>·</span>
-                  <span className="tabular-nums">{formatITDate(selectedRow.conteggio_date)}</span>
-                </div>
-                <h3 className="mt-1 text-[16px] font-semibold text-[var(--color-text)] md:text-[18px]">{getVenueName(selectedRow)}</h3>
+      {selectedRow && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/65 p-3 backdrop-blur-sm" onClick={() => setSelectedRow(null)}>
+          <div className="flex max-h-[94vh] w-full max-w-[470px] flex-col overflow-hidden rounded-[30px] border border-[#c99635] bg-[linear-gradient(180deg,#f8f4eb_0%,#f2ede3_100%)] shadow-[0_38px_100px_-30px_rgba(0,0,0,.95)]" onClick={(event) => event.stopPropagation()}>
+            <div className="border-b border-[#d9c49a] bg-[linear-gradient(135deg,#fff9eb,#ead18e)] px-5 py-4 text-center">
+              <p className="text-[9px] font-black tracking-[0.24em] text-[#986619]">FOTOGRAFIA DEL CONTEGGIO</p>
+              <p className="mt-1 text-[11px] font-bold text-[#74501a]">{formatITDate(selectedRow.conteggio_date)} · Effettuato da {getOperatorName(selectedRow)}</p>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto p-4">
+              <div className="rounded-[18px] border border-[#ddd7cc] bg-white/90 px-4 py-3 shadow-[0_10px_20px_-20px_rgba(23,32,50,.6)]">
+                <p className="text-[8px] font-black uppercase tracking-[0.16em] text-[#a06b13]">LOCALE · {selectedRow.venue_id}</p>
+                <p className="mt-1 text-[16px] font-black uppercase text-slate-900">{getVenueName(selectedRow)}</p>
+                <p className="mt-0.5 text-[9px] font-black uppercase tracking-[0.08em] text-slate-500">{venueById[String(selectedRow.venue_id)]?.city || 'Città non indicata'}</p>
               </div>
-              <div className={`shrink-0 text-[20px] font-semibold tabular-nums md:text-[26px] ${clsSigned(Number(selectedRow.totale_finale) || 0)}`}>{fmtSigned(Number(selectedRow.totale_finale) || 0)}</div>
+
+              <div className="mt-3 flex min-h-[68px] items-center justify-between rounded-[20px] border border-[#9d670e] bg-[linear-gradient(110deg,#8a5806_0%,#d9a70f_58%,#936009_100%)] px-4 text-white shadow-[0_18px_32px_-24px_rgba(108,66,1,.9)]">
+                <span className="text-[15px] font-black uppercase">ESATTORE</span><span className="text-[29px] font-black tabular-nums">{fmtEuro(selectedRow.esattore)}</span>
+              </div>
+
+              <div className="mt-3 space-y-2">
+                <SnapshotRow label="ACCONTI" value={selectedRow.acconti} />
+                <SnapshotRow label="CARTA" value={selectedRow.carta} />
+                <SnapshotRow label="MONETE" value={selectedRow.monete} />
+                <SnapshotRow label="DA RIPORTARE" value={selectedRow.riporto} />
+              </div>
+
+              <div className="my-4 flex items-center gap-3"><span className="h-px flex-1 bg-[#d9c8a4]"/><span className="text-[9px] font-black tracking-[0.22em] text-[#8c5b0e]">VOCI EXTRA</span><span className="h-px flex-1 bg-[#d9c8a4]"/></div>
+              <div className="space-y-2">
+                <SnapshotRow label="USO CASSA" value={selectedRow.uso_cassa} />
+                <SnapshotRow label="DEBITO" value={selectedRow.debito} danger />
+              </div>
             </div>
-            <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
-              <Detail label="Esattore" value={fmtEuro(selectedRow.esattore)} />
-              <Detail label="Acconti" value={fmtEuro(selectedRow.acconti)} />
-              <Detail label="Da riportare" value={fmtEuro(selectedRow.riporto)} />
-              <Detail label="Cassa/Depositi teorica" value={fmtEuro(getCassaDepositi(selectedRow))} />
-              <Detail label="Assegni" value={fmtEuro(selectedRow.assegno)} />
-              <Detail label="Debiti" value={fmtEuro(selectedRow.debito)} danger />
-              <Detail label="Debito virtuale" value={fmtEuro(selectedRow.debito_virt)} />
-              <Detail label="Carta" value={fmtEuro(selectedRow.carta)} />
-              <Detail label="Monete" value={fmtEuro(selectedRow.monete)} />
-              <Detail label="Uso cassa" value={fmtEuro(selectedRow.uso_cassa)} />
-              <Detail label="Bonus" value={fmtEuro(selectedRow.bonus)} />
+
+            <div className="border-t border-[#cda85d] bg-[#f6efe1] p-4 shadow-[0_-16px_30px_-28px_rgba(62,38,2,.8)]">
+              <div className="mb-2 flex items-end justify-between px-1"><span className="pb-1 text-[11px] font-black tracking-[0.12em] text-slate-900">TOTALE</span><span className={`text-[36px] font-black tabular-nums ${clsSigned(selectedRow.totale_finale)}`}>{fmtSigned(selectedRow.totale_finale)}</span></div>
+              <button type="button" onClick={() => setSelectedRow(null)} className="h-12 w-full rounded-[15px] border border-[#95600b] bg-[linear-gradient(110deg,#7c4d03,#d4a10d,#855405)] text-[12px] font-black tracking-[0.14em] text-white shadow-[0_13px_24px_-17px_rgba(91,55,3,.9)] transition active:scale-[.98]">CHIUDI DETTAGLIO</button>
             </div>
-          </>
-        )}
-      </Modal>
+          </div>
+        </div>
+      )}
     </PageLayout>
   )
 }
@@ -1289,11 +1294,11 @@ function Chip({ label, value, danger = false }) {
   )
 }
 
-function Detail({ label, value, danger = false }) {
+function SnapshotRow({ label, value, danger = false }) {
   return (
-    <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5">
-      <p className="text-[11px] font-medium text-[var(--color-text-muted)]">{label}</p>
-      <p className={`mt-0.5 text-[14px] font-semibold tabular-nums ${danger ? 'text-[var(--color-danger)]' : 'text-[var(--color-text)]'}`}>{value}</p>
+    <div className="flex min-h-[56px] items-center justify-between rounded-[17px] border border-[#ded8cd] bg-white/95 px-4 shadow-[0_10px_20px_-21px_rgba(24,31,45,.7)]">
+      <p className={`text-[13px] font-black uppercase ${danger ? 'text-[#681515]' : 'text-slate-900'}`}>{label}</p>
+      <p className={`text-[21px] font-black tabular-nums ${danger ? 'text-[#681515]' : 'text-slate-900'}`}>{fmtEuro(value)}</p>
     </div>
   )
 }

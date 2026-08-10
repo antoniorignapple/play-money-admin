@@ -11,6 +11,7 @@ import { supabase } from '../lib/supabase'
 import { Button } from '../components/ui'
 import { PageLayout, PageHeader, PageBody } from '../components/PageLayout'
 import { useToast } from '../components/Toast'
+import ProgrammazioneConteggi from '../components/ProgrammazioneConteggi'
 
 const MONTHS = [
   'GENNAIO', 'FEBBRAIO', 'MARZO', 'APRILE', 'MAGGIO', 'GIUGNO',
@@ -174,6 +175,14 @@ export default function CalendarioConteggiPage() {
         setSaving(false)
         return toast.error(error.message)
       }
+    }
+
+    let orphanQuery = supabase.from('conteggio_programmazioni').delete().gte('data_conteggio', from).lte('data_conteggio', to)
+    if (validSelected.length) orphanQuery = orphanQuery.not('data_conteggio', 'in', `(${validSelected.join(',')})`)
+    const { error: orphanError } = await orphanQuery
+    if (orphanError && orphanError.code !== '42P01') {
+      setSaving(false)
+      return toast.error(`Calendario salvato, ma pulizia assegnazioni fallita: ${orphanError.message}`)
     }
 
     setSaving(false)
@@ -363,6 +372,10 @@ export default function CalendarioConteggiPage() {
               </div>
             </div>
           </section>
+          <ProgrammazioneConteggi
+            dates={[...selected].filter((date) => date.startsWith(`${year}-${pad(month + 1)}`))}
+            monthKey={`${year}-${pad(month + 1)}`}
+          />
         </div>
       </PageBody>
     </PageLayout>
