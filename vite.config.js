@@ -16,7 +16,7 @@ export default defineConfig({
         short_name: 'Play Money',
         description: 'Gestione cassa, agenti, locali e automezzi',
         theme_color: '#A87318',
-        background_color: '#F7F2E8',
+        background_color: '#080704',
         display: 'standalone',
         display_override: ['window-controls-overlay', 'standalone', 'minimal-ui'],
         orientation: 'any',

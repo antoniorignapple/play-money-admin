@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useLayoutEffect, useCallback } from "react";
 import {
   Wallet,
   Users,
@@ -151,6 +151,27 @@ export default function App() {
   const [session, setSession] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [splashReady, setSplashReady] = useState(false);
+
+  // iOS PWA: durante splash/login colora anche la safe-area inferiore
+  // (quella dell'Home Indicator), che altrimenti può restare bianca.
+  useLayoutEffect(() => {
+    const authSurface = authLoading || !splashReady || !session;
+    const html = document.documentElement;
+    const body = document.body;
+    const themeMeta = document.querySelector('meta[name="theme-color"]');
+
+    html.classList.toggle("pwa-auth-dark", authSurface);
+    body.classList.toggle("pwa-auth-dark", authSurface);
+
+    if (themeMeta) {
+      themeMeta.setAttribute("content", authSurface ? "#080704" : "#A87318");
+    }
+
+    return () => {
+      html.classList.remove("pwa-auth-dark");
+      body.classList.remove("pwa-auth-dark");
+    };
+  }, [authLoading, splashReady, session]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setSplashReady(true), 1100);
@@ -333,7 +354,7 @@ export default function App() {
 
 function AuthLoadingScreen() {
   return (
-    <div className="fixed inset-0 z-[9999] grid min-h-[100svh] place-items-center overflow-hidden bg-[#080704]">
+    <div className="fixed inset-0 z-[9999] grid h-[100dvh] min-h-[100dvh] place-items-center overflow-hidden bg-[#080704]">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,rgba(217,170,70,.20),transparent_30%),radial-gradient(circle_at_50%_110%,rgba(121,77,8,.18),transparent_38%)]" />
       <div className="relative flex flex-col items-center">
         <div className="relative grid h-36 w-36 place-items-center">
@@ -397,11 +418,11 @@ function LoginScreen() {
   };
 
   return (
-    <div className="fixed inset-0 z-[9998] min-h-[100svh] overflow-y-auto bg-[#090805] text-white">
+    <div className="fixed inset-0 z-[9998] h-[100dvh] min-h-[100dvh] overflow-y-auto bg-[#090805] text-white">
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_16%_18%,rgba(216,168,64,.16),transparent_30%),radial-gradient(circle_at_88%_82%,rgba(129,83,11,.18),transparent_34%),linear-gradient(135deg,#080704,#151006_55%,#080704)]" />
       <div className="pointer-events-none fixed inset-0 opacity-[.035] [background-image:linear-gradient(rgba(255,255,255,.6)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.6)_1px,transparent_1px)] [background-size:42px_42px]" />
 
-      <main className="relative mx-auto grid min-h-[100svh] w-full max-w-[1380px] items-center px-4 py-7 md:grid-cols-[1.15fr_.85fr] md:gap-12 md:px-10 lg:gap-20 lg:px-16">
+      <main className="relative mx-auto grid min-h-[100dvh] w-full max-w-[1380px] items-center px-4 py-7 pb-[calc(1.75rem+env(safe-area-inset-bottom))] md:grid-cols-[1.15fr_.85fr] md:gap-12 md:px-10 md:pb-7 lg:gap-20 lg:px-16">
         <section className="hidden md:block">
           <div className="inline-flex items-center gap-2 rounded-full border border-amber-300/20 bg-amber-300/[.07] px-4 py-2 text-[9px] font-black tracking-[.22em] text-amber-200">
             <ShieldCheck size={14} /> ACCESSO AMMINISTRATIVO PROTETTO
