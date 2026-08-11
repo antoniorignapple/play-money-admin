@@ -268,7 +268,7 @@ export function Segmented({ value, onChange, options = [], size = 'md' }) {
 }
 
 /* ============ MODAL (fullscreen mobile) ============ */
-export function Modal({ open, onClose, title, children, footer, width = 'md' }) {
+export function Modal({ open, onClose, title, children, footer, width = 'md', closeOnBackdrop = true, closeOnEscape = true }) {
   const inputRef = useRef(null)
 
   // Focus automatico SOLO all'apertura (dipende solo da `open`).
@@ -284,10 +284,10 @@ export function Modal({ open, onClose, title, children, footer, width = 'md' }) 
   // Listener Escape separato (può dipendere da onClose senza refocus).
   useEffect(() => {
     if (!open) return
-    const onKey = (e) => { if (e.key === 'Escape') onClose() }
+    const onKey = (e) => { if (e.key === 'Escape' && closeOnEscape) onClose() }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [open, onClose])
+  }, [open, onClose, closeOnEscape])
 
   if (!open) return null
   const widths = { sm: 'md:max-w-md', md: 'md:max-w-lg', lg: 'md:max-w-2xl', xl: 'md:max-w-4xl' }
@@ -295,7 +295,7 @@ export function Modal({ open, onClose, title, children, footer, width = 'md' }) 
   return (
     <div
       className="fixed inset-0 z-50 flex items-stretch justify-center bg-black/30 backdrop-blur-sm md:items-center md:px-4"
-      onClick={(e) => e.target === e.currentTarget && onClose()}
+      onClick={(e) => closeOnBackdrop && e.target === e.currentTarget && onClose()}
     >
       <div className={`flex w-full ${widths[width]} flex-col overflow-hidden border-[var(--color-border)] bg-white shadow-xl md:max-h-[88vh] md:rounded-xl md:border`}>
         <header className="flex items-center justify-between border-b border-[var(--color-border)] px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))] md:pt-3">

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { RefreshCw, FileDown, Users, ChevronDown, ChevronLeft, ChevronRight, Pencil, Trash2, CalendarDays, Lock, Unlock } from 'lucide-react'
+import { RefreshCw, FileDown, Users, ChevronDown, ChevronLeft, ChevronRight, Pencil, Trash2, CalendarDays, Lock, Unlock, Building2, Plus, RotateCcw } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import {
   Input, EmptyState, Modal, Button, Field,
@@ -333,6 +333,20 @@ async function exportAgentPdf({ dateLabel, agente, riepilogo, movements }) {
   doc.text('Documento generato automaticamente da Play Money', M, pageH - 18)
 
   doc.save(`Movimenti_${dateLabel}.pdf`)
+}
+
+function AnalisiMoneyRow({ label, icon: Icon, value, onChange }) {
+  return (
+    <div className="flex min-h-[72px] items-center gap-3 rounded-[19px] border border-[#e4dbc9] bg-white px-4 shadow-[0_8px_22px_rgba(39,27,5,.04)]">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] border border-[#e1c888] bg-[#fff7e5] text-[#a26e13]"><Icon size={17}/></span>
+      <span className="flex-1 text-[14px] font-black text-[#7b8799]">{label}</span>
+      <div className="relative w-[132px]">
+        <input type="number" inputMode="decimal" value={value} onChange={(e) => onChange(e.target.value)} placeholder="0"
+          className="h-11 w-full rounded-[13px] border border-[#e0cfaa] bg-[#fffdf8] px-3 pr-8 text-right text-[16px] font-black tabular-nums text-[#3c2a0c] outline-none focus:border-[#c9982d] focus:ring-2 focus:ring-[#d9ae50]/20" />
+        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[13px] font-black text-[#a6751e]">€</span>
+      </div>
+    </div>
+  )
 }
 
 export default function AnalisiPage() {
@@ -781,34 +795,26 @@ export default function AnalisiPage() {
       <Modal
         open={!!editMov}
         onClose={() => setEditMov(null)}
-        title="Modifica movimento"
+        title="MODIFICA MOVIMENTO"
         width="sm"
-        footer={
-          <>
-            <Button variant="ghost" onClick={() => setEditMov(null)}>Annulla</Button>
-            <Button variant="primary" onClick={saveMovimento} disabled={savingMov}>
-              {savingMov ? 'Salvataggio…' : 'Salva'}
-            </Button>
-          </>
-        }
+        closeOnBackdrop={false}
+        closeOnEscape={false}
       >
         {editMov && (
-          <div className="flex flex-col gap-3">
-            <p className="text-[13px] text-[var(--color-text-secondary)]">
-              {venueLabel(editMov.venue_id)}
-            </p>
-            <Field label="Acconto (€)">
-              <Input type="number" inputMode="numeric" value={editDraft.acconto}
-                onChange={(e) => setEditDraft((p) => ({ ...p, acconto: e.target.value }))} autoFocus />
-            </Field>
-            <Field label="Recupero (€)">
-              <Input type="number" inputMode="numeric" value={editDraft.recupero}
-                onChange={(e) => setEditDraft((p) => ({ ...p, recupero: e.target.value }))} />
-            </Field>
-            <Field label="Da riportare (€)">
-              <Input type="number" inputMode="numeric" value={editDraft.da_riportare}
-                onChange={(e) => setEditDraft((p) => ({ ...p, da_riportare: e.target.value }))} />
-            </Field>
+          <div className="space-y-4 rounded-[24px] bg-[#fbf8f1] p-1">
+            <div className="rounded-[21px] border border-[#e3cb91] bg-[linear-gradient(135deg,#fffdf8,#f8edcf)] p-4 shadow-[0_12px_30px_rgba(111,76,14,.08)]">
+              <p className="mb-2 flex items-center gap-2 text-[9px] font-black uppercase tracking-[.16em] text-[#8a641d]"><Building2 size={13}/> LOCALE</p>
+              <p className="text-[15px] font-black text-[#3d2a0b]">{venueLabel(editMov.venue_id)}</p>
+            </div>
+            <div className="space-y-3">
+              <AnalisiMoneyRow label="Acconto" icon={Plus} value={editDraft.acconto} onChange={(v) => setEditDraft((p) => ({ ...p, acconto: v }))} />
+              <AnalisiMoneyRow label="Recupero" icon={RotateCcw} value={editDraft.recupero} onChange={(v) => setEditDraft((p) => ({ ...p, recupero: v }))} />
+              <AnalisiMoneyRow label="Da riportare" icon={RefreshCw} value={editDraft.da_riportare} onChange={(v) => setEditDraft((p) => ({ ...p, da_riportare: v }))} />
+            </div>
+            <button onClick={saveMovimento} disabled={savingMov}
+              className="w-full rounded-[18px] bg-[linear-gradient(135deg,#d49a26,#b88016)] py-4 text-[12px] font-black uppercase tracking-[0.18em] text-white shadow-[0_12px_26px_rgba(181,128,22,.25)] disabled:opacity-50">
+              {savingMov ? 'SALVATAGGIO…' : 'SALVA MODIFICHE'}
+            </button>
           </div>
         )}
       </Modal>

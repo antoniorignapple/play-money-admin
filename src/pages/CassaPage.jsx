@@ -143,6 +143,32 @@ try {
   doc.save(`Movimenti_${dateLabel}.pdf`)
 }
 
+function PremiumField({ icon: Icon, label, children }) {
+  return (
+    <label className="block">
+      <span className="mb-2 flex items-center gap-2 text-[9px] font-black uppercase tracking-[.16em] text-[#8a641d]">
+        {Icon && <span className="flex h-7 w-7 items-center justify-center rounded-[10px] border border-[#e4cb8f] bg-[#fff8e8] text-[#a57318]"><Icon size={13}/></span>}
+        {label}
+      </span>
+      {children}
+    </label>
+  )
+}
+
+function MovementMoneyRow({ label, icon: Icon, value, onChange }) {
+  return (
+    <div className="flex min-h-[72px] items-center gap-3 rounded-[19px] border border-[#e4dbc9] bg-white px-4 shadow-[0_8px_22px_rgba(39,27,5,.04)]">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] border border-[#e1c888] bg-[#fff7e5] text-[#a26e13]"><Icon size={17}/></span>
+      <span className="flex-1 text-[14px] font-black text-[#7b8799]">{label}</span>
+      <div className="relative w-[132px]">
+        <input type="number" inputMode="decimal" value={value} onChange={(e) => onChange(e.target.value)} placeholder="0"
+          className="h-11 w-full rounded-[13px] border border-[#e0cfaa] bg-[#fffdf8] px-3 pr-8 text-right text-[16px] font-black tabular-nums text-[#3c2a0c] outline-none focus:border-[#c9982d] focus:ring-2 focus:ring-[#d9ae50]/20" />
+        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[13px] font-black text-[#a6751e]">€</span>
+      </div>
+    </div>
+  )
+}
+
 function SearchableVenueSelect({ venues, value, onChange, venueLabel }) {
   const selectedVenue = venues.find((v) => String(v.id) === String(value))
   const [query, setQuery] = useState('')
@@ -780,102 +806,91 @@ async function deleteMovement(row) {
         </div>
       )}
 
-      {/* New movement */}
+      {/* Nuovo movimento — stile Play Money Dipendenti */}
       <Modal
         open={newOpen}
         onClose={() => setNewOpen(false)}
-        title="Nuovo movimento"
+        title="NUOVO MOVIMENTO"
         width="md"
-        footer={
-          <>
-            <Button variant="ghost" onClick={() => setNewOpen(false)}>Annulla</Button>
-            <Button variant="primary" icon={Save} onClick={createMovement}>Crea movimento</Button>
-          </>
-        }
+        closeOnBackdrop={false}
+        closeOnEscape={false}
       >
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <Field label="Data" required>
-            <Input type="date" value={newRow.work_date} onChange={(e) => setNewRow((p) => ({ ...p, work_date: e.target.value }))} />
-          </Field>
-<Field label="Locale" required>
-  <SearchableVenueSelect
-    venues={venues}
-    value={newRow.venue_id}
-    venueLabel={venueLabel}
-    onChange={(venueId) => setNewRow((p) => ({ ...p, venue_id: venueId }))}
-  />
-</Field>
-          <Field label="Agente" required className="md:col-span-2">
-            <Select value={newRow.created_by} onChange={(e) => setNewRow((p) => ({ ...p, created_by: e.target.value }))}>
-              <option value="">Seleziona agente…</option>
-              {dipendenti.map((d) => (<option key={dipendenteId(d)} value={dipendenteId(d)}>{dipendenteName(d)}</option>))}
-            </Select>
-          </Field>
-          <Field label="Acconto">
-            <Input type="number" value={newRow.acconto} onChange={(e) => setNewRow((p) => ({ ...p, acconto: e.target.value }))} placeholder="0" />
-          </Field>
-          <Field label="Recupero">
-            <Input type="number" value={newRow.recupero} onChange={(e) => setNewRow((p) => ({ ...p, recupero: e.target.value }))} placeholder="0" />
-          </Field>
-          <Field label="Da riportare" className="md:col-span-2">
-            <Input type="number" value={newRow.da_riportare} onChange={(e) => setNewRow((p) => ({ ...p, da_riportare: e.target.value }))} placeholder="0" />
-          </Field>
-          <Field label="Note" className="md:col-span-2">
-            <Input value={newRow.note} onChange={(e) => setNewRow((p) => ({ ...p, note: e.target.value }))} placeholder="Note opzionali…" />
-          </Field>
+        <div className="space-y-4 rounded-[24px] bg-[#fbf8f1] p-1">
+          <div className="rounded-[22px] border border-[#e3cb91] bg-[linear-gradient(135deg,#fffdf8,#f8edcf)] p-4 shadow-[0_12px_30px_rgba(111,76,14,.08)]">
+            <div className="space-y-3">
+              <PremiumField icon={Calendar} label="DATA">
+                <Input className="h-12 rounded-[15px] border-[#dbc58f] bg-white px-4 font-bold" type="date" value={newRow.work_date} onChange={(e) => setNewRow((p) => ({ ...p, work_date: e.target.value }))} />
+              </PremiumField>
+              <PremiumField icon={User} label="DIPENDENTE">
+                <Select className="h-12 rounded-[15px] border-[#dbc58f] bg-white px-4 font-bold" value={newRow.created_by} onChange={(e) => setNewRow((p) => ({ ...p, created_by: e.target.value }))}>
+                  <option value="">Seleziona dipendente…</option>
+                  {dipendenti.map((d) => (<option key={dipendenteId(d)} value={dipendenteId(d)}>{dipendenteName(d)}</option>))}
+                </Select>
+              </PremiumField>
+              <PremiumField icon={Building2} label="LOCALE">
+                <SearchableVenueSelect venues={venues} value={newRow.venue_id} venueLabel={venueLabel} onChange={(venueId) => setNewRow((p) => ({ ...p, venue_id: venueId }))} />
+              </PremiumField>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <MovementMoneyRow label="Acconto" icon={Plus} value={newRow.acconto} onChange={(v) => setNewRow((p) => ({ ...p, acconto: v }))} />
+            <MovementMoneyRow label="Recupero" icon={RotateCcw} value={newRow.recupero} onChange={(v) => setNewRow((p) => ({ ...p, recupero: v }))} />
+            <MovementMoneyRow label="Da riportare" icon={RefreshCw} value={newRow.da_riportare} onChange={(v) => setNewRow((p) => ({ ...p, da_riportare: v }))} />
+          </div>
+
+          <PremiumField label="NOTE FACOLTATIVE">
+            <Input className="h-12 rounded-[15px] border-[#dbc58f] bg-white px-4" value={newRow.note} onChange={(e) => setNewRow((p) => ({ ...p, note: e.target.value }))} placeholder="Aggiungi una nota…" />
+          </PremiumField>
+
+          <button onClick={createMovement} className="h-13 w-full rounded-[18px] bg-[linear-gradient(135deg,#d49a26,#b88016)] py-4 text-[12px] font-black uppercase tracking-[0.18em] text-white shadow-[0_12px_26px_rgba(181,128,22,.25)] transition hover:-translate-y-0.5">
+            CREA MOVIMENTO
+          </button>
         </div>
       </Modal>
 
-<Modal
-  open={editOpen}
-  onClose={() => setEditOpen(false)}
-  title="Modifica movimento"
-  width="md"
-  footer={
-    <>
-      <Button variant="ghost" onClick={() => setEditOpen(false)}>Annulla</Button>
-      <Button variant="primary" icon={Save} onClick={updateMovement}>Salva modifiche</Button>
-    </>
-  }
->
-  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-    <Field label="Data" required>
-      <Input type="date" value={editRow.work_date} onChange={(e) => setEditRow((p) => ({ ...p, work_date: e.target.value }))} />
-    </Field>
+      {/* Modifica movimento — stile Play Money Dipendenti */}
+      <Modal
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        title="MODIFICA MOVIMENTO"
+        width="md"
+        closeOnBackdrop={false}
+        closeOnEscape={false}
+      >
+        <div className="space-y-4 rounded-[24px] bg-[#fbf8f1] p-1">
+          <div className="rounded-[22px] border border-[#e3cb91] bg-[linear-gradient(135deg,#fffdf8,#f8edcf)] p-4 shadow-[0_12px_30px_rgba(111,76,14,.08)]">
+            <div className="space-y-3">
+              <PremiumField icon={Calendar} label="DATA">
+                <Input className="h-12 rounded-[15px] border-[#dbc58f] bg-white px-4 font-bold" type="date" value={editRow.work_date} onChange={(e) => setEditRow((p) => ({ ...p, work_date: e.target.value }))} />
+              </PremiumField>
+              <PremiumField icon={User} label="DIPENDENTE">
+                <Select className="h-12 rounded-[15px] border-[#dbc58f] bg-white px-4 font-bold" value={editRow.created_by} onChange={(e) => setEditRow((p) => ({ ...p, created_by: e.target.value }))}>
+                  <option value="">Seleziona dipendente…</option>
+                  {dipendenti.map((d) => (<option key={dipendenteId(d)} value={dipendenteId(d)}>{dipendenteName(d)}</option>))}
+                </Select>
+              </PremiumField>
+              <PremiumField icon={Building2} label="LOCALE">
+                <SearchableVenueSelect venues={venues} value={editRow.venue_id} venueLabel={venueLabel} onChange={(venueId) => setEditRow((p) => ({ ...p, venue_id: venueId }))} />
+              </PremiumField>
+            </div>
+          </div>
 
-<Field label="Locale" required>
-  <SearchableVenueSelect
-    venues={venues}
-    value={editRow.venue_id}
-    venueLabel={venueLabel}
-    onChange={(venueId) => setEditRow((p) => ({ ...p, venue_id: venueId }))}
-  />
-</Field>
+          <div className="space-y-3">
+            <MovementMoneyRow label="Acconto" icon={Plus} value={editRow.acconto} onChange={(v) => setEditRow((p) => ({ ...p, acconto: v }))} />
+            <MovementMoneyRow label="Recupero" icon={RotateCcw} value={editRow.recupero} onChange={(v) => setEditRow((p) => ({ ...p, recupero: v }))} />
+            <MovementMoneyRow label="Da riportare" icon={RefreshCw} value={editRow.da_riportare} onChange={(v) => setEditRow((p) => ({ ...p, da_riportare: v }))} />
+          </div>
 
-    <Field label="Agente" required className="md:col-span-2">
-      <Select value={editRow.created_by} onChange={(e) => setEditRow((p) => ({ ...p, created_by: e.target.value }))}>
-        <option value="">Seleziona agente…</option>
-        {dipendenti.map((d) => (<option key={dipendenteId(d)} value={dipendenteId(d)}>{dipendenteName(d)}</option>))}
-      </Select>
-    </Field>
+          <PremiumField label="NOTE FACOLTATIVE">
+            <Input className="h-12 rounded-[15px] border-[#dbc58f] bg-white px-4" value={editRow.note} onChange={(e) => setEditRow((p) => ({ ...p, note: e.target.value }))} placeholder="Aggiungi una nota…" />
+          </PremiumField>
 
-    <Field label="Acconto">
-      <Input type="number" value={editRow.acconto} onChange={(e) => setEditRow((p) => ({ ...p, acconto: e.target.value }))} />
-    </Field>
-
-    <Field label="Recupero">
-      <Input type="number" value={editRow.recupero} onChange={(e) => setEditRow((p) => ({ ...p, recupero: e.target.value }))} />
-    </Field>
-
-    <Field label="Da riportare" className="md:col-span-2">
-      <Input type="number" value={editRow.da_riportare} onChange={(e) => setEditRow((p) => ({ ...p, da_riportare: e.target.value }))} />
-    </Field>
-
-    <Field label="Note" className="md:col-span-2">
-      <Input value={editRow.note} onChange={(e) => setEditRow((p) => ({ ...p, note: e.target.value }))} />
-    </Field>
-  </div>
-</Modal>
+          <button onClick={updateMovement} className="h-13 w-full rounded-[18px] bg-[linear-gradient(135deg,#d49a26,#b88016)] py-4 text-[12px] font-black uppercase tracking-[0.18em] text-white shadow-[0_12px_26px_rgba(181,128,22,.25)] transition hover:-translate-y-0.5">
+            SALVA MODIFICHE
+          </button>
+        </div>
+      </Modal>
 
 <ConfirmDialog
   open={!!confirmDeleteOne}

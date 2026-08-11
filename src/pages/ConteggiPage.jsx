@@ -2079,8 +2079,24 @@ function FinalizationWizard({
               <p className="mt-3 text-[13px] font-bold leading-relaxed text-slate-600">
                 Sarà possibile visualizzare ed esportare i dati, ma conteggi,
                 rettifiche e movimenti archiviati non saranno mai più
-                modificabili, eliminabili o riapribili. Confermi?
+                modificabili, eliminabili o riapribili. Anche la Contabilità
+                Cassa del periodo verrà fotografata con tutti i trasferimenti.
+                Confermi?
               </p>
+              <div className="mt-4 grid gap-2 rounded-[16px] border border-[#e1d2b3] bg-white p-4 text-left text-[12px] font-bold text-slate-600">
+                <div className="flex justify-between gap-3">
+                  <span>Cassa generata</span>
+                  <strong className="tabular-nums text-[#5f430f]">{fmtEuro(preview?.cassa_summary?.cassa_generata)}</strong>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <span>Trasferimenti registrati</span>
+                  <strong className="tabular-nums text-red-600">− {fmtEuro(preview?.cassa_summary?.trasferimenti_totale)}</strong>
+                </div>
+                <div className="flex justify-between gap-3 border-t border-[#ece2cf] pt-2">
+                  <span>Cassa finale del periodo</span>
+                  <strong className="tabular-nums text-[#5f430f]">{fmtEuro(preview?.cassa_summary?.cassa_disponibile)}</strong>
+                </div>
+              </div>
             </div>
           ) : (
             <>
@@ -2120,6 +2136,10 @@ function FinalizationWizard({
                 <div className="mt-2 flex justify-between">
                   <span>Da Riportare trasferiti</span>
                   <strong>{fmtEuro(preview?.total_da_riportare)}</strong>
+                </div>
+                <div className="mt-2 flex justify-between border-t border-[#eee5d5] pt-2">
+                  <span>Cassa finale archiviata</span>
+                  <strong>{fmtEuro(preview?.cassa_summary?.cassa_disponibile)}</strong>
                 </div>
               </div>
             </>

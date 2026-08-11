@@ -26,6 +26,7 @@ import {
   Route,
 } from "lucide-react";
 import CassaPage from "./pages/CassaPage";
+import ContabilitaCassaPage from "./pages/ContabilitaCassaPage";
 import ConteggiPage from "./pages/ConteggiPage";
 import DebitiBonusPage from "./pages/DebitiBonusPage";
 import CalendarioConteggiPage from "./pages/CalendarioConteggiPage";
@@ -58,6 +59,14 @@ const NAV = [
     hint: "Movimenti cassa",
     component: CassaPage,
     shortcut: "C",
+  },
+  {
+    id: "contabilita-cassa",
+    label: "CONTABILITÀ CASSA",
+    icon: "Landmark",
+    iconCmp: Wallet,
+    hint: "Trasferimenti e storico Cassa",
+    component: ContabilitaCassaPage,
   },
   {
     id: "conteggi",
@@ -473,7 +482,7 @@ function LoginScreen() {
             )}
           </div>
           <p className="mt-10 text-[9px] font-bold tracking-[.18em] text-white/25">
-            PLAY MONEY ADMIN · VERSIONE 7.6
+            PLAY MONEY ADMIN · VERSIONE 8
           </p>
         </section>
 
@@ -572,7 +581,7 @@ function LoginScreen() {
             </form>
           </div>
           <p className="mt-6 text-center text-[9px] font-bold tracking-[.18em] text-white/25 md:hidden">
-            PLAY MONEY ADMIN · VERSIONE 7.6
+            PLAY MONEY ADMIN · VERSIONE 8
           </p>
         </section>
       </main>
@@ -618,21 +627,10 @@ function Sidebar({
 
   const refreshCassaTotale = useCallback(async () => {
     setCassaLoading(true);
-    const { data, error } = await supabase
-      .from("movements_cassa")
-      .select("acconto, recupero, da_riportare")
-      .is("deleted_at", null);
+    const { data, error } = await supabase.rpc("get_cassa_totale_attiva");
 
     if (!error) {
-      const totale = (data || []).reduce(
-        (sum, row) =>
-          sum +
-          Number(row.acconto || 0) +
-          Number(row.recupero || 0) -
-          Number(row.da_riportare || 0),
-        0,
-      );
-      setCassaTotale(totale);
+      setCassaTotale(Number(data?.cassa_disponibile || 0));
       setCassaUpdatedAt(new Date());
     }
     setCassaLoading(false);
@@ -694,7 +692,7 @@ function Sidebar({
                 ADMIN
               </span>
               <span className="rounded-full border border-white/8 bg-white/[.035] px-2 py-1 text-[8px] font-black tracking-[0.1em] text-white/45">
-                V 7.6
+                V 8
               </span>
             </div>
           </div>
@@ -799,6 +797,13 @@ function Sidebar({
               <p className="mt-1 text-[10px] font-bold tabular-nums text-white/60">
                 {updatedLabel}
               </p>
+              <button
+                type="button"
+                onClick={() => setPage("contabilita-cassa")}
+                className="mt-3 flex h-9 w-full items-center justify-center gap-2 rounded-[12px] border border-[#e4c676]/25 bg-[#d5a441]/10 text-[9px] font-black uppercase tracking-[0.14em] text-[#efcc79] transition hover:border-[#e4c676]/50 hover:bg-[#d5a441]/18"
+              >
+                <Wallet size={13} /> CONTABILITÀ CASSA
+              </button>
             </div>
           </section>
         )}
