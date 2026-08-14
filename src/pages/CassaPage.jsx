@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   Calendar, User, Building2, Plus, RefreshCw,
-  RotateCcw, Save, Pencil, Trash2,
+  RotateCcw, Pencil, Trash2,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import {
@@ -12,22 +12,9 @@ import { ConfirmDialog } from '../components/FormDialog'
 import { SkeletonRow } from '../components/Skeleton'
 import { useToast } from '../components/Toast'
 import {
-  todayISO, firstDayOfMonthISO, toIT, formatDateTime, formatEuro0,
+  todayISO, toIT, formatDateTime, formatEuro0,
   dipendenteName, dipendenteId, normNumber,
 } from '../lib/helpers'
-
-const CASSA_SAVED_RANGE_KEY = 'play-money-admin-5:cassa-saved-date-range'
-
-function getSavedDateRange() {
-  const fallback = { dateFrom: firstDayOfMonthISO(), dateTo: todayISO() }
-  try {
-    const saved = JSON.parse(localStorage.getItem(CASSA_SAVED_RANGE_KEY) || 'null')
-    if (saved?.dateFrom && saved?.dateTo && saved.dateFrom <= saved.dateTo) return saved
-  } catch {
-    // Dato locale non valido: usa il periodo predefinito.
-  }
-  return fallback
-}
 
 /* ============ PDF EXPORT ============ */
 async function toDataUrl(url) {
@@ -239,7 +226,6 @@ function SearchableVenueSelect({ venues, value, onChange, venueLabel }) {
 /* ============ PAGE ============ */
 export default function CassaPage() {
   const toast = useToast()
-  const [savedDateRange, setSavedDateRange] = useState(getSavedDateRange)
 
   const [movements, setMovements] = useState([])
   const [venues, setVenues] = useState([])
@@ -247,8 +233,10 @@ export default function CassaPage() {
   const [fondi, setFondi] = useState([])
   const [loading, setLoading] = useState(true)
 
-  const [dateFrom, setDateFrom] = useState(() => savedDateRange.dateFrom)
-  const [dateTo, setDateTo] = useState(() => savedDateRange.dateTo)
+  const [dateFrom, setDateFrom] = useState(todayISO)
+  const [dateTo, setDateTo] = useState(todayISO)
+  const [draftDateFrom, setDraftDateFrom] = useState(todayISO)
+  const [draftDateTo, setDraftDateTo] = useState(todayISO)
   const [cognome, setCognome] = useState('')
   const [nomeLocale, setNomeLocale] = useState('')
 
@@ -274,21 +262,50 @@ const [editRow, setEditRow] = useState({
 })
 const [confirmDeleteOne, setConfirmDeleteOne] = useState(null)
 
-  useEffect(() => { loadData() }, [])
+  useEffect(() => {
+    loadDefaultDateRange()
+    loadData()
+  }, [])
 
-  function saveDateRange() {
-    if (!dateFrom || !dateTo) {
+  async function loadDefaultDateRange() {
+    const today = todayISO()
+    const { data: period, error } = await supabase
+      .from('conteggi_periods')
+      .select('date_from,date_to')
+      .eq('status', 'open')
+      .eq('is_active', true)
+      .order('date_from', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (error) {
+      toast.error(`Errore periodo Cassa: ${error.message}`)
+      return
+    }
+
+    const defaultFrom = period?.date_from && period.date_from <= today
+      ? period.date_from
+      : today
+    const defaultTo = period?.date_to || today
+
+    setDateFrom(defaultFrom)
+    setDateTo(defaultTo)
+    setDraftDateFrom(defaultFrom)
+    setDraftDateTo(defaultTo)
+  }
+
+  function updateDateRange() {
+    if (!draftDateFrom || !draftDateTo) {
       toast.warning('Inserisci entrambe le date')
       return
     }
-    if (dateFrom > dateTo) {
+    if (draftDateFrom > draftDateTo) {
       toast.warning('La data iniziale non può superare quella finale')
       return
     }
-    const nextRange = { dateFrom, dateTo }
-    localStorage.setItem(CASSA_SAVED_RANGE_KEY, JSON.stringify(nextRange))
-    setSavedDateRange(nextRange)
-    toast.success('Intervallo date salvato')
+    setDateFrom(draftDateFrom)
+    setDateTo(draftDateTo)
+    toast.success('Intervallo aggiornato')
   }
 
   async function loadData() {
@@ -492,8 +509,6 @@ async function deleteMovement(row) {
 
   const hasPending = pendingDeletes.size > 0
   const allChecked = rows.length > 0 && pendingDeletes.size === rows.length
-  const dateRangeIsSaved = dateFrom === savedDateRange.dateFrom && dateTo === savedDateRange.dateTo
-
   // Filtri premium: stessa gerarchia visiva della sezione Conteggi.
   const filterBanners = (
     <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -503,11 +518,11 @@ async function deleteMovement(row) {
           <p className="text-[11px] font-black tracking-[0.18em]">DATA</p>
         </div>
         <div className="grid grid-cols-2 gap-2">
-          <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-          <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+          <Input type="date" value={draftDateFrom} onChange={(e) => setDraftDateFrom(e.target.value)} />
+          <Input type="date" value={draftDateTo} onChange={(e) => setDraftDateTo(e.target.value)} />
         </div>
-        <button type="button" onClick={saveDateRange} disabled={dateRangeIsSaved} className="mt-2 flex h-9 w-full items-center justify-center gap-2 rounded-[12px] border border-[#d9c28f] bg-[#fbf5e8] text-[9px] font-black tracking-[0.1em] text-[#765116] transition active:scale-[.98] disabled:opacity-55">
-          <Save size={13} />{dateRangeIsSaved ? 'INTERVALLO SALVATO' : 'SALVA INTERVALLO'}
+        <button type="button" onClick={updateDateRange} className="mt-2 flex h-9 w-full items-center justify-center gap-2 rounded-[12px] border border-[#d9c28f] bg-[#fbf5e8] text-[9px] font-black tracking-[0.1em] text-[#765116] transition active:scale-[.98]">
+          <RefreshCw size={13} />AGGIORNA INTERVALLO
         </button>
       </section>
 
