@@ -406,6 +406,33 @@ export default function ConteggiPage() {
         )
           ? snapshot.conteggi_data.conteggi_admin_rows
           : snapshot.conteggi_data?.conteggi_tool || [];
+        const archivedToolRows = Array.isArray(
+          snapshot.conteggi_data?.conteggi_tool,
+        )
+          ? snapshot.conteggi_data.conteggi_tool
+          : [];
+        // Nello snapshot storico conteggi_admin_rows può non contenere il Giro,
+        // mentre conteggi_tool conserva sia il Giro sia l'esecutore reale.
+        // Sono due concetti distinti: il raggruppamento usa il Giro; la riga
+        // continua a mostrare chi ha materialmente effettuato il conteggio.
+        const archivedGiroById = new Map(
+          archivedToolRows.map((row) => [String(row.id), row]),
+        );
+        const enrichedArchivedRows = archivedRows.map((row) => {
+          const source = archivedGiroById.get(String(row.id));
+          if (!source) return row;
+          return {
+            ...row,
+            giro_id: row.giro_id || source.giro_id || null,
+            giro_name_snapshot:
+              row.giro_name_snapshot || source.giro_name_snapshot || null,
+            executed_by: row.executed_by || source.executed_by || null,
+            executor_name_snapshot:
+              row.executor_name_snapshot ||
+              source.executor_name_snapshot ||
+              null,
+          };
+        });
         const archivedOverrides = Array.isArray(snapshot.overrides_data)
           ? snapshot.overrides_data
           : [];
@@ -449,7 +476,7 @@ export default function ConteggiPage() {
         });
 
         setSummary(snapshot.riepilogo_data || null);
-        setRows(archivedRows);
+        setRows(enrichedArchivedRows);
         setAdminOverridesByOperator(overridesMap);
         setOverrideInputsByOperator(inputsMap);
         setMissingVenueDeposits(depositMap);
