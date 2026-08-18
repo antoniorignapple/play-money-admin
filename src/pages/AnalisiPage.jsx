@@ -23,6 +23,16 @@ function formatInsertedAt(value) {
   }).format(parsed)
 }
 
+function compareMovementsByInsertedAt(a, b) {
+  const aTime = new Date(a?.created_at || 0).getTime()
+  const bTime = new Date(b?.created_at || 0).getTime()
+  const safeATime = Number.isNaN(aTime) ? 0 : aTime
+  const safeBTime = Number.isNaN(bTime) ? 0 : bTime
+
+  if (safeATime !== safeBTime) return safeATime - safeBTime
+  return String(a?.id || '').localeCompare(String(b?.id || ''))
+}
+
 async function toDataUrl(url) {
   const res = await fetch(url)
   const blob = await res.blob()
@@ -390,7 +400,8 @@ export default function AnalisiPage() {
   .select('*')
   .eq('work_date', data)
   .neq('origine', 'chiusura_conteggio')
-  .is('deleted_at', null),
+  .is('deleted_at', null)
+  .order('created_at', { ascending: true }),
       supabase.from('fondo_cassa_giornaliero').select('*').eq('work_date', data),
       supabase.from('venues').select('*'),
       supabase.from('dipendenti').select('*'),
@@ -538,7 +549,9 @@ export default function AnalisiPage() {
   }), [agentRows])
 
   async function exportPdf(row) {
-    const userMovements = movements.filter((m) => String(m.created_by) === String(row.id))
+    const userMovements = movements
+      .filter((m) => String(m.created_by) === String(row.id))
+      .sort(compareMovementsByInsertedAt)
 
     await exportAgentPdf({
       dateLabel: toIT(data),
@@ -632,7 +645,9 @@ export default function AnalisiPage() {
 
             {!loading && agentRows.map((r) => {
               const cassaGenerale = r.monete + r.acconti + r.recuperi - r.da_riportare
-              const agentMovements = movements.filter((m) => String(m.created_by) === String(r.id))
+              const agentMovements = movements
+                .filter((m) => String(m.created_by) === String(r.id))
+                .sort(compareMovementsByInsertedAt)
               const isExpanded = expandedAgentId === String(r.id)
               const agentLocked = isAgentLocked(r.id)
 
