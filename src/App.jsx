@@ -482,7 +482,7 @@ function LoginScreen() {
             )}
           </div>
           <p className="mt-10 text-[9px] font-bold tracking-[.18em] text-white/25">
-            PLAY MONEY ADMIN · VERSIONE 8
+            PLAY MONEY ADMIN · VERSIONE 8.1
           </p>
         </section>
 
@@ -581,7 +581,7 @@ function LoginScreen() {
             </form>
           </div>
           <p className="mt-6 text-center text-[9px] font-bold tracking-[.18em] text-white/25 md:hidden">
-            PLAY MONEY ADMIN · VERSIONE 8
+            PLAY MONEY ADMIN · VERSIONE 8.1
           </p>
         </section>
       </main>
@@ -692,7 +692,7 @@ function Sidebar({
                 ADMIN
               </span>
               <span className="rounded-full border border-white/8 bg-white/[.035] px-2 py-1 text-[8px] font-black tracking-[0.1em] text-white/45">
-                V 8
+                V 8.1
               </span>
             </div>
           </div>
