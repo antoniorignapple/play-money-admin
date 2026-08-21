@@ -12,6 +12,7 @@ import {
   todayISO, toIT, formatEuro0,
   dipendenteName, dipendenteId,
 } from '../lib/helpers'
+import { closePdfPreviewWindow, createPdfPreviewWindow, openPdfPreview } from '../lib/pdfPreview'
 
 function formatInsertedAt(value) {
   if (!value) return '—'
@@ -44,7 +45,7 @@ async function toDataUrl(url) {
   })
 }
 
-async function exportAgentPdf({ dateLabel, agente, riepilogo, movements }) {
+async function exportAgentPdf({ dateLabel, agente, riepilogo, movements, targetWindow }) {
   const mod = await import('jspdf')
   const jsPDF = mod.jsPDF || mod.default
   if (!jsPDF) throw new Error('jsPDF missing')
@@ -337,12 +338,7 @@ async function exportAgentPdf({ dateLabel, agente, riepilogo, movements }) {
     align: 'right',
   })
 
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(8)
-  doc.setTextColor(...C.muted)
-  doc.text('Documento generato automaticamente da Play Money', M, pageH - 18)
-
-  doc.save(`Movimenti_${dateLabel}.pdf`)
+  openPdfPreview(doc, targetWindow)
 }
 
 function AnalisiMoneyRow({ label, icon: Icon, value, onChange }) {
@@ -553,30 +549,38 @@ export default function AnalisiPage() {
       .filter((m) => String(m.created_by) === String(row.id))
       .sort(compareMovementsByInsertedAt)
 
-    await exportAgentPdf({
-      dateLabel: toIT(data),
-      agente: row.name,
-      riepilogo: {
-        monete: row.monete,
-        cassaGenerale: row.monete + row.acconti + row.recuperi - row.da_riportare,
-        acconti: row.acconti,
-        recuperi: row.recuperi,
-        da_riportare: row.da_riportare,
-        flussoCassa: row.acconti + row.recuperi - row.da_riportare,
-        km: row.km,
-        mezzo: row.mezzo,
-        rifornimento: row.rifornimento,
-      },
-      movements: userMovements.map((m) => ({
-        venueName: venueLabel(m.venue_id),
-        insertedAt: formatInsertedAt(m.created_at),
-        acconto: m.acconto,
-        recupero: m.recupero,
-        da_riportare: m.da_riportare,
-      })),
-    })
+    let previewWindow = null
+    try {
+      previewWindow = createPdfPreviewWindow()
+      await exportAgentPdf({
+        dateLabel: toIT(data),
+        agente: row.name,
+        riepilogo: {
+          monete: row.monete,
+          cassaGenerale: row.monete + row.acconti + row.recuperi - row.da_riportare,
+          acconti: row.acconti,
+          recuperi: row.recuperi,
+          da_riportare: row.da_riportare,
+          flussoCassa: row.acconti + row.recuperi - row.da_riportare,
+          km: row.km,
+          mezzo: row.mezzo,
+          rifornimento: row.rifornimento,
+        },
+        movements: userMovements.map((m) => ({
+          venueName: venueLabel(m.venue_id),
+          insertedAt: formatInsertedAt(m.created_at),
+          acconto: m.acconto,
+          recupero: m.recupero,
+          da_riportare: m.da_riportare,
+        })),
+        targetWindow: previewWindow,
+      })
 
-    toast.success('PDF generato')
+      toast.success('PDF aperto in anteprima')
+    } catch (error) {
+      closePdfPreviewWindow(previewWindow)
+      toast.error(error.message || 'Impossibile generare il PDF')
+    }
   }
 
   return (

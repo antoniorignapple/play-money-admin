@@ -482,7 +482,7 @@ function LoginScreen() {
             )}
           </div>
           <p className="mt-10 text-[9px] font-bold tracking-[.18em] text-white/25">
-            PLAY MONEY ADMIN · VERSIONE 8.1
+            PLAY MONEY ADMIN · VERSIONE 8.5
           </p>
         </section>
 
@@ -581,7 +581,7 @@ function LoginScreen() {
             </form>
           </div>
           <p className="mt-6 text-center text-[9px] font-bold tracking-[.18em] text-white/25 md:hidden">
-            PLAY MONEY ADMIN · VERSIONE 8.1
+            PLAY MONEY ADMIN · VERSIONE 8.5
           </p>
         </section>
       </main>
@@ -622,6 +622,7 @@ function Sidebar({
     },
   ];
   const [cassaTotale, setCassaTotale] = useState(0);
+  const [daRientrare, setDaRientrare] = useState(0);
   const [cassaUpdatedAt, setCassaUpdatedAt] = useState(null);
   const [cassaLoading, setCassaLoading] = useState(false);
 
@@ -631,6 +632,9 @@ function Sidebar({
 
     if (!error) {
       setCassaTotale(Number(data?.cassa_disponibile || 0));
+      setDaRientrare(
+        Number(data?.da_riportare || 0) - Number(data?.recuperi || 0),
+      );
       setCassaUpdatedAt(new Date());
     }
     setCassaLoading(false);
@@ -649,11 +653,20 @@ function Sidebar({
       : cassaTotale < 0
         ? "text-red-300"
         : "text-white";
-  const cassaFormatted = new Intl.NumberFormat("it-IT", {
-    style: "currency",
-    currency: "EUR",
-    maximumFractionDigits: 0,
-  }).format(cassaTotale);
+  const formatSidebarEuro = (value) => {
+    const amount = Math.trunc(Number(value) || 0);
+    const sign = amount < 0 ? "-" : "";
+    const digits = String(Math.abs(amount)).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    return `${sign}${digits} €`;
+  };
+  const cassaFormatted = formatSidebarEuro(cassaTotale);
+  const daRientrareTone =
+    daRientrare > 0
+      ? "text-yellow-300"
+      : daRientrare < 0
+        ? "text-red-300"
+        : "text-white";
+  const daRientrareFormatted = formatSidebarEuro(daRientrare);
   const updatedLabel = cassaUpdatedAt
     ? cassaUpdatedAt.toLocaleString("it-IT", {
         dateStyle: "short",
@@ -692,7 +705,7 @@ function Sidebar({
                 ADMIN
               </span>
               <span className="rounded-full border border-white/8 bg-white/[.035] px-2 py-1 text-[8px] font-black tracking-[0.1em] text-white/45">
-                V 8.1
+                V 8.5
               </span>
             </div>
           </div>
@@ -764,18 +777,11 @@ function Sidebar({
           </div>
         ))}
         {!collapsed && (
-          <section className="order-first mb-4 min-h-[142px] shrink-0 overflow-hidden rounded-[22px] border border-[#d9b45f]/30 bg-[linear-gradient(145deg,rgba(217,180,95,.16),rgba(255,255,255,.035))] p-4 shadow-[0_18px_42px_-24px_rgba(215,171,75,.65)]">
+          <section className="order-first mb-4 min-h-[184px] shrink-0 overflow-hidden rounded-[22px] border border-[#d9b45f]/30 bg-[linear-gradient(145deg,rgba(217,180,95,.16),rgba(255,255,255,.035))] p-4 shadow-[0_18px_42px_-24px_rgba(215,171,75,.65)]">
             <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-[9px] font-black tracking-[0.24em] text-[#e9c873]/65">
-                  CASSA TOTALE
-                </p>
-                <p
-                  className={`mt-2 truncate text-[27px] font-black tabular-nums tracking-[-0.04em] ${cassaTone}`}
-                >
-                  {cassaLoading && !cassaUpdatedAt ? "—" : cassaFormatted}
-                </p>
-              </div>
+              <p className="pt-1 text-[9px] font-black tracking-[0.24em] text-[#e9c873]/65">
+                RIEPILOGO CASSA
+              </p>
               <button
                 type="button"
                 onClick={refreshCassaTotale}
@@ -789,6 +795,24 @@ function Sidebar({
                   className={cassaLoading ? "animate-spin" : ""}
                 />
               </button>
+            </div>
+            <div className="mt-2 space-y-1.5">
+              <div className="flex items-baseline justify-between gap-3">
+                <p className={`min-w-0 truncate text-[25px] font-black tabular-nums tracking-[-0.04em] ${cassaTone}`}>
+                  {cassaLoading && !cassaUpdatedAt ? "—" : cassaFormatted}
+                </p>
+                <p className="shrink-0 text-[9px] font-black uppercase tracking-[0.14em] text-emerald-300/75">
+                  Acconti
+                </p>
+              </div>
+              <div className="flex items-baseline justify-between gap-3">
+                <p className={`min-w-0 truncate text-[25px] font-black tabular-nums tracking-[-0.04em] ${daRientrareTone}`}>
+                  {cassaLoading && !cassaUpdatedAt ? "—" : daRientrareFormatted}
+                </p>
+                <p className={`shrink-0 text-[9px] font-black uppercase tracking-[0.12em] ${daRientrare < 0 ? "text-red-300/80" : "text-yellow-300/80"}`}>
+                  Da rientrare
+                </p>
+              </div>
             </div>
             <div className="mt-3 border-t border-white/8 pt-3">
               <p className="text-[8px] font-black uppercase tracking-[0.14em] text-white/35">

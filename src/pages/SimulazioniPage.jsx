@@ -7,6 +7,7 @@ import {
   ChevronRight,
   Clock,
   Eye,
+  FileText,
   Plus,
   RefreshCw,
   RotateCcw,
@@ -21,6 +22,11 @@ import { Button, EmptyState, Field, Select, Textarea } from "../components/ui";
 import { PageLayout, PageBody } from "../components/PageLayout";
 import { useToast } from "../components/Toast";
 import { venueSortFn } from "../lib/helpers";
+import generateSimulazioniPdf from "../lib/generateSimulazioniPdf";
+import {
+  closePdfPreviewWindow,
+  createPdfPreviewWindow,
+} from "../lib/pdfPreview";
 
 const fmtEuro0 = (n, signed = false) => {
   const value = Math.trunc(Number(n) || 0);
@@ -44,6 +50,25 @@ const fmtDateTime = (v) => {
     minute: "2-digit",
   });
 };
+const dateInputValue = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+const today = new Date();
+const defaultPdfFrom = dateInputValue(
+  new Date(today.getFullYear(), today.getMonth(), 1),
+);
+const defaultPdfTo = dateInputValue(today);
+const simulationDateKey = (value) => {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "" : dateInputValue(date);
+};
+const normalizeName = (value) =>
+  String(value || "")
+    .trim()
+    .toLocaleLowerCase("it-IT");
 
 export default function SimulazioniPage() {
   const toast = useToast();
@@ -58,6 +83,10 @@ export default function SimulazioniPage() {
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [confirmHard, setConfirmHard] = useState(null);
   const [detail, setDetail] = useState(null);
+  const [pdfFrom, setPdfFrom] = useState(defaultPdfFrom);
+  const [pdfTo, setPdfTo] = useState(defaultPdfTo);
+  const [pdfEmployee, setPdfEmployee] = useState("all");
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   const venueById = useMemo(() => {
     const m = {};
@@ -83,6 +112,69 @@ export default function SimulazioniPage() {
   function agentName(uid) {
     const d = dipendenti.find((x) => String(x.auth_user_id) === String(uid));
     return d?.full_name || "—";
+  }
+
+  const simulationOperators = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          simulazioni
+            .map((simulation) => String(simulation.operator_name || "").trim())
+            .filter(Boolean),
+        ),
+      ).sort((a, b) => a.localeCompare(b, "it", { sensitivity: "base" })),
+    [simulazioni],
+  );
+
+  async function exportSimulationsPdf() {
+    if (!pdfFrom || !pdfTo) {
+      toast.warning("Seleziona entrambe le date");
+      return;
+    }
+    if (pdfFrom > pdfTo) {
+      toast.warning("La data iniziale non può superare quella finale");
+      return;
+    }
+
+    const selectedRows = simulazioni.filter((simulation) => {
+      const date = simulationDateKey(simulation.created_at);
+      if (!date || date < pdfFrom || date > pdfTo) return false;
+      if (
+        pdfEmployee !== "all" &&
+        normalizeName(simulation.operator_name) !== normalizeName(pdfEmployee)
+      )
+        return false;
+      return true;
+    });
+
+    if (!selectedRows.length) {
+      toast.warning("Nessuna simulazione nel periodo selezionato");
+      return;
+    }
+
+    let previewWindow = null;
+    try {
+      previewWindow = createPdfPreviewWindow();
+      setPdfLoading(true);
+      await generateSimulazioniPdf({
+        rows: selectedRows.map((simulation) => ({
+          venue: venueLabel(simulation.venue_id),
+          employee: simulation.operator_name || "-",
+          createdAt: simulation.created_at,
+          total: simulation.total,
+        })),
+        dateFrom: pdfFrom,
+        dateTo: pdfTo,
+        employee: pdfEmployee === "all" ? "TUTTI" : pdfEmployee,
+        targetWindow: previewWindow,
+      });
+      toast.success("PDF aperto in anteprima");
+    } catch (error) {
+      closePdfPreviewWindow(previewWindow);
+      toast.error(error.message || "Impossibile generare il PDF");
+    } finally {
+      setPdfLoading(false);
+    }
   }
 
   async function loadAll() {
@@ -295,15 +387,69 @@ export default function SimulazioniPage() {
             </header>
 
             {tab === "archivio" && (
-              <SimList
-                items={simulazioni}
-                emptyIcon={Archive}
-                emptyTitle="Nessuna simulazione"
-                emptyDescription="Le simulazioni effettuate dagli operatori compariranno qui."
-                venueLabel={venueLabel}
-                onOpen={setDetail}
-                onDelete={setConfirmDelete}
-              />
+              <>
+                <section className="rounded-[24px] border border-amber-200 bg-white p-4 shadow-[0_10px_30px_rgba(80,55,15,.08)] md:p-5">
+                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[1fr_1fr_1.35fr_auto] xl:items-end">
+                    <label className="block">
+                      <span className="mb-2 block text-[9px] font-black uppercase tracking-[.16em] text-amber-700">Dal</span>
+                      <input
+                        type="date"
+                        value={pdfFrom}
+                        max={pdfTo || undefined}
+                        onChange={(event) => setPdfFrom(event.target.value)}
+                        className="h-11 w-full rounded-[14px] border border-amber-200 bg-[#fffdf8] px-3 text-[12px] font-bold text-slate-800 outline-none focus:border-amber-500"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="mb-2 block text-[9px] font-black uppercase tracking-[.16em] text-amber-700">Al</span>
+                      <input
+                        type="date"
+                        value={pdfTo}
+                        min={pdfFrom || undefined}
+                        onChange={(event) => setPdfTo(event.target.value)}
+                        className="h-11 w-full rounded-[14px] border border-amber-200 bg-[#fffdf8] px-3 text-[12px] font-bold text-slate-800 outline-none focus:border-amber-500"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="mb-2 block text-[9px] font-black uppercase tracking-[.16em] text-amber-700">Dipendente</span>
+                      <select
+                        value={pdfEmployee}
+                        onChange={(event) => setPdfEmployee(event.target.value)}
+                        className="h-11 w-full rounded-[14px] border border-amber-200 bg-[#fffdf8] px-3 text-[12px] font-bold text-slate-800 outline-none focus:border-amber-500"
+                      >
+                        <option value="all">TUTTI I DIPENDENTI</option>
+                        {simulationOperators.map((operator) => (
+                          <option key={operator} value={operator}>
+                            {operator}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={exportSimulationsPdf}
+                      disabled={pdfLoading}
+                      className="flex h-11 items-center justify-center gap-2 rounded-[14px] bg-gradient-to-r from-[#8f5d00] to-[#d2a437] px-6 text-[11px] font-black uppercase tracking-[.12em] text-white shadow-lg shadow-amber-900/15 transition hover:-translate-y-0.5 disabled:opacity-50 md:col-span-2 xl:col-span-1"
+                    >
+                      {pdfLoading ? (
+                        <RefreshCw size={16} className="animate-spin" />
+                      ) : (
+                        <FileText size={16} />
+                      )}
+                      PDF
+                    </button>
+                  </div>
+                </section>
+                <SimList
+                  items={simulazioni}
+                  emptyIcon={Archive}
+                  emptyTitle="Nessuna simulazione"
+                  emptyDescription="Le simulazioni effettuate dagli operatori compariranno qui."
+                  venueLabel={venueLabel}
+                  onOpen={setDetail}
+                  onDelete={setConfirmDelete}
+                />
+              </>
             )}
             {tab === "cestino" && (
               <SimList

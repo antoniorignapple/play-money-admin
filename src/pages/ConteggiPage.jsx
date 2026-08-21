@@ -28,6 +28,10 @@ import {
 import { supabase } from "../lib/supabase";
 import generateConteggiPdf from "../lib/generateConteggiPdf";
 import {
+  closePdfPreviewWindow,
+  createPdfPreviewWindow,
+} from "../lib/pdfPreview";
+import {
   Button,
   IconButton,
   Input,
@@ -1095,22 +1099,28 @@ export default function ConteggiPage() {
   }
 
   async function handleGeneratePdf(title, pdfRows) {
-    const venuesSelected = pdfRows.map((r) => {
+    if (!pdfRows.length) {
+      toast.warning("Nessun conteggio da esportare");
+      return;
+    }
+    let previewWindow = null;
+    try {
+      previewWindow = createPdfPreviewWindow();
+      const venuesSelected = pdfRows.map((r) => {
       const venue = venueById[String(r.venue_id)];
       return {
         id: r.venue_id,
         name: venue?.name || r.venue_id || "Locale sconosciuto",
       };
     });
-    const toolData = {};
-    pdfRows.forEach((r) => {
+      const toolData = {};
+      pdfRows.forEach((r) => {
       toolData[r.venue_id] = { ...r, ricevute: r.acconti };
     });
-    const operatorNames = Array.from(
-      new Set(pdfRows.map((r) => getAccountingName(r)).filter(Boolean)),
-    );
-    const operatorName = operatorNames.length === 1 ? operatorNames[0] : "";
-    const realCassaDepositi = operatorNames.reduce(
+      const operatorNames = Array.from(
+        new Set(pdfRows.map((r) => getAccountingName(r)).filter(Boolean)),
+      );
+      const realCassaDepositi = operatorNames.reduce(
       (sum, name) =>
         sum +
         getRealDepositForRows(
@@ -1118,7 +1128,7 @@ export default function ConteggiPage() {
         ),
       0,
     );
-    const esattoreOverride = operatorNames.length
+      const esattoreOverride = operatorNames.length
       ? operatorNames.reduce((sum, name) => {
           const operatorRows = pdfRows.filter(
             (r) => getAccountingName(r) === name,
@@ -1137,7 +1147,7 @@ export default function ConteggiPage() {
         }, 0)
       : null;
 
-    await generateConteggiPdf({
+      await generateConteggiPdf({
       venuesSelected,
       totalsByVenueId: {},
       toolData,
@@ -1145,11 +1155,15 @@ export default function ConteggiPage() {
       dateTo: selectedPeriod?.date_to,
       dipendenteName: title,
       userEmail: "",
-      targetWin: null,
+      targetWin: previewWindow,
       realCassaDepositi,
       esattoreOverride,
-    });
-    toast.success("PDF generato");
+      });
+      toast.success("PDF aperto in anteprima");
+    } catch (error) {
+      closePdfPreviewWindow(previewWindow);
+      toast.error(error.message || "Impossibile generare il PDF");
+    }
   }
 
   const activeFiltersCount =

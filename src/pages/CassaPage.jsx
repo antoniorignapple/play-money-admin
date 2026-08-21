@@ -15,6 +15,7 @@ import {
   todayISO, toIT, formatDateTime, formatEuro0,
   dipendenteName, dipendenteId, normNumber,
 } from '../lib/helpers'
+import { closePdfPreviewWindow, createPdfPreviewWindow, openPdfPreview } from '../lib/pdfPreview'
 
 /* ============ PDF EXPORT ============ */
 async function toDataUrl(url) {
@@ -28,7 +29,7 @@ async function toDataUrl(url) {
   })
 }
 
-async function exportMovementsToPdf({ dateLabel, operatorName, fondo, movements, totals }) {
+async function exportMovementsToPdf({ dateLabel, operatorName, fondo, movements, totals, targetWindow }) {
   const mod = await import('jspdf')
   const jsPDF = mod.jsPDF || mod.default
   const doc = new jsPDF({ unit: 'pt', format: 'a4' })
@@ -127,7 +128,7 @@ try {
   doc.setFontSize(24); doc.setTextColor(103, 232, 249)
   doc.text(value(totals.cassaGeneraleRaw), pageW - M - 18, y + 103, { align: 'right' })
 
-  doc.save(`Movimenti_${dateLabel}.pdf`)
+  openPdfPreview(doc, targetWindow)
 }
 
 function PremiumField({ icon: Icon, label, children }) {
@@ -491,20 +492,28 @@ async function deleteMovement(row) {
     const sum = (key) => pdfRows.reduce((acc, r) => acc + Number(r[key] || 0), 0)
     const moneteRaw = Number(fondo?.monete || 0)
 
-    await exportMovementsToPdf({
-      dateLabel: toIT(pdfDate), operatorName: employee, fondo,
-      movements: pdfRows.map((r) => ({
-        venueName: venueLabel(r.venue_id),
-        operatorLabel: new Date(r.created_at).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
-        acconto: Number(r.acconto || 0), recupero: Number(r.recupero || 0), da_riportare: Number(r.da_riportare || 0),
-      })),
-      totals: {
-        accontiRaw: sum('acconto'), recuperiRaw: sum('recupero'), da_riportareRaw: sum('da_riportare'),
-        moneteRaw, cassaGeneraleRaw: moneteRaw + sum('acconto') + sum('recupero') - sum('da_riportare'),
-      },
-    })
-    setPdfOpen(false)
-    toast.success('PDF generato')
+    let previewWindow = null
+    try {
+      previewWindow = createPdfPreviewWindow()
+      await exportMovementsToPdf({
+        dateLabel: toIT(pdfDate), operatorName: employee, fondo,
+        movements: pdfRows.map((r) => ({
+          venueName: venueLabel(r.venue_id),
+          operatorLabel: new Date(r.created_at).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
+          acconto: Number(r.acconto || 0), recupero: Number(r.recupero || 0), da_riportare: Number(r.da_riportare || 0),
+        })),
+        totals: {
+          accontiRaw: sum('acconto'), recuperiRaw: sum('recupero'), da_riportareRaw: sum('da_riportare'),
+          moneteRaw, cassaGeneraleRaw: moneteRaw + sum('acconto') + sum('recupero') - sum('da_riportare'),
+        },
+        targetWindow: previewWindow,
+      })
+      setPdfOpen(false)
+      toast.success('PDF aperto in anteprima')
+    } catch (error) {
+      closePdfPreviewWindow(previewWindow)
+      toast.error(error.message || 'Impossibile generare il PDF')
+    }
   }
 
   const hasPending = pendingDeletes.size > 0

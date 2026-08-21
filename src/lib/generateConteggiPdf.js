@@ -4,6 +4,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { jsPDF } from "jspdf";
+import { openPdfPreview } from "./pdfPreview.js";
 
 const toDataUrl = async (url) => {
   const res = await fetch(url);
@@ -168,12 +169,8 @@ async function generateConteggiPdf({
     riepilogo.esattore;
 
   const rowsPerPage = 23;
-  const boxesPerPage = 9;
   const totalTablePages = Math.max(1, Math.ceil(rows.length / rowsPerPage));
-  const totalBoxPages = Math.max(1, Math.ceil(rows.length / boxesPerPage));
-  const totalPages = totalTablePages + totalBoxPages;
-
-  const drawHeader = (pageNum) => {
+  const drawHeader = () => {
     const headerH = 72;
     doc.setFillColor(...C.white);
     doc.rect(0, 0, pageW, headerH, "F");
@@ -231,24 +228,6 @@ async function generateConteggiPdf({
     doc.text(toIT(dateTo), midX + 12, cardY + 42);
 
     return headerH + 10;
-  };
-
-  const drawFooter = (pageNum) => {
-    const y = pageH - 28;
-    doc.setDrawColor(...C.lineLight);
-    doc.setLineWidth(0.6);
-    doc.line(M, y - 10, pageW - M, y - 10);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.setTextColor(...C.muted);
-    doc.text(`Pagina ${pageNum} di ${totalPages}`, M, y);
-
-    const now = new Date();
-    const genDate =
-      now.toLocaleDateString("it-IT") +
-      " ore " +
-      now.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
-    doc.text(`Generato il ${genDate}`, pageW - M, y, { align: "right" });
   };
 
   const drawFinalBadge = (x, y, w, h, value) => {
@@ -312,7 +291,7 @@ async function generateConteggiPdf({
 
     for (let p = 0; p < totalTablePages; p++) {
       if (p > 0) doc.addPage();
-      let y = drawHeader(page);
+      let y = drawHeader();
 
       const cols = [
         { label: "LOCALE", w: 180, align: "left" },
@@ -409,7 +388,6 @@ async function generateConteggiPdf({
         drawSummary(pageH - 116);
       }
 
-      drawFooter(page);
       page++;
     }
 
@@ -423,7 +401,7 @@ async function generateConteggiPdf({
     while (idx < rows.length) {
       doc.addPage();
       page++;
-      const yStart = drawHeader(page);
+      const yStart = drawHeader();
 
       const gapX = 12;
       const gapY = 12;
@@ -514,47 +492,16 @@ async function generateConteggiPdf({
         }
       }
 
-      drawFooter(page);
     }
   };
 
   const lastTablePage = drawTablePages();
   drawBoxPages(lastTablePage);
 
-  const filename = `Conteggi_${dateFrom}_${dateTo}.pdf`;
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-  const isPWA = !!window.navigator.standalone;
-
   try {
-    if (isIOS && isPWA) {
-      const win = targetWin || window.open("", "_blank");
-      if (!win) {
-        throw new Error(
-          "Impossibile aprire la finestra del PDF su iOS. Riprova.",
-        );
-      }
-      const blob = doc.output("blob");
-      const url = URL.createObjectURL(blob);
-      try {
-        win.location.href = url;
-      } catch {
-        window.open(url, "_blank");
-      }
-      setTimeout(() => URL.revokeObjectURL(url), 60000);
-      return;
-    }
-
-    if (isIOS) {
-      const blob = doc.output("blob");
-      const url = URL.createObjectURL(blob);
-      window.open(url, "_blank");
-      setTimeout(() => URL.revokeObjectURL(url), 60000);
-      return;
-    }
-
-    doc.save(filename);
+    openPdfPreview(doc, targetWin);
   } catch (e) {
-    console.error("Errore salvataggio PDF:", e);
+    console.error("Errore apertura PDF:", e);
     throw e;
   }
 }

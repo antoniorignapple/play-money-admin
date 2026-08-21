@@ -8,9 +8,10 @@ import { PageLayout, PageBody } from '../components/PageLayout'
 import { useToast } from '../components/Toast'
 
 function euro(value) {
-  return new Intl.NumberFormat('it-IT', {
-    style: 'currency', currency: 'EUR', maximumFractionDigits: 0,
-  }).format(Number(value || 0))
+  const amount = Math.trunc(Number(value) || 0)
+  const sign = amount < 0 ? '-' : ''
+  const digits = String(Math.abs(amount)).replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+  return `${sign}${digits} €`
 }
 
 function fmtDate(value) {
@@ -78,7 +79,9 @@ export default function ContabilitaCassaPage() {
   const summary = detail?.summary || {}
   const transfers = Array.isArray(detail?.transfers) ? detail.transfers : []
   const available = Number(summary.cassa_disponibile || 0)
+  const daRientrare = Number(summary.da_riportare || 0) - Number(summary.recuperi || 0)
   const tone = available > 0 ? 'text-emerald-600' : available < 0 ? 'text-red-600' : 'text-[#3d2a0b]'
+  const daRientrareTone = daRientrare > 0 ? 'text-yellow-500' : daRientrare < 0 ? 'text-red-600' : 'text-[#3d2a0b]'
 
   const closedPeriods = useMemo(() => periods.filter((p) => p.status === 'closed'), [periods])
 
@@ -167,16 +170,20 @@ export default function ContabilitaCassaPage() {
           <section className="overflow-hidden rounded-[28px] border border-[#d9b45f]/45 bg-[linear-gradient(145deg,#fffdf7,#fff8e7)] shadow-[0_24px_70px_-42px_rgba(125,87,15,.55)]">
             <div className="grid gap-0 lg:grid-cols-[1.35fr_.65fr]">
               <div className="p-5 md:p-7">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#a77e2d]">Cassa disponibile</p>
-                    <p className={`mt-2 text-[42px] font-black tabular-nums tracking-[-0.055em] md:text-[54px] ${tone}`}>
-                      {detailLoading && !detail ? '—' : euro(available)}
-                    </p>
-                    <p className="mt-2 text-[12px] font-bold text-[#725c35]">
-                      {selectedPeriod ? `${fmtDate(selectedPeriod.date_from)} → ${fmtDate(selectedPeriod.date_to)}` : 'Nessun periodo'}
-                      {selectedPeriod?.status === 'closed' ? ' • ARCHIVIATO' : ' • PERIODO ATTUALE'}
-                    </p>
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div className="grid min-w-0 flex-1 gap-5 sm:grid-cols-2 sm:gap-0">
+                    <div className="min-w-0 sm:border-r sm:border-[#d9b45f]/30 sm:pr-6">
+                      <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#a77e2d]">Acconti disponibili</p>
+                      <p className={`mt-2 truncate text-[38px] font-black tabular-nums tracking-[-0.055em] md:text-[48px] ${tone}`}>
+                        {detailLoading && !detail ? '—' : euro(available)}
+                      </p>
+                    </div>
+                    <div className="min-w-0 border-t border-[#d9b45f]/25 pt-5 sm:border-t-0 sm:pl-6 sm:pt-0">
+                      <p className="text-[10px] font-black uppercase tracking-[0.22em] text-yellow-600">Da rientrare</p>
+                      <p className={`mt-2 truncate text-[38px] font-black tabular-nums tracking-[-0.055em] md:text-[48px] ${daRientrareTone}`}>
+                        {detailLoading && !detail ? '—' : euro(daRientrare)}
+                      </p>
+                    </div>
                   </div>
                   {isActive && (
                     <button onClick={openNew}
@@ -185,9 +192,13 @@ export default function ContabilitaCassaPage() {
                     </button>
                   )}
                 </div>
+                <p className="mt-5 text-[12px] font-bold text-[#725c35]">
+                  {selectedPeriod ? `${fmtDate(selectedPeriod.date_from)} → ${fmtDate(selectedPeriod.date_to)}` : 'Nessun periodo'}
+                  {selectedPeriod?.status === 'closed' ? ' • ARCHIVIATO' : ' • PERIODO ATTUALE'}
+                </p>
               </div>
               <div className="grid grid-cols-1 border-t border-[#d9b45f]/25 bg-white/55 sm:grid-cols-3 lg:grid-cols-1 lg:border-l lg:border-t-0">
-                <Metric label="Cassa generata" value={summary.cassa_generata} icon={Wallet} action={
+                <Metric label="Acconti del periodo" value={summary.cassa_generata} icon={Wallet} action={
                   <button onClick={() => loadPeriod(selectedId)} disabled={!selectedId || detailLoading}
                     title="Aggiorna Cassa" className="flex h-8 w-8 items-center justify-center rounded-[10px] border border-[#d9b45f]/40 bg-white text-[#98701f] shadow-sm transition hover:bg-[#fff8e8] disabled:opacity-40">
                     <RefreshCw size={14} className={detailLoading ? 'animate-spin' : ''}/>
@@ -204,7 +215,7 @@ export default function ContabilitaCassaPage() {
               <div className="flex items-center justify-between border-b border-black/7 px-5 py-4">
                 <div>
                   <h2 className="text-[14px] font-black uppercase tracking-[0.14em] text-[#3d2a0b]">Trasferimenti del periodo</h2>
-                  <p className="mt-1 text-[11px] text-black/45">Ogni importo registrato viene sottratto dalla Cassa Totale.</p>
+                  <p className="mt-1 text-[11px] text-black/45">Ogni trasferimento viene sottratto dagli Acconti disponibili.</p>
                 </div>
               </div>
               <div className="divide-y divide-black/6">
@@ -288,7 +299,7 @@ export default function ContabilitaCassaPage() {
             </Field>
             <button onClick={createTransfer} disabled={saving}
               className="flex h-12 w-full items-center justify-center gap-2 rounded-[15px] bg-[#3d2a0b] text-[11px] font-black uppercase tracking-[0.14em] text-[#f0cc77] disabled:opacity-50">
-              {saving ? <RefreshCw size={16} className="animate-spin"/> : <ArrowDownToLine size={16}/>} {saving ? 'Registrazione…' : 'Registra e sottrai dalla Cassa'}
+              {saving ? <RefreshCw size={16} className="animate-spin"/> : <ArrowDownToLine size={16}/>} {saving ? 'Registrazione…' : 'Registra e sottrai dagli Acconti'}
             </button>
           </div>
         </Modal>
