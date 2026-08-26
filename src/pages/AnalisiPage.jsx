@@ -100,6 +100,7 @@ async function exportAgentPdf({ dateLabel, agente, riepilogo, movements, targetW
     km: riepilogo?.km || '',
     monete: riepilogo?.monete || 0,
     rifornimento: riepilogo?.rifornimento || 0,
+    note: riepilogo?.note || '',
   }
 
   const totals = {
@@ -199,6 +200,18 @@ async function exportAgentPdf({ dateLabel, agente, riepilogo, movements, targetW
   )
 
   y += headerH + 10
+
+  if (String(fondo.note || '').trim()) {
+    const noteText = String(fondo.note).trim()
+    const lines = doc.splitTextToSize(`NOTE: ${noteText}`, pageW - M * 2 - 20)
+    const noteH = Math.max(34, 16 + lines.length * 11)
+    roundedCard(M, y, pageW - M * 2, noteH, [255, 249, 232])
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(8.5)
+    doc.setTextColor(...C.text)
+    doc.text(lines, M + 10, y + 18)
+    y += noteH + 8
+  }
 
   ensureSpace(100)
 
@@ -503,6 +516,7 @@ export default function AnalisiPage() {
         km: '',
         mezzo: '',
         rifornimento: 0,
+        note: '',
       })
     })
 
@@ -522,10 +536,11 @@ export default function AnalisiPage() {
       row.km = f.km || ''
       row.mezzo = f.mezzo || ''
       row.rifornimento = Number(f.rifornimento || 0)
+      row.note = String(f.note || '').trim()
     })
 
     return Array.from(map.values())
-      .filter((r) => r.count > 0 || r.monete > 0 || r.km || r.mezzo)
+      .filter((r) => r.count > 0 || r.monete > 0 || r.km || r.mezzo || r.note)
       .sort((a, b) => a.name.localeCompare(b.name))
   }, [movements, fondi, dipendenti])
 
@@ -565,6 +580,7 @@ export default function AnalisiPage() {
           km: row.km,
           mezzo: row.mezzo,
           rifornimento: row.rifornimento,
+          note: row.note,
         },
         movements: userMovements.map((m) => ({
           venueName: venueLabel(m.venue_id),
@@ -669,6 +685,11 @@ export default function AnalisiPage() {
                           <span className="text-slate-500">MEZZO <strong className="ml-1 text-[#281d0b]">{r.mezzo || '—'}</strong></span>
                           <span className="text-slate-500">KM: <strong className="ml-1 tabular-nums text-[#281d0b]">{r.km || '—'}</strong></span>
                           <span className="text-slate-500">RIFORNIMENTO: <strong className="ml-1 tabular-nums text-[#281d0b]">{formatEuro0(r.rifornimento)}</strong></span>
+                        </div>
+
+                        <div className="mt-2 flex max-w-[980px] items-start gap-2 rounded-[11px] border border-[#d7b96f]/70 bg-white/45 px-3 py-2">
+                          <span className="shrink-0 text-[10px] font-black uppercase tracking-[0.1em] text-[#805814]">NOTE:</span>
+                          <span className="whitespace-pre-wrap break-words text-[12px] font-bold leading-relaxed text-[#35270f] md:text-[13px]">{r.note || '—'}</span>
                         </div>
 
                         <button
