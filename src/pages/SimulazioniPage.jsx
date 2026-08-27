@@ -180,6 +180,23 @@ export default function SimulazioniPage() {
   async function loadAll() {
     setLoading(true);
     try {
+      const { data: period, error: periodError } = await supabase
+        .from("active_conteggi_period")
+        .select("id,date_from,date_to,status")
+        .maybeSingle();
+      if (periodError) throw periodError;
+
+      let activeSimQuery = supabase.from("simulazioni").select("*").is("deleted_at", null);
+      let deletedSimQuery = supabase.from("simulazioni").select("*").not("deleted_at", "is", null);
+      if (period?.date_from) {
+        activeSimQuery = activeSimQuery.gte("work_date", period.date_from);
+        deletedSimQuery = deletedSimQuery.gte("work_date", period.date_from);
+      }
+      if (period?.date_to) {
+        activeSimQuery = activeSimQuery.lte("work_date", period.date_to);
+        deletedSimQuery = deletedSimQuery.lte("work_date", period.date_to);
+      }
+
       const [
         { data: v },
         { data: dip },
@@ -189,18 +206,8 @@ export default function SimulazioniPage() {
       ] = await Promise.all([
         supabase.from("venues").select("*"),
         supabase.from("dipendenti").select("*"),
-        supabase
-          .from("simulazioni")
-          .select("*")
-          .is("deleted_at", null)
-          .order("created_at", { ascending: false })
-          .limit(3000),
-        supabase
-          .from("simulazioni")
-          .select("*")
-          .not("deleted_at", "is", null)
-          .order("deleted_at", { ascending: false })
-          .limit(1000),
+        activeSimQuery.order("created_at", { ascending: false }).limit(3000),
+        deletedSimQuery.order("deleted_at", { ascending: false }).limit(1000),
         supabase
           .from("simulazioni_richieste")
           .select("*")

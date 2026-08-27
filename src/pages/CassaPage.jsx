@@ -311,11 +311,28 @@ const [confirmDeleteOne, setConfirmDeleteOne] = useState(null)
 
   async function loadData() {
     setLoading(true)
+    const { data: activePeriod, error: activePeriodError } = await supabase
+      .from('active_conteggi_period')
+      .select('id,date_from,date_to,status')
+      .maybeSingle()
+    if (activePeriodError) toast.error(`Errore periodo Cassa: ${activePeriodError.message}`)
+
+    let movementsQuery = supabase.from('movements_cassa').select('*').is('deleted_at', null)
+    let fondoQuery = supabase.from('fondo_cassa_giornaliero').select('*')
+    if (activePeriod?.date_from) {
+      movementsQuery = movementsQuery.gte('work_date', activePeriod.date_from)
+      fondoQuery = fondoQuery.gte('work_date', activePeriod.date_from)
+    }
+    if (activePeriod?.date_to) {
+      movementsQuery = movementsQuery.lte('work_date', activePeriod.date_to)
+      fondoQuery = fondoQuery.lte('work_date', activePeriod.date_to)
+    }
+
     const [movRes, venRes, dipRes, fondoRes] = await Promise.all([
-      supabase.from('movements_cassa').select('*').is('deleted_at', null).order('created_at', { ascending: false }),
+      movementsQuery.order('created_at', { ascending: false }),
       supabase.from('venues').select('*'),
       supabase.from('dipendenti').select('*'),
-      supabase.from('fondo_cassa_giornaliero').select('*'),
+      fondoQuery,
     ])
     if (movRes.error) toast.error(`Errore movimenti: ${movRes.error.message}`)
     setMovements(movRes.data || [])

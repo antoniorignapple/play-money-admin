@@ -417,7 +417,41 @@ export default function AnalisiPage() {
       supabase.from('daily_edit_locks').select('*').eq('work_date', data),
     ])
     if (movRes.error) toast.error(`Errore: ${movRes.error.message}`)
-    setMovements(movRes.data || [])
+
+    let dayMovements = movRes.data || []
+    // Compatibilità con i periodi storici finalizzati col vecchio sistema:
+    // allora movements_cassa veniva cancellata e restava soltanto lo snapshot.
+    // I nuovi periodi non useranno più questa strada, ma così Analisi Giornaliera
+    // può continuare a ricostruire anche le giornate già archiviate in passato.
+    if (dayMovements.length === 0) {
+      try {
+        const { data: oldPeriod } = await supabase
+          .from('conteggi_periods')
+          .select('id,status,date_from,date_to')
+          .eq('status', 'closed')
+          .lte('date_from', data)
+          .gte('date_to', data)
+          .order('date_from', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+        if (oldPeriod?.id) {
+          const { data: snapshot } = await supabase
+            .from('conteggi_archive_snapshots')
+            .select('movimenti_cassa_data')
+            .eq('period_id', oldPeriod.id)
+            .maybeSingle()
+          const archived = Array.isArray(snapshot?.movimenti_cassa_data) ? snapshot.movimenti_cassa_data : []
+          dayMovements = archived
+            .filter((row) => String(row?.work_date || '') === data)
+            .filter((row) => row?.origine !== 'chiusura_conteggio' && !row?.deleted_at)
+            .sort((a, b) => String(a?.created_at || '').localeCompare(String(b?.created_at || '')))
+        }
+      } catch (e) {
+        console.warn('Fallback storico Analisi Giornaliera non disponibile:', e?.message || e)
+      }
+    }
+
+    setMovements(dayMovements)
     setFondi(fondoRes.data || [])
     setVenues(venRes.data || [])
     setDipendenti(dipRes.data || [])

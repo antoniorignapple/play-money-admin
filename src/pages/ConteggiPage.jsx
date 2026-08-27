@@ -394,7 +394,21 @@ export default function ConteggiPage() {
     try {
       setLoading(true);
 
+      let hasLiveClosedData = false;
       if (forceArchive || periodForDashboard?.status === "closed") {
+        const { data: liveRows, error: liveRowsErr } = await supabase
+          .from("conteggi_tool")
+          .select("id")
+          .eq("period_id", periodId)
+          .limit(1);
+        if (liveRowsErr) throw liveRowsErr;
+        hasLiveClosedData = Array.isArray(liveRows) && liveRows.length > 0;
+      }
+
+      // Periodi finalizzati dal nuovo sistema restano nelle tabelle reali.
+      // Lo snapshot viene usato soltanto come fallback per i vecchi periodi,
+      // finalizzati quando i dati originali venivano ancora cancellati.
+      if ((forceArchive || periodForDashboard?.status === "closed") && !hasLiveClosedData) {
         const { data: snapshot, error: snapshotErr } = await supabase
           .from("conteggi_archive_snapshots")
           .select(
@@ -495,6 +509,12 @@ export default function ConteggiPage() {
         )
         .is("deleted_at", null);
 
+      if (periodForDashboard?.date_from) {
+        activeDepositsQuery = activeDepositsQuery.gte(
+          "work_date",
+          periodForDashboard.date_from,
+        );
+      }
       if (periodForDashboard?.date_to) {
         activeDepositsQuery = activeDepositsQuery.lte(
           "work_date",
@@ -527,8 +547,7 @@ export default function ConteggiPage() {
         supabase
           .from("conteggi_tool")
           .select("id,giro_id,giro_name_snapshot")
-          .gte("conteggio_date", periodForDashboard.date_from)
-          .lte("conteggio_date", periodForDashboard.date_to),
+          .eq("period_id", periodId),
       ]);
       if (rowsErr) throw rowsErr;
       if (overrideErr) throw overrideErr;
@@ -2000,7 +2019,7 @@ function FinalizationWizard({
   const titles = {
     carryovers: "CONFERMA DA RIPORTARE",
     missing: "LOCALI NON CONTEGGIATI",
-    archive: "ARCHIVIO DEFINITIVO",
+    archive: "CHIUSURA PERIODO",
     "new-period": "NUOVO PERIODO",
     processing: "FINALIZZAZIONE IN CORSO",
   };

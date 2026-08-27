@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import CassaPage from "./pages/CassaPage";
 import ContabilitaCassaPage from "./pages/ContabilitaCassaPage";
+import ContabilitaConteggiPage from "./pages/ContabilitaConteggiPage";
 import ConteggiPage from "./pages/ConteggiPage";
 import DebitiBonusPage from "./pages/DebitiBonusPage";
 import CalendarioConteggiPage from "./pages/CalendarioConteggiPage";
@@ -67,6 +68,14 @@ const NAV = [
     iconCmp: Wallet,
     hint: "Trasferimenti e storico Cassa",
     component: ContabilitaCassaPage,
+  },
+  {
+    id: "contabilita-conteggi",
+    label: "CONTABILITÀ CONTEGGI",
+    icon: "Calculator",
+    iconCmp: Calculator,
+    hint: "Contabilità del periodo conteggi",
+    component: ContabilitaConteggiPage,
   },
   {
     id: "conteggi",
@@ -827,6 +836,13 @@ function Sidebar({
                 className="mt-3 flex h-9 w-full items-center justify-center gap-2 rounded-[12px] border border-[#e4c676]/25 bg-[#d5a441]/10 text-[9px] font-black uppercase tracking-[0.14em] text-[#efcc79] transition hover:border-[#e4c676]/50 hover:bg-[#d5a441]/18"
               >
                 <Wallet size={13} /> CONTABILITÀ CASSA
+              </button>
+              <button
+                type="button"
+                onClick={() => setPage("contabilita-conteggi")}
+                className="mt-2 flex h-9 w-full items-center justify-center gap-2 rounded-[12px] border border-[#e4c676]/25 bg-[#d5a441]/10 text-[9px] font-black uppercase tracking-[0.14em] text-[#efcc79] transition hover:border-[#e4c676]/50 hover:bg-[#d5a441]/18"
+              >
+                <Calculator size={13} /> CONTABILITÀ CONTEGGI
               </button>
             </div>
           </section>
