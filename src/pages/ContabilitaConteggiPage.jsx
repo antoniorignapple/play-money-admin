@@ -308,12 +308,10 @@ export default function ContabilitaConteggiPage() {
                 <AccountingRow
                   label="TOTALE ESATTORE CONTEGGI"
                   value={loading ? '—' : euro(totaleEsattore)}
-                  description="Uguale al Totale Esattore della sezione Conteggi"
                 />
                 <AccountingRow
                   label="TOTALE RECUPERI ACCONTO AGGIO"
                   value={loading ? '—' : euro(selectedDebtTotal)}
-                  description={`${selectedDebtIds.size} debiti selezionati su ${debts.length}`}
                   action={
                     <button onClick={() => setDebtsOpen(true)}
                       className="inline-flex h-10 items-center gap-2 rounded-[12px] border border-[#bd8c25] bg-white/75 px-3 text-[9px] font-black uppercase tracking-[.11em] text-[#6a460b] shadow-sm transition hover:bg-white">
@@ -321,12 +319,10 @@ export default function ContabilitaConteggiPage() {
                     </button>
                   }
                 />
-                <div className="grid min-h-[98px] grid-cols-[1fr_auto] items-center gap-4 border-t-2 border-[#b88922] bg-white px-5 py-5 md:px-7">
-                  <div>
-                    <p className="text-[19px] font-black uppercase tracking-[.035em] text-[#16120b] md:text-[24px]">TOTALE GLOBALE</p>
-                    <p className="mt-1 text-[10px] font-bold text-black/45">Esattore Conteggi + Recuperi Acconto Aggio selezionati</p>
-                  </div>
-                  <p className="text-right text-[30px] font-black tabular-nums tracking-[-.035em] text-[#16120b] md:text-[38px]">{loading ? '—' : euro(totaleGlobale)}</p>
+                <div className="grid min-h-[98px] grid-cols-[1fr_auto_auto] items-center gap-4 border-t-2 border-[#b88922] bg-white px-5 py-5 md:px-7">
+                  <p className="text-[19px] font-black uppercase tracking-[.035em] text-[#16120b] md:text-[24px]">TOTALE GLOBALE</p>
+                  <div />
+                  <p className="min-w-[190px] text-right text-[30px] font-black tabular-nums tracking-[-.035em] text-[#16120b] md:min-w-[230px] md:text-[38px]">{loading ? '—' : euro(totaleGlobale)}</p>
                 </div>
               </section>
 
@@ -456,15 +452,12 @@ export default function ContabilitaConteggiPage() {
   )
 }
 
-function AccountingRow({ label, value, description, action = null }) {
+function AccountingRow({ label, value, action = null }) {
   return (
-    <div className="grid min-h-[88px] grid-cols-[1fr_auto] items-center gap-4 border-t border-[#d9b45f]/30 px-5 py-4 md:grid-cols-[1fr_auto_230px] md:px-7">
-      <div>
-        <p className="text-[15px] font-black uppercase tracking-[.025em] text-[#17130c] md:text-[20px]">{label}</p>
-        <p className="mt-1 text-[9px] font-bold text-black/40">{description}</p>
-      </div>
-      <p className="text-right text-[24px] font-black tabular-nums tracking-[-.025em] text-[#17130c] md:text-[31px]">{value}</p>
-      <div className="col-span-2 flex justify-end md:col-span-1">{action}</div>
+    <div className="grid min-h-[88px] grid-cols-[1fr_auto_auto] items-center gap-4 border-t border-[#d9b45f]/30 px-5 py-4 md:px-7">
+      <p className="text-[15px] font-black uppercase tracking-[.025em] text-[#17130c] md:text-[20px]">{label}</p>
+      <div className="flex justify-end">{action}</div>
+      <p className="min-w-[190px] text-right text-[30px] font-black tabular-nums tracking-[-.035em] text-[#17130c] md:min-w-[230px] md:text-[38px]">{value}</p>
     </div>
   )
 }
