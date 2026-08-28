@@ -546,7 +546,7 @@ export default function ConteggiPage() {
         activeDepositsQuery,
         supabase
           .from("conteggi_tool")
-          .select("id,giro_id,giro_name_snapshot")
+          .select("id,giro_id,giro_name_snapshot,rp_day2,rp_day3,rp_day4")
           .eq("period_id", periodId),
       ]);
       if (rowsErr) throw rowsErr;
@@ -559,6 +559,9 @@ export default function ConteggiPage() {
       );
       const enrichedDetailRows = (detailRows || []).map((row) => ({
         ...row,
+        rp_day2: Number(giroSnapshotById.get(String(row.id))?.rp_day2) || 0,
+        rp_day3: Number(giroSnapshotById.get(String(row.id))?.rp_day3) || 0,
+        rp_day4: Number(giroSnapshotById.get(String(row.id))?.rp_day4) || 0,
         giro_id:
           row.giro_id || giroSnapshotById.get(String(row.id))?.giro_id || null,
         giro_name_snapshot:
@@ -1960,6 +1963,19 @@ export default function ConteggiPage() {
                 <SnapshotRow label="CARTA" value={selectedRow.carta} />
                 <SnapshotRow label="MONETE" value={selectedRow.monete} />
                 <SnapshotRow label="DA RIPORTARE" value={selectedRow.riporto} />
+                <div className="grid grid-cols-4 gap-1.5 pt-1">
+                  {[
+                    ["DA RIPORTARE ORIGINALE", (Number(selectedRow.riporto) || 0) + (Number(selectedRow.rp_day2) || 0) + (Number(selectedRow.rp_day3) || 0) + (Number(selectedRow.rp_day4) || 0)],
+                    ["GIORNO 2", selectedRow.rp_day2],
+                    ["GIORNO 3", selectedRow.rp_day3],
+                    ["GIORNO 4", selectedRow.rp_day4],
+                  ].map(([label, value]) => (
+                    <div key={label} className="min-w-0 rounded-[14px] border border-[#dcc89d] bg-[#fff9ec] px-2 py-2.5 text-center shadow-[0_8px_18px_-18px_rgba(91,57,5,.8)]">
+                      <p className="min-h-[22px] text-[6.5px] font-black uppercase leading-[1.15] tracking-[.07em] text-[#8b5b12]">{label}</p>
+                      <p className="mt-1 text-[12px] font-black tabular-nums text-slate-900">{Number(value) ? fmtEuro(value) : "—"}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
 
               <div className="my-4 flex items-center gap-3">

@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  CalendarDays, Check, ChevronRight, Plus, RefreshCw, Search, Trash2, Calculator, X, AlertTriangle, ReceiptText,
+  CalendarDays, Check, ChevronRight, Plus, RefreshCw, Search, Trash2, Calculator, X, AlertTriangle, FileText,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { jsPDF } from 'jspdf'
+import { createPdfPreviewWindow, openPdfPreview, closePdfPreviewWindow } from '../lib/pdfPreview'
 import { PageLayout, PageBody } from '../components/PageLayout'
 import { useToast } from '../components/Toast'
 
@@ -159,6 +161,12 @@ export default function ContabilitaConteggiPage() {
 
   const totaleGlobale = totaleEsattore + selectedDebtTotal
   const transfers = Array.isArray(detail?.transfers) ? detail.transfers : []
+  const allMovements = useMemo(() => [
+    ...transfers.map((row) => ({ ...row, source: 'cassa', workDate: row.transfer_date, description: row.destination })),
+    ...manualRows.map((row) => ({ ...row, source: 'manual', workDate: row.work_date, destination: row.description })),
+  ].sort((a, b) => String(a.workDate || '').localeCompare(String(b.workDate || ''))), [transfers, manualRows])
+  const totaleMovimenti = useMemo(() => allMovements.reduce((sum, row) => sum + (Number(row.amount) || 0), 0), [allMovements])
+  const saldoAzienda = totaleGlobale - totaleMovimenti
 
   const filteredDebts = useMemo(() => {
     const q = normalizeText(debtSearch)
@@ -229,7 +237,7 @@ export default function ContabilitaConteggiPage() {
       return
     }
     if (!form.destination.trim()) {
-      toast.warning('Inserisci la descrizione della riga')
+      toast.warning('Inserisci la descrizione del movimento')
       return
     }
     setSaving(true)
@@ -249,9 +257,9 @@ export default function ContabilitaConteggiPage() {
       if (error) throw error
       setNewOpen(false)
       await loadAll(true)
-      toast.success(`Riga registrata • ${euro(amount)}`)
+      toast.success(`Movimento registrato • ${euro(amount)}`)
     } catch (e) {
-      toast.error(`Riga contabile: ${e.message}`)
+      toast.error(`Movimento contabile: ${e.message}`)
     } finally {
       setSaving(false)
     }
@@ -261,19 +269,73 @@ export default function ContabilitaConteggiPage() {
     if (!deleteRow) return
     setDeleting(true)
     try {
-      const { error } = await supabase
-        .from('contabilita_conteggi_righe')
-        .delete()
-        .eq('id', deleteRow.id)
-        .eq('period_id', period.id)
-      if (error) throw error
+      if (deleteRow.source === 'cassa') {
+        const { error } = await supabase.rpc('elimina_trasferimento_cassa', { p_transfer_id: deleteRow.id })
+        if (error) throw error
+        window.dispatchEvent(new Event('cassa-totale-refresh'))
+      } else {
+        const { error } = await supabase
+          .from('contabilita_conteggi_righe')
+          .delete()
+          .eq('id', deleteRow.id)
+          .eq('period_id', period.id)
+        if (error) throw error
+      }
       setDeleteRow(null)
       await loadAll(true)
-      toast.success('Riga eliminata')
+      toast.success('Movimento eliminato')
     } catch (e) {
       toast.error(`Eliminazione: ${e.message}`)
     } finally {
       setDeleting(false)
+    }
+  }
+
+  function generatePdf() {
+    if (!period) return
+    let previewWindow
+    try {
+      previewWindow = createPdfPreviewWindow()
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+      const W = 297, H = 210, M = 14
+      doc.setTextColor(55, 39, 13)
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(18)
+      doc.text('PLAY MONEY · CONTABILITA CONTEGGI', M, 18)
+      doc.setFontSize(9); doc.setFont('helvetica', 'normal')
+      doc.text(`Periodo ${fmtDate(period.date_from)} - ${fmtDate(period.date_to)}`, M, 25)
+      const metrics = [
+        ['TOTALE ESATTORE CONTEGGI', totaleEsattore],
+        ['TOTALE RECUPERI ACCONTO AGGIO', selectedDebtTotal],
+        ['TOTALE GLOBALE', totaleGlobale],
+      ]
+      let x=M, y=34; const bw=84
+      metrics.forEach(([label,value],i)=>{
+        doc.setDrawColor(205,166,64); doc.roundedRect(x+i*(bw+7), y, bw, 22, 3, 3)
+        doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.text(label, x+4+i*(bw+7), y+7)
+        doc.setFontSize(15); doc.text(euro(value), x+bw-4+i*(bw+7), y+16, {align:'right'})
+      })
+      y=66
+      doc.setFontSize(9); doc.text('MOVIMENTI', M, y); y+=6
+      doc.setFontSize(7); doc.setFont('helvetica','bold')
+      doc.text('DATA',M,y); doc.text('DESCRIZIONE',M+30,y); doc.text('NOTA',M+120,y); doc.text('IMPORTO',W-M,y,{align:'right'}); y+=3
+      doc.setDrawColor(210); doc.line(M,y,W-M,y); y+=5
+      doc.setFont('helvetica','normal'); doc.setFontSize(7.5)
+      for (const row of allMovements) {
+        if (y > H-30) { doc.addPage('a4','landscape'); y=18 }
+        doc.text(fmtDate(row.workDate),M,y)
+        doc.text(String(row.destination || row.description || '').slice(0,48),M+30,y)
+        doc.text(String(row.note || '').slice(0,55),M+120,y)
+        doc.setFont('helvetica','bold'); doc.text(euro(row.amount),W-M,y,{align:'right'}); doc.setFont('helvetica','normal')
+        y+=7
+      }
+      y=Math.min(Math.max(y+4, H-25), H-20)
+      doc.setDrawColor(184,137,34); doc.line(M,y-5,W-M,y-5)
+      doc.setFont('helvetica','bold'); doc.setFontSize(13); doc.text('SALDO AZIENDA',M,y+3)
+      doc.setFontSize(20); doc.text(euro(saldoAzienda),W-M,y+3,{align:'right'})
+      openPdfPreview(doc, previewWindow)
+    } catch (e) {
+      closePdfPreviewWindow(previewWindow)
+      toast.error(`PDF: ${e.message}`)
     }
   }
 
@@ -301,7 +363,9 @@ export default function ContabilitaConteggiPage() {
                       <p className="text-[10px] font-black uppercase tracking-[.18em] text-[#80550d]">Periodo attivo</p>
                       <p className="mt-1 text-[14px] font-black text-[#2f220d]">{fmtDate(period.date_from)} → {fmtDate(period.date_to)}</p>
                     </div>
-                    <span className="rounded-full border border-emerald-500/25 bg-emerald-50 px-3 py-1.5 text-[9px] font-black uppercase tracking-[.14em] text-emerald-700">Periodo corrente</span>
+                    <button onClick={generatePdf} title="Apri PDF A4 orizzontale" className="inline-flex h-12 items-center gap-2.5 rounded-[14px] border border-[#a87310] bg-[linear-gradient(135deg,#fffdf7,#f4d47c)] px-5 text-[12px] font-black uppercase tracking-[.14em] text-[#6b4305] shadow-[0_8px_22px_-12px_rgba(120,75,5,.7)] transition hover:-translate-y-0.5 hover:shadow-[0_12px_24px_-12px_rgba(120,75,5,.8)]">
+                      <FileText size={18} strokeWidth={2.4}/> PDF
+                    </button>
                   </div>
                 </div>
 
@@ -327,60 +391,35 @@ export default function ContabilitaConteggiPage() {
               </section>
 
               <section className="overflow-hidden rounded-[24px] border border-black/8 bg-white shadow-sm">
-                <div className="border-b border-black/7 px-5 py-4">
-                  <h2 className="text-[14px] font-black uppercase tracking-[0.12em] text-[#3d2a0b]">Movimenti da Contabilità Cassa</h2>
-                  <p className="mt-1 text-[11px] text-black/45">Movimenti creati dall'Admin in Contabilità Cassa nel periodo attivo. Qui sono solo consultabili.</p>
-                </div>
                 <div className="divide-y divide-black/6">
                   {loading ? (
                     <div className="p-8 text-center text-[12px] text-black/40">Caricamento…</div>
-                  ) : transfers.length === 0 ? (
-                    <div className="p-7 text-center text-[12px] font-bold text-black/40">Nessun movimento in Contabilità Cassa</div>
-                  ) : transfers.map((row) => (
-                    <div key={row.id} className="grid grid-cols-[90px_1fr_auto] items-center gap-3 px-5 py-3 md:grid-cols-[115px_1fr_180px]">
-                      <p className="text-[10px] font-bold tabular-nums text-black/45">{fmtDate(row.transfer_date)}</p>
+                  ) : allMovements.length === 0 ? (
+                    <div className="p-8 text-center text-[12px] font-bold text-black/40">Nessun movimento presente</div>
+                  ) : allMovements.map((row) => (
+                    <div key={`${row.source}-${row.id}`} className="grid grid-cols-[90px_1fr_auto_auto] items-center gap-3 px-5 py-3 md:grid-cols-[115px_1fr_180px_42px]">
+                      <p className="text-[10px] font-bold tabular-nums text-black/45">{fmtDate(row.workDate)}</p>
                       <div className="min-w-0">
-                        <p className="truncate text-[11px] font-black uppercase tracking-[.02em] text-[#33250f]">{row.destination}</p>
+                        <p className="truncate text-[11px] font-black uppercase tracking-[.02em] text-[#33250f]">{row.destination || row.description}</p>
                         {row.note && <p className="mt-0.5 whitespace-pre-wrap text-[9px] text-black/45">{row.note}</p>}
                       </div>
                       <p className="text-right text-[14px] font-black tabular-nums text-[#33250f]">{euro(row.amount)}</p>
-                    </div>
-                  ))}
-                </div>
-              </section>
-
-              <section className="overflow-hidden rounded-[24px] border border-black/8 bg-white shadow-sm">
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-black/7 px-5 py-4">
-                  <div>
-                    <h2 className="text-[14px] font-black uppercase tracking-[0.12em] text-[#3d2a0b]">Righe Contabilità Conteggi</h2>
-                    <p className="mt-1 text-[11px] text-black/45">Righe componibili aggiunte direttamente in questa contabilità.</p>
-                  </div>
-                  <button onClick={openNew}
-                    className="inline-flex h-11 items-center gap-2 rounded-[14px] bg-[#3d2a0b] px-4 text-[10px] font-black uppercase tracking-[.12em] text-[#f1cf7d] shadow-md">
-                    <Plus size={16}/> Aggiungi riga
-                  </button>
-                </div>
-                <div className="divide-y divide-black/6">
-                  {manualRows.length === 0 ? (
-                    <div className="p-9 text-center">
-                      <ReceiptText size={26} className="mx-auto text-[#c8a655]"/>
-                      <p className="mt-3 text-[12px] font-bold text-black/45">Nessuna riga manuale</p>
-                    </div>
-                  ) : manualRows.map((row) => (
-                    <div key={row.id} className="grid grid-cols-[90px_1fr_auto_auto] items-center gap-3 px-5 py-3 md:grid-cols-[115px_1fr_180px_42px]">
-                      <p className="text-[10px] font-bold tabular-nums text-black/45">{fmtDate(row.work_date)}</p>
-                      <div className="min-w-0">
-                        <p className="truncate text-[11px] font-black uppercase tracking-[.02em] text-[#33250f]">{row.description}</p>
-                        {row.note && <p className="mt-0.5 whitespace-pre-wrap text-[9px] text-black/45">{row.note}</p>}
-                      </div>
-                      <p className="text-right text-[14px] font-black tabular-nums text-[#33250f]">{euro(row.amount)}</p>
-                      <button onClick={() => setDeleteRow({ ...row, destination: row.description })} title="Elimina"
-                        className="flex h-8 w-8 items-center justify-center rounded-[10px] border border-red-200 bg-red-50 text-red-600 hover:bg-red-100">
+                      <button onClick={() => setDeleteRow(row)} title="Elimina movimento" className="flex h-8 w-8 items-center justify-center rounded-[10px] border border-red-200 bg-red-50 text-red-600 hover:bg-red-100">
                         <Trash2 size={13}/>
                       </button>
                     </div>
                   ))}
                 </div>
+                <div className="border-t border-black/7 p-3 text-center">
+                  <button onClick={openNew} className="inline-flex h-11 items-center gap-2 rounded-[14px] bg-[#3d2a0b] px-5 text-[10px] font-black uppercase tracking-[.12em] text-[#f1cf7d] shadow-md">
+                    <Plus size={16}/> Aggiungi movimento
+                  </button>
+                </div>
+              </section>
+
+              <section className="grid min-h-[98px] grid-cols-[1fr_auto] items-center gap-4 rounded-[25px] border-2 border-[#b88922] bg-white px-5 py-5 shadow-[0_20px_55px_-38px_rgba(82,52,4,.8)] md:px-7">
+                <p className="text-[19px] font-black uppercase tracking-[.035em] text-[#16120b] md:text-[24px]">SALDO AZIENDA</p>
+                <p className={`min-w-[190px] text-right text-[30px] font-black tabular-nums tracking-[-.035em] md:min-w-[230px] md:text-[38px] ${saldoAzienda < 0 ? 'text-[#6f1734]' : 'text-[#16120b]'}`}>{loading ? '—' : euro(saldoAzienda)}</p>
               </section>
             </>
           ) : (
@@ -407,7 +446,7 @@ export default function ContabilitaConteggiPage() {
       )}
 
       {newOpen && (
-        <Modal onClose={() => !saving && setNewOpen(false)} title="AGGIUNGI RIGA">
+        <Modal onClose={() => !saving && setNewOpen(false)} title="AGGIUNGI MOVIMENTO">
           <div className="space-y-4">
             <Field label="Importo (€)">
               <input autoFocus inputMode="decimal" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })}
@@ -428,17 +467,17 @@ export default function ContabilitaConteggiPage() {
             </Field>
             <button onClick={createTransfer} disabled={saving}
               className="flex h-12 w-full items-center justify-center gap-2 rounded-[15px] bg-[#3d2a0b] text-[11px] font-black uppercase tracking-[0.14em] text-[#f0cc77] disabled:opacity-50">
-              {saving ? <RefreshCw size={16} className="animate-spin"/> : <Plus size={16}/>} {saving ? 'Registrazione…' : 'Registra riga'}
+              {saving ? <RefreshCw size={16} className="animate-spin"/> : <Plus size={16}/>} {saving ? 'Registrazione…' : 'Registra movimento'}
             </button>
           </div>
         </Modal>
       )}
 
       {deleteRow && (
-        <Modal onClose={() => !deleting && setDeleteRow(null)} title="ELIMINA RIGA">
+        <Modal onClose={() => !deleting && setDeleteRow(null)} title="ELIMINA MOVIMENTO">
           <div className="text-center">
             <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-red-50 text-red-600"><AlertTriangle size={24}/></div>
-            <p className="mt-4 text-[13px] font-bold text-black/60">Eliminare definitivamente questa riga?</p>
+            <p className="mt-4 text-[13px] font-bold text-black/60">Eliminare definitivamente questo movimento?</p>
             <p className="mt-2 text-[30px] font-black tabular-nums text-red-600">{euro(deleteRow.amount)}</p>
             <p className="mt-1 text-[12px] font-bold text-[#3d2a0b]">{deleteRow.destination}</p>
             <div className="mt-5 grid grid-cols-2 gap-2">
