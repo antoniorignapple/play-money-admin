@@ -491,7 +491,7 @@ function LoginScreen() {
             )}
           </div>
           <p className="mt-10 text-[9px] font-bold tracking-[.18em] text-white/25">
-            PLAY MONEY ADMIN · VERSIONE 9.3
+            PLAY MONEY ADMIN · VERSIONE 9.4
           </p>
         </section>
 
@@ -590,7 +590,7 @@ function LoginScreen() {
             </form>
           </div>
           <p className="mt-6 text-center text-[9px] font-bold tracking-[.18em] text-white/25 md:hidden">
-            PLAY MONEY ADMIN · VERSIONE 9.3
+            PLAY MONEY ADMIN · VERSIONE 9.4
           </p>
         </section>
       </main>
@@ -706,15 +706,18 @@ function Sidebar({
         </div>
 
         {!collapsed && (
-          <div className="ml-3 flex min-w-0 flex-1 items-center gap-2.5">
+          <div className="ml-3 flex min-w-0 flex-1 items-baseline gap-2 pr-8">
             <p
-              className="truncate text-[19px] font-extrabold tracking-[-0.025em] text-[#fffaf0]"
+              className="truncate text-[16px] font-black tracking-[0.035em] text-[#fffaf0]"
               style={{ fontFamily: '"Avenir Next", "Segoe UI", Inter, system-ui, sans-serif' }}
             >
-              Play Money
+              PLAY MONEY ADMIN
             </p>
-            <span className="inline-flex h-6 shrink-0 items-center rounded-full border border-[#e4bd68]/28 bg-[#d9aa4c]/10 px-2 text-[9px] font-black tracking-[0.08em] text-[#e8c775]">
-              9.3
+            <span
+              className="shrink-0 text-[16px] font-black tracking-[-0.035em] text-[#d9ab4d] drop-shadow-[0_0_14px_rgba(217,171,77,.22)]"
+              style={{ fontFamily: '"Avenir Next", "Segoe UI", Inter, system-ui, sans-serif' }}
+            >
+              9.4
             </span>
           </div>
         )}
@@ -732,7 +735,7 @@ function Sidebar({
         {!collapsed && !isMobile && (
           <button
             onClick={() => setCollapsed(true)}
-            className="absolute -right-[13px] top-1/2 z-20 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-[#c69d4e]/35 bg-[#10120f] text-[#e0bb68]/75 shadow-[0_10px_24px_rgba(0,0,0,.46)] transition hover:scale-105 hover:border-[#e2bd69]/65 hover:text-[#f3d184]"
+            className="absolute right-2 top-1/2 z-20 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-[11px] border border-[#c69d4e]/30 bg-black/20 text-[#e0bb68]/70 shadow-[0_8px_20px_rgba(0,0,0,.35)] transition hover:border-[#e2bd69]/60 hover:bg-[#d7aa50]/10 hover:text-[#f3d184]"
             title="Comprimi"
           >
             <ChevronsLeft size={14} />
