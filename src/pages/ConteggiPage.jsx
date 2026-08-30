@@ -580,9 +580,16 @@ export default function ConteggiPage() {
       });
 
       const depositMap = {};
+      const liveRealDeposits = { D01: 0, D02: 0, D03: 0, D04: 0, D05: 0 };
       (activeDepositsRows || []).forEach((item) => {
         const venueId = String(item.venue_id || "").trim();
-        if (!venueId || venueId.toUpperCase().startsWith("D")) return;
+        if (!venueId) return;
+        const upperVenueId = venueId.toUpperCase();
+        if (Object.prototype.hasOwnProperty.call(liveRealDeposits, upperVenueId)) {
+          liveRealDeposits[upperVenueId] += Math.trunc(Number(item.acconto) || 0);
+          return;
+        }
+        if (upperVenueId.startsWith("D")) return;
         if (!depositMap[venueId]) {
           depositMap[venueId] = { acconti: 0, recuperi: 0, daRiportare: 0 };
         }
@@ -598,6 +605,7 @@ export default function ConteggiPage() {
       setAdminOverridesByOperator(overridesMap);
       setOverrideInputsByOperator(inputsMap);
       setMissingVenueDeposits(depositMap);
+      setRealDepositsByCode(liveRealDeposits);
     } catch (e) {
       toast.error(`Errore: ${e.message}`);
     } finally {
@@ -1302,7 +1310,7 @@ export default function ConteggiPage() {
                   </h1>
                   <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-[#6d4a11]">
                     <span className="text-[10px] font-black tracking-[0.22em] text-[#a47624]">
-                      PERIODO ATTIVO
+                      {periodView === "archive" ? "PERIODO ARCHIVIATO" : "PERIODO ATTIVO"}
                     </span>
                     <span className="text-[16px] font-black tabular-nums md:text-[19px]">
                       {selectedPeriod
@@ -1373,6 +1381,33 @@ export default function ConteggiPage() {
                               ? "ARCHIVIO"
                               : "PERIODO ATTIVO"}
                           </button>
+                          {periodView === "archive" && visiblePeriods.length > 0 && (
+                            <div className="max-h-[280px] overflow-y-auto rounded-[14px] border border-[#e4d5b5] bg-[#fbf7ee] p-2">
+                              <p className="px-2 pb-2 text-[8px] font-black tracking-[0.16em] text-[#9b742d]">
+                                PERIODI ARCHIVIATI
+                              </p>
+                              <div className="grid gap-1.5">
+                                {visiblePeriods.map((period) => (
+                                  <button
+                                    key={period.id}
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedPeriodId(period.id);
+                                      setPeriodMenuOpen(false);
+                                    }}
+                                    className={`rounded-[11px] border px-3 py-2.5 text-left transition ${selectedPeriodId === period.id ? "border-[#b7892f] bg-[#fff1c7]" : "border-[#e5d8bd] bg-white hover:bg-[#fffaf0]"}`}
+                                  >
+                                    <span className="block text-[10px] font-black tabular-nums text-[#4b350f]">
+                                      {formatITDate(period.date_from)} — {formatITDate(period.date_to)}
+                                    </span>
+                                    <span className="mt-0.5 block truncate text-[8px] font-bold text-black/40">
+                                      {period.title || "Periodo conteggi"}
+                                    </span>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                           {!isClosed && selectedPeriod && (
                             <button
                               onClick={openFinalization}

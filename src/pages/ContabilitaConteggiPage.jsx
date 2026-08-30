@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  CalendarDays, Check, ChevronRight, Plus, RefreshCw, Search, Trash2, Calculator, X, AlertTriangle, FileText,
+  CalendarDays, Check, ChevronRight, Plus, RefreshCw, Search, Trash2, Calculator, X, AlertTriangle, FileText, ReceiptText,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { jsPDF } from 'jspdf'
@@ -33,7 +33,8 @@ const normalizeText = (value) =>
 
 export default function ContabilitaConteggiPage() {
   const toast = useToast()
-  const [period, setPeriod] = useState(null)
+  const [periods, setPeriods] = useState([])
+  const [selectedPeriodId, setSelectedPeriodId] = useState('')
   const [detail, setDetail] = useState(null)
   const [conteggi, setConteggi] = useState([])
   const [overrides, setOverrides] = useState([])
@@ -52,51 +53,63 @@ export default function ContabilitaConteggiPage() {
   const [form, setForm] = useState({ amount: '', destination: '', transfer_date: todayISO(), note: '' })
   const [manualRows, setManualRows] = useState([])
 
-  useEffect(() => { loadAll() }, [])
+  useEffect(() => { loadPeriods() }, [])
+  useEffect(() => { if (selectedPeriodId) loadAll(false, selectedPeriodId) }, [selectedPeriodId])
 
-  async function loadAll(silent = false) {
+  async function loadPeriods(silent = false, preferId = '') {
     if (silent) setRefreshing(true)
     else setLoading(true)
     try {
-      const { data: activePeriod, error: periodError } = await supabase
+      const { data, error } = await supabase
         .from('conteggi_periods')
-        .select('id,title,date_from,date_to,status,is_active')
-        .eq('status', 'open')
-        .eq('is_active', true)
-        .maybeSingle()
-      if (periodError) throw periodError
-      if (!activePeriod) {
-        setPeriod(null)
+        .select('id,title,date_from,date_to,status,is_active,created_at')
+        .order('date_from', { ascending: false })
+      if (error) throw error
+      const rows = data || []
+      setPeriods(rows)
+      const active = rows.find((p) => p.status === 'open' && p.is_active === true)
+      const desired = preferId || selectedPeriodId || active?.id || rows[0]?.id || ''
+      setSelectedPeriodId((current) => rows.some((p) => p.id === desired) ? desired : (active?.id || rows[0]?.id || current || ''))
+      if (!rows.length) {
         setDetail(null)
         setConteggi([])
         setOverrides([])
         setSelectedDebtIds(new Set())
         setManualRows([])
-        return
       }
+    } catch (e) {
+      toast.error(`Contabilità Conteggi: ${e.message}`)
+    } finally {
+      setLoading(false)
+      setRefreshing(false)
+    }
+  }
 
-      setPeriod(activePeriod)
-
+  async function loadAll(silent = false, periodId = selectedPeriodId) {
+    if (!periodId) return
+    if (silent) setRefreshing(true)
+    else setLoading(true)
+    try {
       const [detailRes, conteggiRes, overrideRes, venueRes, selectedRes, manualRes] = await Promise.all([
-        supabase.rpc('get_contabilita_cassa_periodo', { p_period_id: activePeriod.id }),
+        supabase.rpc('get_contabilita_cassa_periodo', { p_period_id: periodId }),
         supabase
           .from('conteggi_tool')
           .select('id,period_id,venue_id,conteggio_date,esattore,debito,operator_name,executor_name_snapshot,giro_name_snapshot,created_at')
-          .eq('period_id', activePeriod.id)
+          .eq('period_id', periodId)
           .order('conteggio_date', { ascending: true }),
         supabase
           .from('conteggi_admin_overrides')
           .select('id,period_id,operator_name,esattore_override')
-          .eq('period_id', activePeriod.id),
+          .eq('period_id', periodId),
         supabase.from('venues').select('id,name'),
         supabase
           .from('contabilita_conteggi_debiti_selezionati')
           .select('conteggio_id')
-          .eq('period_id', activePeriod.id),
+          .eq('period_id', periodId),
         supabase
           .from('contabilita_conteggi_righe')
           .select('id,period_id,work_date,description,amount,note,created_at')
-          .eq('period_id', activePeriod.id)
+          .eq('period_id', periodId)
           .order('work_date', { ascending: false })
           .order('created_at', { ascending: false }),
       ])
@@ -116,11 +129,21 @@ export default function ContabilitaConteggiPage() {
       setManualRows(manualRes.data || [])
     } catch (e) {
       toast.error(`Contabilità Conteggi: ${e.message}`)
+      setDetail(null)
+      setConteggi([])
+      setOverrides([])
+      setSelectedDebtIds(new Set())
+      setManualRows([])
     } finally {
       setLoading(false)
       setRefreshing(false)
     }
   }
+
+  const period = useMemo(
+    () => periods.find((p) => p.id === selectedPeriodId) || null,
+    [periods, selectedPeriodId],
+  )
 
   const venueById = useMemo(() => {
     const map = new Map()
@@ -347,7 +370,7 @@ export default function ContabilitaConteggiPage() {
             <div className="inline-flex items-center gap-3 rounded-full border border-[#d9b45f]/35 bg-white/70 px-5 py-2.5 shadow-[0_10px_30px_-22px_rgba(95,64,11,.55)] backdrop-blur-sm">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#f4e7c2] text-[#98701f]"><Calculator size={15}/></div>
               <h1 className="text-[15px] font-black uppercase tracking-[0.20em] text-[#3d2a0b] md:text-[17px]">Contabilità Conteggi</h1>
-              <button onClick={() => loadAll(true)} disabled={refreshing} title="Aggiorna"
+              <button onClick={() => { loadPeriods(true, selectedPeriodId); loadAll(true, selectedPeriodId) }} disabled={refreshing} title="Aggiorna"
                 className="ml-1 flex h-8 w-8 items-center justify-center rounded-full border border-[#d9b45f]/35 bg-white text-[#98701f] disabled:opacity-40">
                 <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''}/>
               </button>
@@ -359,9 +382,24 @@ export default function ContabilitaConteggiPage() {
               <section className="overflow-hidden rounded-[25px] border border-[#d1a640] bg-[#fff9e9] shadow-[0_20px_55px_-38px_rgba(82,52,4,.8)]">
                 <div className="border-b border-[#d9b45f]/35 bg-[linear-gradient(110deg,#fff1c7,#efd17a)] px-5 py-4 md:px-7">
                   <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <p className="text-[10px] font-black uppercase tracking-[.18em] text-[#80550d]">Periodo attivo</p>
-                      <p className="mt-1 text-[14px] font-black text-[#2f220d]">{fmtDate(period.date_from)} → {fmtDate(period.date_to)}</p>
+                    <div className="min-w-[260px]">
+                      <p className="text-[10px] font-black uppercase tracking-[.18em] text-[#80550d]">Periodo selezionato</p>
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <select
+                          value={selectedPeriodId}
+                          onChange={(e) => setSelectedPeriodId(e.target.value)}
+                          className="h-11 min-w-[245px] rounded-[13px] border border-[#b98b2c] bg-white/85 px-3 text-[12px] font-black text-[#3d2a0b] outline-none focus:border-[#8b5d12]"
+                        >
+                          {periods.map((item) => (
+                            <option key={item.id} value={item.id}>
+                              {fmtDate(item.date_from)} → {fmtDate(item.date_to)}{item.status === 'closed' ? ' • CHIUSO' : ' • ATTUALE'}
+                            </option>
+                          ))}
+                        </select>
+                        <span className={`rounded-full px-2.5 py-1 text-[8px] font-black uppercase tracking-[.12em] ${period.status === 'closed' ? 'bg-[#3d2a0b] text-white' : 'bg-emerald-100 text-emerald-700'}`}>
+                          {period.status === 'closed' ? 'Archivio' : 'Attuale'}
+                        </span>
+                      </div>
                     </div>
                     <button onClick={generatePdf} title="Apri PDF A4 orizzontale" className="inline-flex h-12 items-center gap-2.5 rounded-[14px] border border-[#a87310] bg-[linear-gradient(135deg,#fffdf7,#f4d47c)] px-5 text-[12px] font-black uppercase tracking-[.14em] text-[#6b4305] shadow-[0_8px_22px_-12px_rgba(120,75,5,.7)] transition hover:-translate-y-0.5 hover:shadow-[0_12px_24px_-12px_rgba(120,75,5,.8)]">
                       <FileText size={18} strokeWidth={2.4}/> PDF
@@ -425,7 +463,7 @@ export default function ContabilitaConteggiPage() {
           ) : (
             <section className="rounded-[24px] border border-black/8 bg-white p-12 text-center shadow-sm">
               <CalendarDays size={30} className="mx-auto text-[#c8a655]"/>
-              <p className="mt-3 text-[13px] font-black text-[#3d2a0b]">Nessun periodo attivo</p>
+              <p className="mt-3 text-[13px] font-black text-[#3d2a0b]">Nessun periodo disponibile</p>
             </section>
           )}
         </div>
@@ -510,7 +548,7 @@ function DebtDrawer({ debts, totalCount, selectedIds, selectedTotal, search, set
             <div>
               <p className="text-[10px] font-black uppercase tracking-[.16em] text-[#a17727]">Recuperi Acconto Aggio</p>
               <h2 className="mt-1 text-[18px] font-black text-[#30220c]">Seleziona i debiti da considerare</h2>
-              <p className="mt-1 text-[10px] text-black/45">Sono mostrati solo i debiti dei conteggi del periodo attivo.</p>
+              <p className="mt-1 text-[10px] text-black/45">Sono mostrati i debiti dei conteggi del periodo selezionato.</p>
             </div>
             <button onClick={onClose} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-black/8 bg-white text-black/45"><X size={17}/></button>
           </div>

@@ -46,8 +46,6 @@ export default function ContabilitaCassaPage() {
       const { data, error } = await supabase
         .from('conteggi_periods')
         .select('id,title,date_from,date_to,status,is_active,created_at')
-        .eq('status', 'open')
-        .eq('is_active', true)
         .order('date_from', { ascending: false })
       if (error) throw error
       const rows = data || []
@@ -255,7 +253,7 @@ export default function ContabilitaCassaPage() {
             <aside className="rounded-[24px] border border-black/8 bg-white p-4 shadow-sm">
               <div className="flex items-center gap-2 px-1">
                 <CalendarDays size={16} className="text-[#aa7f2c]"/>
-                <h2 className="text-[12px] font-black uppercase tracking-[0.15em] text-[#3d2a0b]">Periodo corrente</h2>
+                <h2 className="text-[12px] font-black uppercase tracking-[0.15em] text-[#3d2a0b]">Periodi conteggi</h2>
               </div>
               <div className="mt-3 space-y-2">
                 {periods.map((p) => (
