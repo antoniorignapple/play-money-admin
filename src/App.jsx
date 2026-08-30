@@ -491,7 +491,7 @@ function LoginScreen() {
             )}
           </div>
           <p className="mt-10 text-[9px] font-bold tracking-[.18em] text-white/25">
-            PLAY MONEY ADMIN · VERSIONE 9.2
+            PLAY MONEY ADMIN · VERSIONE 9.3
           </p>
         </section>
 
@@ -590,7 +590,7 @@ function LoginScreen() {
             </form>
           </div>
           <p className="mt-6 text-center text-[9px] font-bold tracking-[.18em] text-white/25 md:hidden">
-            PLAY MONEY ADMIN · VERSIONE 9.2
+            PLAY MONEY ADMIN · VERSIONE 9.3
           </p>
         </section>
       </main>
@@ -685,35 +685,40 @@ function Sidebar({
 
   return (
     <aside
-      className={`relative flex h-full shrink-0 flex-col overflow-hidden border-r border-[#2f291f] bg-[linear-gradient(180deg,#11151d_0%,#17130d_52%,#0c1017_100%)] pt-safe text-white shadow-[18px_0_50px_-28px_rgba(0,0,0,.8)] transition-[width] duration-300 ${collapsed ? "w-[72px]" : "w-[292px] md:w-[272px]"}`}
+      className={`relative flex h-full shrink-0 flex-col overflow-hidden border-r border-[#3b3020]/70 bg-[radial-gradient(circle_at_12%_5%,rgba(215,174,82,.14),transparent_23%),linear-gradient(180deg,#0d1118_0%,#15130e_48%,#0a0d12_100%)] pt-safe text-white shadow-[24px_0_70px_-34px_rgba(0,0,0,.95)] transition-[width] duration-300 ${collapsed ? "w-[74px]" : "w-[310px] md:w-[296px]"}`}
     >
       <div className="pointer-events-none absolute -left-16 top-12 h-56 w-56 rounded-full bg-amber-500/10 blur-3xl" />
       <div className="pointer-events-none absolute -right-24 bottom-20 h-64 w-64 rounded-full bg-yellow-300/5 blur-3xl" />
       <div className="pointer-events-none absolute inset-y-0 right-0 w-px bg-[linear-gradient(180deg,transparent,#d9aa4c66,transparent)]" />
 
       <div
-        className={`relative flex min-h-[104px] shrink-0 items-center border-b border-[#d8b45f]/10 px-4 ${collapsed ? "justify-center px-2" : ""}`}
+        className={`relative flex min-h-[94px] shrink-0 items-center px-4 ${collapsed ? "justify-center px-2" : ""}`}
       >
-        <div className="absolute inset-x-4 bottom-0 h-px bg-[linear-gradient(90deg,transparent,rgba(222,184,91,.32),transparent)]" />
-        <div className="relative flex h-14 w-14 shrink-0 items-center justify-center">
-          <div className="absolute inset-1 rounded-[18px] border border-[#e0b95e]/25 bg-[linear-gradient(145deg,rgba(226,185,94,.16),rgba(255,255,255,.02))] shadow-[0_16px_34px_-20px_rgba(215,171,75,.95)]" />
+        <div className="pointer-events-none absolute inset-x-4 bottom-0 h-px bg-[linear-gradient(90deg,transparent,rgba(229,190,101,.38),transparent)]" />
+        <div className="relative flex h-12 w-12 shrink-0 items-center justify-center">
+          <div className="absolute inset-0 rounded-[16px] border border-[#e2bc68]/25 bg-[linear-gradient(145deg,rgba(225,184,91,.18),rgba(255,255,255,.015))] shadow-[0_14px_30px_-18px_rgba(224,182,85,.85)]" />
           <img
             src="/app-icon.png"
-            alt="Play Money Admin"
-            className="relative z-10 h-10 w-10 rounded-[12px] object-cover"
+            alt="Play Money"
+            className="relative z-10 h-9 w-9 rounded-[11px] object-cover"
             draggable={false}
           />
         </div>
+
         {!collapsed && (
-          <div className="ml-3 min-w-0 flex-1">
-            <p className="truncate text-[17px] font-black tracking-[0.12em] text-white">
-              PLAY MONEY
+          <div className="ml-3 flex min-w-0 flex-1 items-center gap-2.5">
+            <p
+              className="truncate text-[19px] font-extrabold tracking-[-0.025em] text-[#fffaf0]"
+              style={{ fontFamily: '"Avenir Next", "Segoe UI", Inter, system-ui, sans-serif' }}
+            >
+              Play Money
             </p>
-            <p className="mt-1 text-[8px] font-black tracking-[0.28em] text-[#e4bd67]/65">
-              ADMIN CONSOLE
-            </p>
+            <span className="inline-flex h-6 shrink-0 items-center rounded-full border border-[#e4bd68]/28 bg-[#d9aa4c]/10 px-2 text-[9px] font-black tracking-[0.08em] text-[#e8c775]">
+              9.3
+            </span>
           </div>
         )}
+
         {isMobile && (
           <button
             onClick={onClose}
@@ -723,10 +728,11 @@ function Sidebar({
             <X size={17} />
           </button>
         )}
+
         {!collapsed && !isMobile && (
           <button
             onClick={() => setCollapsed(true)}
-            className="absolute -right-[14px] top-1/2 z-20 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-[#b98d3b]/35 bg-[#12130f] text-[#d8b45f]/70 shadow-[0_8px_18px_rgba(0,0,0,.4)] transition hover:border-[#e1bd6b]/60 hover:text-[#f0cc7b]"
+            className="absolute -right-[13px] top-1/2 z-20 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-[#c69d4e]/35 bg-[#10120f] text-[#e0bb68]/75 shadow-[0_10px_24px_rgba(0,0,0,.46)] transition hover:scale-105 hover:border-[#e2bd69]/65 hover:text-[#f3d184]"
             title="Comprimi"
           >
             <ChevronsLeft size={14} />
@@ -735,10 +741,10 @@ function Sidebar({
       </div>
 
       {!isMobile && (
-        <div className="relative px-3 py-3">
+        <div className="relative px-3 py-2.5">
           <button
             onClick={openPalette}
-            className={`flex h-11 w-full items-center gap-3 rounded-[15px] border border-white/8 bg-white/[0.035] px-3 text-left text-white/45 transition hover:border-[#d5aa51]/25 hover:bg-white/[0.06] hover:text-white ${collapsed ? "justify-center px-0" : ""}`}
+            className={`flex h-10 w-full items-center gap-3 rounded-[14px] border border-white/[.07] bg-white/[0.028] px-3 text-left text-white/42 transition hover:border-[#d5aa51]/28 hover:bg-white/[0.055] hover:text-white ${collapsed ? "justify-center px-0" : ""}`}
           >
             <Search size={16} />
             {!collapsed && (
@@ -755,7 +761,7 @@ function Sidebar({
         </div>
       )}
 
-      <nav className="relative flex flex-1 flex-col overflow-y-auto px-3 pb-3 no-scrollbar">
+      <nav className="relative flex flex-1 flex-col overflow-y-auto px-3 pb-3 pt-0.5 no-scrollbar">
         {groups.map((group, gi) => (
           <div key={group.label} className={gi ? "mt-5" : ""}>
             {!collapsed && (
@@ -781,63 +787,70 @@ function Sidebar({
           </div>
         ))}
         {!collapsed && (
-          <section className="order-first mb-4 min-h-[184px] shrink-0 overflow-hidden rounded-[22px] border border-[#d9b45f]/30 bg-[linear-gradient(145deg,rgba(217,180,95,.16),rgba(255,255,255,.035))] p-4 shadow-[0_18px_42px_-24px_rgba(215,171,75,.65)]">
-            <div className="flex items-start justify-between gap-3">
-              <p className="pt-1 text-[9px] font-black tracking-[0.24em] text-[#e9c873]/65">
-                RIEPILOGO CASSA
-              </p>
+          <section className="order-first mb-4 shrink-0 overflow-visible rounded-[24px] border border-[#d9b45f]/28 bg-[radial-gradient(circle_at_88%_0%,rgba(239,196,99,.16),transparent_34%),linear-gradient(150deg,rgba(223,184,96,.13),rgba(255,255,255,.025)_48%,rgba(0,0,0,.10))] p-3.5 shadow-[0_20px_48px_-30px_rgba(217,173,77,.9)] backdrop-blur-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[8px] font-black tracking-[0.25em] text-[#e8c66e]/60">
+                  RIEPILOGO
+                </p>
+                <p className="mt-0.5 text-[12px] font-extrabold tracking-[0.02em] text-[#fff6dd]">
+                  Cassa
+                </p>
+              </div>
               <button
                 type="button"
                 onClick={refreshCassaTotale}
                 disabled={cassaLoading}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[13px] border border-[#e4c676]/25 bg-black/20 text-[#f0cc7b] transition hover:border-[#e4c676]/50 hover:bg-[#d5a441]/15 disabled:opacity-50"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[11px] border border-[#e4c676]/22 bg-black/20 text-[#f0cc7b] shadow-inner transition hover:border-[#e4c676]/48 hover:bg-[#d5a441]/14 disabled:opacity-50"
                 aria-label="Aggiorna Cassa Totale"
                 title="Aggiorna Cassa Totale"
               >
-                <RefreshCw
-                  size={15}
-                  className={cassaLoading ? "animate-spin" : ""}
-                />
+                <RefreshCw size={13} className={cassaLoading ? "animate-spin" : ""} />
               </button>
             </div>
-            <div className="mt-2 space-y-1.5">
-              <div className="flex items-baseline justify-between gap-3">
-                <p className={`min-w-0 truncate text-[25px] font-black tabular-nums tracking-[-0.04em] ${cassaTone}`}>
-                  {cassaLoading && !cassaUpdatedAt ? "—" : cassaFormatted}
-                </p>
-                <p className="shrink-0 text-[9px] font-black uppercase tracking-[0.14em] text-emerald-300/75">
+
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <div className="min-w-0 rounded-[16px] border border-white/[.065] bg-black/15 px-3 py-3">
+                <p className="text-[7px] font-black uppercase tracking-[0.18em] text-emerald-300/65">
                   Acconti
                 </p>
-              </div>
-              <div className="flex items-baseline justify-between gap-3">
-                <p className={`min-w-0 truncate text-[25px] font-black tabular-nums tracking-[-0.04em] ${daRientrareTone}`}>
-                  {cassaLoading && !cassaUpdatedAt ? "—" : daRientrareFormatted}
+                <p className={`mt-1 truncate text-[19px] font-black tabular-nums tracking-[-0.045em] ${cassaTone}`}>
+                  {cassaLoading && !cassaUpdatedAt ? "—" : cassaFormatted}
                 </p>
-                <p className={`shrink-0 text-[9px] font-black uppercase tracking-[0.12em] ${daRientrare < 0 ? "text-red-300/80" : "text-yellow-300/80"}`}>
+              </div>
+
+              <div className="min-w-0 rounded-[16px] border border-white/[.065] bg-black/15 px-3 py-3">
+                <p className={`text-[7px] font-black uppercase tracking-[0.14em] ${daRientrare < 0 ? "text-red-300/70" : "text-yellow-300/70"}`}>
                   Da rientrare
+                </p>
+                <p className={`mt-1 truncate text-[19px] font-black tabular-nums tracking-[-0.045em] ${daRientrareTone}`}>
+                  {cassaLoading && !cassaUpdatedAt ? "—" : daRientrareFormatted}
                 </p>
               </div>
             </div>
-            <div className="mt-3 border-t border-white/8 pt-3">
-              <p className="text-[8px] font-black uppercase tracking-[0.14em] text-white/35">
-                Aggiornato alle
+
+            <div className="mt-2.5 flex items-center justify-between gap-2 px-1">
+              <p className="truncate text-[7px] font-bold uppercase tracking-[0.13em] text-white/28">
+                Aggiornato {updatedLabel}
               </p>
-              <p className="mt-1 text-[10px] font-bold tabular-nums text-white/60">
-                {updatedLabel}
-              </p>
+            </div>
+
+            <div className="mt-3 grid grid-cols-2 gap-2">
               <button
                 type="button"
                 onClick={() => setPage("contabilita-cassa")}
-                className="mt-3 flex h-9 w-full items-center justify-center gap-2 rounded-[12px] border border-[#e4c676]/25 bg-[#d5a441]/10 text-[9px] font-black uppercase tracking-[0.14em] text-[#efcc79] transition hover:border-[#e4c676]/50 hover:bg-[#d5a441]/18"
+                className="flex h-10 min-w-0 items-center justify-center gap-1.5 rounded-[13px] border border-[#e4c676]/22 bg-[#d5a441]/9 px-2 text-[7px] font-black uppercase tracking-[0.09em] text-[#efcc79] transition hover:border-[#e4c676]/48 hover:bg-[#d5a441]/17"
               >
-                <Wallet size={13} /> CONTABILITÀ CASSA
+                <Wallet size={12} />
+                <span className="truncate">Cont. Cassa</span>
               </button>
               <button
                 type="button"
                 onClick={() => setPage("contabilita-conteggi")}
-                className="mt-2 flex h-9 w-full items-center justify-center gap-2 rounded-[12px] border border-[#e4c676]/25 bg-[#d5a441]/10 text-[9px] font-black uppercase tracking-[0.14em] text-[#efcc79] transition hover:border-[#e4c676]/50 hover:bg-[#d5a441]/18"
+                className="flex h-10 min-w-0 items-center justify-center gap-1.5 rounded-[13px] border border-[#e4c676]/22 bg-[#d5a441]/9 px-2 text-[7px] font-black uppercase tracking-[0.08em] text-[#efcc79] transition hover:border-[#e4c676]/48 hover:bg-[#d5a441]/17"
               >
-                <Calculator size={13} /> CONTABILITÀ CONTEGGI
+                <Calculator size={12} />
+                <span className="truncate">Cont. Conteggi</span>
               </button>
             </div>
           </section>
@@ -875,9 +888,6 @@ function Sidebar({
               <LogOut size={14} />
               ESCI
             </button>
-            <p className="mt-3 text-center text-[8px] font-bold tracking-[0.16em] text-white/22">
-              PLAY MONEY ADMIN · v9.2
-            </p>
           </div>
         )}
       </div>
