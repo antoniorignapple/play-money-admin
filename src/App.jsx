@@ -491,7 +491,7 @@ function LoginScreen() {
             )}
           </div>
           <p className="mt-10 text-[9px] font-bold tracking-[.18em] text-white/25">
-            PLAY MONEY ADMIN · VERSIONE 9
+            PLAY MONEY ADMIN · VERSIONE 9.2
           </p>
         </section>
 
@@ -590,7 +590,7 @@ function LoginScreen() {
             </form>
           </div>
           <p className="mt-6 text-center text-[9px] font-bold tracking-[.18em] text-white/25 md:hidden">
-            PLAY MONEY ADMIN · VERSIONE 9
+            PLAY MONEY ADMIN · VERSIONE 9.2
           </p>
         </section>
       </main>
@@ -692,49 +692,44 @@ function Sidebar({
       <div className="pointer-events-none absolute inset-y-0 right-0 w-px bg-[linear-gradient(180deg,transparent,#d9aa4c66,transparent)]" />
 
       <div
-        className={`relative flex min-h-[96px] shrink-0 items-center gap-3 border-b border-[#d8b45f]/15 bg-[linear-gradient(135deg,rgba(255,255,255,.035),rgba(212,164,62,.055),transparent)] px-4 ${collapsed ? "justify-center px-2" : ""}`}
+        className={`relative flex min-h-[104px] shrink-0 items-center border-b border-[#d8b45f]/10 px-4 ${collapsed ? "justify-center px-2" : ""}`}
       >
+        <div className="absolute inset-x-4 bottom-0 h-px bg-[linear-gradient(90deg,transparent,rgba(222,184,91,.32),transparent)]" />
         <div className="relative flex h-14 w-14 shrink-0 items-center justify-center">
-          <span className="absolute inset-0 rounded-full border border-[#e0b95e]/20" />
-          <span className="absolute inset-2 rounded-full bg-[#d7a841]/20 blur-lg" />
+          <div className="absolute inset-1 rounded-[18px] border border-[#e0b95e]/25 bg-[linear-gradient(145deg,rgba(226,185,94,.16),rgba(255,255,255,.02))] shadow-[0_16px_34px_-20px_rgba(215,171,75,.95)]" />
           <img
             src="/app-icon.png"
             alt="Play Money Admin"
-            className="relative z-10 h-11 w-11 rounded-full object-cover shadow-[0_14px_30px_-12px_rgba(215,171,75,.8)]"
+            className="relative z-10 h-10 w-10 rounded-[12px] object-cover"
             draggable={false}
           />
         </div>
         {!collapsed && (
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-[16px] font-black tracking-[0.055em] text-white">
+          <div className="ml-3 min-w-0 flex-1">
+            <p className="truncate text-[17px] font-black tracking-[0.12em] text-white">
               PLAY MONEY
             </p>
-            <div className="mt-1.5 flex items-center gap-1.5">
-              <span className="rounded-full border border-[#e1bb68]/35 bg-[#d5a441]/12 px-2.5 py-1 text-[8px] font-black tracking-[0.2em] text-[#f0cc7b]">
-                ADMIN
-              </span>
-              <span className="rounded-full border border-white/8 bg-white/[.035] px-2 py-1 text-[8px] font-black tracking-[0.1em] text-white/45">
-                V 9
-              </span>
-            </div>
+            <p className="mt-1 text-[8px] font-black tracking-[0.28em] text-[#e4bd67]/65">
+              ADMIN CONSOLE
+            </p>
           </div>
         )}
         {isMobile && (
           <button
             onClick={onClose}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#d8b45f]/20 bg-black/20 text-[#e8c36d] shadow-inner transition active:scale-95"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] border border-white/8 bg-white/[.035] text-[#e8c36d] transition active:scale-95"
             aria-label="Chiudi menu"
           >
-            <X size={18} />
+            <X size={17} />
           </button>
         )}
         {!collapsed && !isMobile && (
           <button
             onClick={() => setCollapsed(true)}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#d8b45f]/15 bg-black/15 text-white/35 transition hover:border-[#d7ad55]/35 hover:bg-[#d5a441]/10 hover:text-[#efc872]"
+            className="absolute -right-[14px] top-1/2 z-20 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-[#b98d3b]/35 bg-[#12130f] text-[#d8b45f]/70 shadow-[0_8px_18px_rgba(0,0,0,.4)] transition hover:border-[#e1bd6b]/60 hover:text-[#f0cc7b]"
             title="Comprimi"
           >
-            <ChevronsLeft size={16} />
+            <ChevronsLeft size={14} />
           </button>
         )}
       </div>
@@ -880,6 +875,9 @@ function Sidebar({
               <LogOut size={14} />
               ESCI
             </button>
+            <p className="mt-3 text-center text-[8px] font-bold tracking-[0.16em] text-white/22">
+              PLAY MONEY ADMIN · v9.2
+            </p>
           </div>
         )}
       </div>

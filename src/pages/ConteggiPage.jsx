@@ -23,6 +23,7 @@ import {
   CheckCircle2,
   CircleX,
   ChevronRight,
+  ChevronLeft,
   RotateCcw,
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
@@ -243,6 +244,32 @@ export default function ConteggiPage() {
         : periods.filter((p) => p.status !== "closed"),
     [periods, periodView],
   );
+
+  const chronologicalPeriods = useMemo(
+    () =>
+      [...periods].sort(
+        (a, b) =>
+          new Date(`${a.date_from}T00:00:00`) -
+          new Date(`${b.date_from}T00:00:00`),
+      ),
+    [periods],
+  );
+  const selectedPeriodIndex = chronologicalPeriods.findIndex(
+    (p) => p.id === selectedPeriodId,
+  );
+  const previousPeriod =
+    selectedPeriodIndex > 0 ? chronologicalPeriods[selectedPeriodIndex - 1] : null;
+  const nextPeriod =
+    selectedPeriodIndex >= 0 && selectedPeriodIndex < chronologicalPeriods.length - 1
+      ? chronologicalPeriods[selectedPeriodIndex + 1]
+      : null;
+
+  function navigatePeriod(period) {
+    if (!period) return;
+    setSelectedPeriodId(period.id);
+    setPeriodView(period.status === "closed" ? "archive" : "active");
+    setPeriodMenuOpen(false);
+  }
 
   function getVenueName(row) {
     const venue = venueById[String(row.venue_id)];
@@ -1308,20 +1335,40 @@ export default function ConteggiPage() {
                   <h1 className="text-[29px] font-black tracking-[0.13em] text-[#3d2a0b] md:text-[35px]">
                     SEZIONE CONTEGGI
                   </h1>
-                  <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-[#6d4a11]">
-                    <span className="text-[10px] font-black tracking-[0.22em] text-[#a47624]">
-                      {periodView === "archive" ? "PERIODO ARCHIVIATO" : "PERIODO ATTIVO"}
-                    </span>
-                    <span className="text-[16px] font-black tabular-nums md:text-[19px]">
-                      {selectedPeriod
-                        ? `${formatITDate(selectedPeriod.date_from)} — ${formatITDate(selectedPeriod.date_to)}`
-                        : "NESSUN PERIODO SELEZIONATO"}
-                    </span>
-                    {selectedPeriod && isClosed && (
-                      <span className="rounded-full bg-slate-900 px-2.5 py-1 text-[9px] font-black tracking-[0.15em] text-white">
-                        CHIUSO
+                  <div className="mt-3 flex items-center justify-center gap-2 text-[#6d4a11]">
+                    <button
+                      type="button"
+                      onClick={() => navigatePeriod(previousPeriod)}
+                      disabled={!previousPeriod}
+                      title={previousPeriod ? "Periodo precedente" : "Nessun periodo precedente"}
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#d8b86c]/70 bg-white/70 text-[#8a5d14] shadow-sm transition hover:-translate-x-0.5 hover:bg-white disabled:cursor-not-allowed disabled:opacity-20"
+                    >
+                      <ChevronLeft size={20} strokeWidth={2.8} />
+                    </button>
+                    <div className="flex min-w-0 flex-wrap items-center justify-center gap-2">
+                      <span className="text-[10px] font-black tracking-[0.22em] text-[#a47624]">
+                        {periodView === "archive" ? "PERIODO ARCHIVIATO" : "PERIODO ATTIVO"}
                       </span>
-                    )}
+                      <span className="text-[16px] font-black tabular-nums md:text-[19px]">
+                        {selectedPeriod
+                          ? `${formatITDate(selectedPeriod.date_from)} — ${formatITDate(selectedPeriod.date_to)}`
+                          : "NESSUN PERIODO SELEZIONATO"}
+                      </span>
+                      {selectedPeriod && isClosed && (
+                        <span className="rounded-full bg-slate-900 px-2.5 py-1 text-[9px] font-black tracking-[0.15em] text-white">
+                          CHIUSO
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => navigatePeriod(nextPeriod)}
+                      disabled={!nextPeriod}
+                      title={nextPeriod ? "Periodo successivo" : "Sei già nel periodo più recente"}
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#d8b86c]/70 bg-white/70 text-[#8a5d14] shadow-sm transition hover:translate-x-0.5 hover:bg-white disabled:cursor-not-allowed disabled:opacity-20"
+                    >
+                      <ChevronRight size={20} strokeWidth={2.8} />
+                    </button>
                   </div>
                 </div>
 
