@@ -705,20 +705,25 @@ function Sidebar({
           />
         </div>
 
-        {!collapsed && (
-          <div className="ml-3 flex min-w-0 flex-1 items-baseline gap-2 pr-8">
+                {!collapsed && (
+          <div className="ml-3 min-w-0 flex-1">
             <p
-              className="truncate text-[16px] font-black tracking-[0.035em] text-[#fffaf0]"
+              className="truncate text-[18px] font-extrabold tracking-[-0.02em] text-[#fffaf0]"
               style={{ fontFamily: '"Avenir Next", "Segoe UI", Inter, system-ui, sans-serif' }}
             >
-              PLAY MONEY ADMIN
+              PLAY MONEY
             </p>
-            <span
-              className="shrink-0 text-[16px] font-black tracking-[-0.035em] text-[#d9ab4d] drop-shadow-[0_0_14px_rgba(217,171,77,.22)]"
-              style={{ fontFamily: '"Avenir Next", "Segoe UI", Inter, system-ui, sans-serif' }}
-            >
-              9.4
-            </span>
+            <div className="mt-0.5 flex items-baseline gap-2">
+              <p
+                className="text-[14px] font-extrabold tracking-[0.04em] text-[#f7ead0]"
+                style={{ fontFamily: '"Avenir Next", "Segoe UI", Inter, system-ui, sans-serif' }}
+              >
+                ADMIN
+              </p>
+              <span className="text-[14px] font-black tracking-[-0.01em] text-[#e8c775]">
+                9.4
+              </span>
+            </div>
           </div>
         )}
 
