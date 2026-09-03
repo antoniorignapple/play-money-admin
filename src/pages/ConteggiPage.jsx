@@ -69,6 +69,17 @@ const formatITDate = (d) => {
   const [y, m, day] = String(d).slice(0, 10).split("-");
   return `${day}/${m}/${y}`;
 };
+const formatITDateTime = (value) => {
+  if (!value) return "—";
+  return new Intl.DateTimeFormat("it-IT", {
+    timeZone: "Europe/Rome",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
+};
 function formatPeriodTitle(dateFrom, dateTo) {
   if (!dateFrom || !dateTo) return "Conteggi";
   return `Conteggi ${formatITDate(dateFrom)} - ${formatITDate(dateTo)}`;
@@ -199,6 +210,9 @@ export default function ConteggiPage() {
   const [expandedOperators, setExpandedOperators] = useState({});
   const [periodMenuOpen, setPeriodMenuOpen] = useState(false);
   const [venueStatusPopup, setVenueStatusPopup] = useState(null);
+  const [submissionByGiro, setSubmissionByGiro] = useState({});
+  const [reopenTarget, setReopenTarget] = useState(null);
+  const [reopeningGiro, setReopeningGiro] = useState(false);
 
   const venueById = useMemo(() => {
     const map = {};
@@ -409,6 +423,47 @@ export default function ConteggiPage() {
         const firstOpen = list.find((p) => p.status !== "closed");
         return (firstOpen || list[0]).id;
       });
+    }
+  }
+
+  async function loadGiroSubmissions(periodId = selectedPeriodId) {
+    if (!periodId) {
+      setSubmissionByGiro({});
+      return;
+    }
+    const { data, error } = await supabase
+      .from("conteggi_giro_submissions")
+      .select("period_id,giro_id,status,submitted_at,submitted_by,reopened_at,reopened_by,reopen_reason,updated_at")
+      .eq("period_id", periodId);
+    if (error) {
+      console.warn("Stati consegna Giri non disponibili:", error.message);
+      return;
+    }
+    const map = {};
+    (data || []).forEach((row) => {
+      map[String(row.giro_id)] = row;
+    });
+    setSubmissionByGiro(map);
+  }
+
+  async function reopenConteggiGiro() {
+    if (!reopenTarget?.giroId || !selectedPeriodId || reopeningGiro) return;
+    setReopeningGiro(true);
+    try {
+      const { data, error } = await supabase.rpc("reopen_conteggi_giro", {
+        p_period_id: selectedPeriodId,
+        p_giro_id: reopenTarget.giroId,
+        p_reason: null,
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error("La riapertura non è stata confermata dal server");
+      await loadGiroSubmissions(selectedPeriodId);
+      toast.success(`Giro ${reopenTarget.giroName} riaperto`);
+      setReopenTarget(null);
+    } catch (error) {
+      toast.error(`Riapertura Giro: ${error.message}`);
+    } finally {
+      setReopeningGiro(false);
     }
   }
 
@@ -689,7 +744,24 @@ export default function ConteggiPage() {
     setSearch("");
     setDebitiOpen(false);
     setExpandedOperators({});
-    if (selectedPeriodId) loadDashboard(selectedPeriodId);
+    if (selectedPeriodId) {
+      loadDashboard(selectedPeriodId);
+      loadGiroSubmissions(selectedPeriodId);
+    }
+  }, [selectedPeriodId]);
+
+  useEffect(() => {
+    if (!selectedPeriodId) return undefined;
+    const channel = supabase
+      .channel(`admin-conteggi-submissions-${selectedPeriodId}`)
+      .on("postgres_changes", {
+        event: "*",
+        schema: "public",
+        table: "conteggi_giro_submissions",
+        filter: `period_id=eq.${selectedPeriodId}`,
+      }, () => loadGiroSubmissions(selectedPeriodId))
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, [selectedPeriodId]);
 
   useEffect(() => {
@@ -712,6 +784,7 @@ export default function ConteggiPage() {
     if (!visiblePeriods[0]) {
       setSummary(null);
       setRows([]);
+      setSubmissionByGiro({});
       setRealDepositsByCode({ D01: 0, D02: 0, D03: 0, D04: 0, D05: 0 });
       setMissingVenueDeposits({});
     }
@@ -904,9 +977,11 @@ export default function ConteggiPage() {
           riporto: 0,
           cassaDepositi: 0,
           debiti: 0,
+          giroId: r.giro_id || null,
           rows: [],
         };
       }
+      if (!map[name].giroId && r.giro_id) map[name].giroId = r.giro_id;
       map[name].count += 1;
       map[name].finaleSenzaCassaTeorica += getFinaleWithoutTheoreticalCassa(r);
       map[name].esattore += Number(r.esattore) || 0;
@@ -914,6 +989,25 @@ export default function ConteggiPage() {
       map[name].riporto += Number(r.riporto) || 0;
       map[name].debiti += Number(r.debito) || 0;
       map[name].rows.push(r);
+    });
+
+    Object.values(submissionByGiro).forEach((submission) => {
+      const giro = giroById[String(submission.giro_id)];
+      if (!giro || Object.values(map).some((item) => String(item.giroId || '') === String(giro.id))) return;
+      const name = String(giro.name || 'Giro');
+      map[name] = {
+        name,
+        count: 0,
+        finale: 0,
+        finaleSenzaCassaTeorica: 0,
+        esattore: 0,
+        acconti: 0,
+        riporto: 0,
+        cassaDepositi: 0,
+        debiti: 0,
+        giroId: giro.id,
+        rows: [],
+      };
     });
 
     Object.values(map).forEach((op) => {
@@ -940,6 +1034,7 @@ export default function ConteggiPage() {
     giri,
     realDepositsByCode,
     adminOverridesByOperator,
+    submissionByGiro,
   ]);
 
   const missingVenues = useMemo(() => {
@@ -1555,15 +1650,18 @@ export default function ConteggiPage() {
                     const hasOverride = Boolean(adminOverridesByOperator[key]);
                     const saving = savingOverrideOperator === key;
                     const hasConteggi = op.rows.length > 0;
+                    const giroId = op.giroId || op.rows.find((row) => row.giro_id)?.giro_id || null;
+                    const submission = giroId ? submissionByGiro[String(giroId)] : null;
+                    const submitted = submission?.status === "submitted";
                     return (
                       <article
                         key={op.name}
-                        className={`overflow-hidden rounded-[24px] border bg-[#fffdf9] shadow-[0_20px_42px_-34px_rgba(61,39,4,.75)] transition ${open ? "border-[#c99a43]" : hasConteggi ? "border-[#d5b76e]" : "border-[#e2d6bf]"}`}
+                        className={`overflow-hidden rounded-[24px] border bg-[#fffdf9] shadow-[0_20px_42px_-34px_rgba(61,39,4,.75)] transition ${submitted ? "border-emerald-400" : open ? "border-[#c99a43]" : hasConteggi ? "border-orange-300" : "border-[#e2d6bf]"}`}
                       >
                         <div
-                          className={`relative overflow-hidden border-b border-[#eee3cf] px-3 py-3 ${hasConteggi ? "bg-[linear-gradient(135deg,#fff4d5,#e9c977)]" : "bg-[linear-gradient(135deg,#fffaf0,#f0e5cf)]"}`}
+                          className={`relative overflow-hidden border-b px-3 py-3 ${submitted ? "border-emerald-300 bg-[linear-gradient(135deg,#dcfce7,#86efac)]" : hasConteggi ? "border-orange-200 bg-[linear-gradient(135deg,#fff3d6,#fdba74)]" : "border-[#eee3cf] bg-[linear-gradient(135deg,#fffaf0,#f0e5cf)]"}`}
                         >
-                          <div className="absolute -right-8 -top-12 h-28 w-28 rounded-full bg-amber-300/20 blur-3xl" />
+                          <div className={`absolute -right-8 -top-12 h-28 w-28 rounded-full blur-3xl ${submitted ? "bg-emerald-300/30" : "bg-amber-300/20"}`} />
                           <div className="relative flex items-center gap-2">
                             <button
                               type="button"
@@ -1575,13 +1673,19 @@ export default function ConteggiPage() {
                               }
                               className="flex min-w-0 flex-1 items-center gap-2 text-left"
                             >
-                              <p className="min-w-0 flex-1 truncate text-[15px] font-black uppercase tracking-[0.055em] text-[#3b2a0e]">
-                                GIRO: {getGiroName(op)}
-                              </p>
+                              <span className="min-w-0 flex-1">
+                                <span className={`block truncate text-[15px] font-black uppercase tracking-[0.055em] ${submitted ? "text-emerald-950" : "text-[#3b2a0e]"}`}>GIRO: {getGiroName(op)}</span>
+                                <span className={`mt-1 block truncate text-[8px] font-black uppercase tracking-[.1em] ${submitted ? "text-emerald-700" : "text-orange-700"}`}>
+                                  {submitted ? `INVIATO • ${formatITDateTime(submission.submitted_at)}` : submission?.status === "reopened" ? "RIAPERTO DALL’ADMIN" : "IN LAVORAZIONE"}
+                                </span>
+                              </span>
                             </button>
-                            <span className="flex h-7 min-w-7 items-center justify-center rounded-full border border-[#d1b266] bg-[linear-gradient(145deg,#fff6db,#e8c97c)] px-2 text-[10px] font-black tabular-nums text-[#68450e] shadow-[0_6px_12px_-9px_rgba(98,60,5,.38)]">
+                            <span className={`flex h-7 min-w-7 items-center justify-center rounded-full border px-2 text-[10px] font-black tabular-nums shadow-sm ${submitted ? "border-emerald-500 bg-white/70 text-emerald-800" : "border-[#d1a45d] bg-white/70 text-[#68450e]"}`}>
                               {op.rows.length}
                             </span>
+                            {submitted && giroId && !isClosed && (
+                              <button type="button" onClick={(event) => { event.stopPropagation(); setReopenTarget({ giroId, giroName: getGiroName(op), submission }); }} className="flex h-8 w-8 items-center justify-center rounded-[10px] border border-emerald-500 bg-emerald-700 text-white shadow-sm transition hover:-translate-y-0.5 active:scale-95" title={`Riapri Giro ${getGiroName(op)}`} aria-label={`Riapri Giro ${getGiroName(op)}`}><Lock size={13}/></button>
+                            )}
                             <button
                               type="button"
                               onClick={(event) => {
@@ -1921,6 +2025,28 @@ export default function ConteggiPage() {
           </div>
         </div>
       )}
+
+      <Modal
+        open={Boolean(reopenTarget)}
+        onClose={() => !reopeningGiro && setReopenTarget(null)}
+        title="Riaprire il Giro?"
+        width="sm"
+        footer={
+          <>
+            <Button variant="ghost" disabled={reopeningGiro} onClick={() => setReopenTarget(null)}>Annulla</Button>
+            <Button variant="primary" disabled={reopeningGiro} onClick={reopenConteggiGiro}>
+              {reopeningGiro ? <RefreshCw size={14} className="animate-spin" /> : <Unlock size={14} />}
+              Riapri
+            </Button>
+          </>
+        }
+      >
+        <div className="rounded-[18px] border border-orange-200 bg-orange-50 p-4 text-center">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-orange-500 text-white"><Unlock size={21}/></div>
+          <p className="mt-3 text-[14px] font-black uppercase text-orange-950">GIRO {reopenTarget?.giroName}</p>
+          <p className="mt-2 text-[11px] font-bold leading-relaxed text-orange-800">Il dipendente potrà nuovamente aggiungere, modificare e depositare. La sua sezione tornerà arancione e modificabile.</p>
+        </div>
+      </Modal>
 
       <Modal
         open={filtersOpen}
