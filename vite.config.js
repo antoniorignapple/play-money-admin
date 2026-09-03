@@ -2,11 +2,31 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
+import { RELEASE } from './src/config/release.js'
+
+const releaseMetadata = () => ({
+  name: 'play-money-admin-release-metadata',
+  configureServer(server) {
+    server.middlewares.use('/release.json', (_req, res) => {
+      res.setHeader('Content-Type', 'application/json; charset=utf-8')
+      res.setHeader('Cache-Control', 'no-store')
+      res.end(JSON.stringify(RELEASE))
+    })
+  },
+  generateBundle() {
+    this.emitFile({
+      type: 'asset',
+      fileName: 'release.json',
+      source: JSON.stringify(RELEASE, null, 2),
+    })
+  },
+})
 
 export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
+    releaseMetadata(),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'app-icon.png', 'logo192.png.png', 'logo512.png.png'],

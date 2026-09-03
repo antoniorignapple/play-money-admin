@@ -7,6 +7,7 @@ import { supabase } from '../lib/supabase'
 import { Button, IconButton, Card, Badge, Stat } from '../components/ui'
 import { PageLayout, PageHeader, PageBody } from '../components/PageLayout'
 import { useToast } from '../components/Toast'
+import { APP_VERSION, RELEASE } from '../config/release'
 
 const SUPABASE_URL = 'https://ufkgncqqvqgynncswkiv.supabase.co'
 
@@ -156,7 +157,7 @@ export default function AdminPage() {
             </h3>
             <Card>
               <div className="divide-y divide-[var(--color-border)]">
-                <InfoRow label="Versione applicazione" value="Play Money Admin 9 (PWA + Mobile)" icon={Code} />
+                <InfoRow label="Versione applicazione" value={`Play Money Admin ${APP_VERSION} (PWA + Mobile)`} icon={Code} />
                 <InfoRow label="Branch produzione" value="main" icon={GitBranch} />
                 <InfoRow label="Supabase Project URL" value={SUPABASE_URL} icon={Server} mono />
                 <InfoRow label="Edge Function" value="admin-update-user" icon={Lock} mono />
@@ -166,6 +167,22 @@ export default function AdminPage() {
                   icon={ShieldCheck}
                 />
               </div>
+            </Card>
+          </section>
+
+          <section>
+            <h3 className="mb-2 text-[14px] font-semibold text-[var(--color-text)] md:mb-3">
+              {RELEASE.TITLE} {RELEASE.VERSION}
+            </h3>
+            <Card>
+              <ul className="space-y-2 px-4 py-3">
+                {RELEASE.ITEMS.map((item) => (
+                  <li key={item} className="flex gap-2 text-[12px] text-[var(--color-text-secondary)]">
+                    <span className="font-black text-[var(--color-accent)]">•</span>
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
             </Card>
           </section>
 

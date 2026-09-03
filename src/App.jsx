@@ -41,6 +41,7 @@ import GiriPage from "./pages/GiriPage";
 import { ToastProvider } from "./components/Toast";
 import { CommandPalette } from "./components/CommandPalette";
 import { supabase } from "./lib/supabase";
+import { APP_VERSION } from "./config/release";
 
 const NAV = [
   {
@@ -491,7 +492,7 @@ function LoginScreen() {
             )}
           </div>
           <p className="mt-10 text-[9px] font-bold tracking-[.18em] text-white/25">
-            PLAY MONEY ADMIN · VERSIONE 9.4
+            PLAY MONEY ADMIN · VERSIONE {APP_VERSION}
           </p>
         </section>
 
@@ -590,7 +591,7 @@ function LoginScreen() {
             </form>
           </div>
           <p className="mt-6 text-center text-[9px] font-bold tracking-[.18em] text-white/25 md:hidden">
-            PLAY MONEY ADMIN · VERSIONE 9.4
+            PLAY MONEY ADMIN · VERSIONE {APP_VERSION}
           </p>
         </section>
       </main>
@@ -721,7 +722,7 @@ function Sidebar({
                 ADMIN
               </p>
               <span className="text-[14px] font-black tracking-[-0.01em] text-[#e8c775]">
-                9.4
+                {APP_VERSION}
               </span>
             </div>
           </div>

@@ -389,6 +389,22 @@ export default function AnalisiPage() {
 
   useEffect(() => { loadData() }, [data])
 
+  useEffect(() => {
+    const channel = supabase.channel(`pm-analisi-cassa-locks-${data}`)
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'daily_edit_locks', filter: `work_date=eq.${data}`,
+      }, (payload) => {
+        const row = payload.new
+        if (!row?.created_by) return
+        setLocks((prev) => [
+          ...prev.filter((item) => String(item.created_by) !== String(row.created_by)),
+          row,
+        ])
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [data])
+
   function moveDay(amount) {
     const [year, month, day] = data.split('-').map(Number)
     const next = new Date(Date.UTC(year, month - 1, day + amount))
@@ -464,21 +480,41 @@ export default function AnalisiPage() {
     return locks.some((row) => String(row.created_by) === String(agentId) && row.locked)
   }
 
-  async function toggleAgentLock(agentId) {
-    const nextLocked = !isAgentLocked(agentId)
+  function getAgentLock(agentId) {
+    return locks.find((row) => String(row.created_by) === String(agentId)) || null
+  }
+
+  async function toggleAgentLock(target) {
+    const agentId = target?.id
+    if (!agentId) return
+    const reopeningSubmission = target?.locked && target?.status === 'submitted'
+    const nextLocked = reopeningSubmission ? false : !isAgentLocked(agentId)
     setLockSavingId(String(agentId))
-    const { data: updated, error } = await supabase.rpc('set_daily_edit_lock', {
-      p_work_date: data,
-      p_created_by: agentId,
-      p_locked: nextLocked,
-    })
+    const request = reopeningSubmission
+      ? supabase.rpc('reopen_daily_cassa', {
+          p_work_date: data,
+          p_created_by: agentId,
+          p_reason: null,
+        })
+      : supabase.rpc('set_daily_edit_lock', {
+          p_work_date: data,
+          p_created_by: agentId,
+          p_locked: nextLocked,
+        })
+    const { data: updated, error } = await request
     setLockSavingId(null)
     if (error) return toast.error(error.message)
-    setLocks((prev) => [
-      ...prev.filter((row) => String(row.created_by) !== String(agentId)),
-      updated,
-    ])
-    toast.success(nextLocked ? 'Giornata bloccata' : 'Modifiche riaperte')
+    if (reopeningSubmission) {
+      setLocks((prev) => prev.map((row) => String(row.created_by) === String(agentId)
+        ? { ...row, locked: false, status: 'reopened', reopened_at: updated?.reopened_at, updated_at: updated?.reopened_at }
+        : row))
+    } else {
+      setLocks((prev) => [
+        ...prev.filter((row) => String(row.created_by) !== String(agentId)),
+        updated,
+      ])
+    }
+    toast.success(nextLocked ? 'Giornata bloccata' : 'Giro Cassa riaperto')
     setLockTarget(null)
   }
 
@@ -574,9 +610,9 @@ export default function AnalisiPage() {
     })
 
     return Array.from(map.values())
-      .filter((r) => r.count > 0 || r.monete > 0 || r.km || r.mezzo || r.note)
+      .filter((r) => r.count > 0 || r.monete > 0 || r.km || r.mezzo || r.note || locks.some((lock) => String(lock.created_by) === String(r.id)))
       .sort((a, b) => a.name.localeCompare(b.name))
-  }, [movements, fondi, dipendenti])
+  }, [movements, fondi, dipendenti, locks])
 
   const grandTotals = useMemo(() => agentRows.reduce((acc, r) => {
     acc.acconti += r.acconti
@@ -704,16 +740,22 @@ export default function AnalisiPage() {
                 .sort(compareMovementsByInsertedAt)
               const isExpanded = expandedAgentId === String(r.id)
               const agentLocked = isAgentLocked(r.id)
+              const agentLock = getAgentLock(r.id)
+              const cassaSubmitted = agentLocked && agentLock?.status === 'submitted'
 
               return (
                 <article
                   key={r.id}
-                  className="mb-3 overflow-hidden rounded-[24px] border border-[#d5b76e] bg-[#fffdf9] shadow-[0_20px_42px_-34px_rgba(61,39,4,.75)] last:mb-0"
+                  className={`mb-3 overflow-hidden rounded-[24px] border bg-[#fffdf9] shadow-[0_20px_42px_-34px_rgba(61,39,4,.75)] last:mb-0 ${cassaSubmitted ? 'border-emerald-400' : 'border-[#d5b76e]'}`}
                 >
-                  <div className="flex items-start justify-between gap-3 border-b border-[#eee3cf] bg-[linear-gradient(135deg,#fff4d5,#e9c977)] px-3 py-3 md:px-4">
+                  <div className={`flex items-start justify-between gap-3 border-b px-3 py-3 md:px-4 ${cassaSubmitted ? 'border-emerald-300 bg-[linear-gradient(135deg,#e8fff1,#83d7a8)]' : 'border-[#eee3cf] bg-[linear-gradient(135deg,#fff4d5,#e9c977)]'}`}>
                     <div className="flex min-w-0 flex-1 items-start gap-3">
                       <div className="min-w-0 flex-1">
-                        <p className="text-[22px] font-black uppercase tracking-[0.04em] text-[#2f210b] md:text-[25px]">{r.name}</p>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-[22px] font-black uppercase tracking-[0.04em] text-[#2f210b] md:text-[25px]">{r.name}</p>
+                          {cassaSubmitted && <span className="rounded-full border border-emerald-500/45 bg-emerald-700 px-2.5 py-1 text-[9px] font-black uppercase tracking-[.1em] text-white">INVIATO · {formatInsertedAt(agentLock?.submitted_at)}</span>}
+                          {!agentLocked && agentLock?.status === 'reopened' && <span className="rounded-full border border-orange-300 bg-orange-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-[.1em] text-orange-800">RIAPERTO DALL’ADMIN</span>}
+                        </div>
 
                         <div className="mt-2 flex flex-wrap items-center gap-x-6 gap-y-2 text-[12px] font-black uppercase tracking-[0.06em] md:text-[14px]">
                           <span className="text-slate-500">MEZZO <strong className="ml-1 text-[#281d0b]">{r.mezzo || '—'}</strong></span>
@@ -742,9 +784,9 @@ export default function AnalisiPage() {
 
                     <div className="flex shrink-0 items-center gap-2">
                       <button
-                        onClick={() => setLockTarget({ id: r.id, name: r.name, locked: agentLocked })}
+                        onClick={() => setLockTarget({ id: r.id, name: r.name, locked: agentLocked, status: agentLock?.status || 'in_progress' })}
                         disabled={lockSavingId === String(r.id)}
-                        title={agentLocked ? 'Riapri le modifiche' : 'Blocca le modifiche'}
+                        title={cassaSubmitted ? 'Riapri il Giro Cassa' : agentLocked ? 'Riapri le modifiche' : 'Blocca le modifiche'}
                         className={`inline-flex h-10 w-10 items-center justify-center rounded-[13px] border transition active:scale-95 disabled:opacity-50 ${agentLocked ? 'border-red-300 bg-red-600 text-white shadow-[0_10px_20px_-14px_rgba(220,38,38,.8)]' : 'border-[#d3b469] bg-white/75 text-[#68450e]'}`}
                       >
                         {agentLocked ? <Lock size={16} /> : <Unlock size={16} />}
@@ -857,13 +899,13 @@ export default function AnalisiPage() {
       <ConfirmDialog
         open={!!lockTarget}
         onClose={() => setLockTarget(null)}
-        title={lockTarget?.locked ? 'RIAPRIRE IL GIRO?' : 'CHIUDERE IL GIRO?'}
+        title={lockTarget?.locked ? 'RIAPRIRE IL GIRO CASSA?' : 'CHIUDERE IL GIRO?'}
         message={lockTarget?.locked
           ? `${lockTarget?.name} tornerà a poter aggiungere, modificare ed eliminare movimenti e Fondo cassa.`
           : `${lockTarget?.name} potrà consultare i dati, ma non aggiungere, modificare o eliminare movimenti e Fondo cassa.`}
         confirmLabel="OK"
         variant={lockTarget?.locked ? 'success' : 'danger'}
-        onConfirm={() => toggleAgentLock(lockTarget.id)}
+        onConfirm={() => toggleAgentLock(lockTarget)}
       />
 
       <Modal
