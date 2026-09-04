@@ -13,6 +13,7 @@ import {
   dipendenteName, dipendenteId,
 } from '../lib/helpers'
 import { closePdfPreviewWindow, createPdfPreviewWindow, openPdfPreview } from '../lib/pdfPreview'
+import { DIPENDENTI_SAFE_FIELDS } from '../lib/dipendentiFields'
 
 function formatInsertedAt(value) {
   if (!value) return '—'
@@ -429,7 +430,7 @@ export default function AnalisiPage() {
   .order('created_at', { ascending: true }),
       supabase.from('fondo_cassa_giornaliero').select('*').eq('work_date', data),
       supabase.from('venues').select('*'),
-      supabase.from('dipendenti').select('*'),
+      supabase.from('dipendenti').select(DIPENDENTI_SAFE_FIELDS),
       supabase.from('daily_edit_locks').select('*').eq('work_date', data),
     ])
     if (movRes.error) toast.error(`Errore: ${movRes.error.message}`)

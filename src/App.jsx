@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useCallback } from "react";
+import { useState, useEffect, useLayoutEffect, useCallback, useRef } from "react";
 import {
   Wallet,
   Users,
@@ -169,7 +169,9 @@ export default function App() {
   const [isMobile, setIsMobile] = useState(false);
   const [session, setSession] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [authError, setAuthError] = useState("");
   const [splashReady, setSplashReady] = useState(false);
+  const authorizedUserIdRef = useRef(null);
 
   // iOS PWA: durante splash/login colora anche la safe-area inferiore
   // (quella dell'Home Indicator), che altrimenti può restare bianca.
@@ -199,17 +201,86 @@ export default function App() {
 
   useEffect(() => {
     let active = true;
+    let validationId = 0;
 
-    supabase.auth.getSession().then(({ data }) => {
-      if (!active) return;
-      setSession(data.session || null);
+    const rejectSession = (message) => {
+      authorizedUserIdRef.current = null;
+      setSession(null);
+      setAuthError(message);
       setAuthLoading(false);
+      void supabase.auth.signOut({ scope: "local" });
+    };
+
+    const validateAdminSession = async (candidateSession) => {
+      const currentValidationId = ++validationId;
+
+      if (!candidateSession) {
+        if (!active || currentValidationId !== validationId) return;
+        authorizedUserIdRef.current = null;
+        setSession(null);
+        setAuthLoading(false);
+        return;
+      }
+
+      const isAlreadyAuthorized =
+        authorizedUserIdRef.current === candidateSession.user?.id;
+      if (!isAlreadyAuthorized) {
+        setSession(null);
+        setAuthLoading(true);
+      }
+
+      try {
+        const { data: userData, error: userError } =
+          await supabase.auth.getUser(candidateSession.access_token);
+
+        if (!active || currentValidationId !== validationId) return;
+        if (userError || !userData?.user) {
+          rejectSession("Sessione non valida o scaduta. Accedi nuovamente.");
+          return;
+        }
+
+        const { data: isAdmin, error: roleError } = await supabase.rpc(
+          "is_play_money_admin_secure",
+        );
+
+        if (!active || currentValidationId !== validationId) return;
+        if (roleError) {
+          rejectSession(
+            "Impossibile verificare l'autorizzazione Admin. Riprova tra poco.",
+          );
+          return;
+        }
+        if (isAdmin !== true) {
+          rejectSession("Questo account non è autorizzato ad aprire Play Money Admin.");
+          return;
+        }
+
+        authorizedUserIdRef.current = userData.user.id;
+        setAuthError("");
+        setSession(candidateSession);
+        setAuthLoading(false);
+      } catch {
+        if (!active || currentValidationId !== validationId) return;
+        rejectSession(
+          "Verifica di sicurezza non riuscita. Controlla la connessione e riprova.",
+        );
+      }
+    };
+
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (!active) return;
+      if (error) {
+        rejectSession("Impossibile verificare la sessione. Accedi nuovamente.");
+        return;
+      }
+      void validateAdminSession(data.session || null);
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange(
       (_event, nextSession) => {
-        setSession(nextSession || null);
-        setAuthLoading(false);
+        queueMicrotask(() => {
+          if (active) void validateAdminSession(nextSession || null);
+        });
       },
     );
 
@@ -284,7 +355,10 @@ export default function App() {
   if (!session) {
     return (
       <ToastProvider>
-        <LoginScreen />
+        <LoginScreen
+          externalError={authError}
+          onAttempt={() => setAuthError("")}
+        />
       </ToastProvider>
     );
   }
@@ -403,14 +477,16 @@ function AuthLoadingScreen() {
   );
 }
 
-function LoginScreen() {
+function LoginScreen({ externalError = "", onAttempt }) {
   const ADMIN_EMAIL = "admin@playmoney.com";
   const [pin, setPin] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const visibleError = error || externalError;
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    onAttempt?.();
     setError("");
     if (!/^\d{4}$/.test(pin)) {
       setError("Inserisci il PIN amministratore di 4 cifre.");
@@ -554,6 +630,7 @@ function LoginScreen() {
                   maxLength={4}
                   value={pin}
                   onChange={(event) => {
+                    onAttempt?.();
                     setPin(
                       String(event.target.value || "")
                         .replace(/\D/g, "")
@@ -570,9 +647,9 @@ function LoginScreen() {
                 </p>
               </label>
 
-              {error && (
+              {visibleError && (
                 <div className="rounded-[18px] border border-red-400/20 bg-red-500/10 px-4 py-3 text-center text-xs font-black text-red-200">
-                  {error}
+                  {visibleError}
                 </div>
               )}
 

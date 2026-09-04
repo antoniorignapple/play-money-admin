@@ -60,20 +60,6 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,png,svg,ico,woff2}'],
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/ufkgncqqvqgynncswkiv\.supabase\.co\/.*/,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'supabase-cache',
-              networkTimeoutSeconds: 5,
-              expiration: {
-                maxEntries: 50,
-                maxAgeSeconds: 60 * 60 * 24,
-              },
-            },
-          },
-        ],
       },
     }),
   ],

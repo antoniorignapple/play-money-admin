@@ -22,6 +22,7 @@ import { Button, EmptyState, Field, Select, Textarea } from "../components/ui";
 import { PageLayout, PageBody } from "../components/PageLayout";
 import { useToast } from "../components/Toast";
 import { venueSortFn } from "../lib/helpers";
+import { DIPENDENTI_SAFE_FIELDS } from "../lib/dipendentiFields";
 import generateSimulazioniPdf from "../lib/generateSimulazioniPdf";
 import {
   closePdfPreviewWindow,
@@ -205,7 +206,7 @@ export default function SimulazioniPage() {
         { data: req },
       ] = await Promise.all([
         supabase.from("venues").select("*"),
-        supabase.from("dipendenti").select("*"),
+        supabase.from("dipendenti").select(DIPENDENTI_SAFE_FIELDS),
         activeSimQuery.order("created_at", { ascending: false }).limit(3000),
         deletedSimQuery.order("deleted_at", { ascending: false }).limit(1000),
         supabase

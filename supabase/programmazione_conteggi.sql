@@ -29,17 +29,12 @@ returns boolean
 language sql
 stable
 security definer
-set search_path = public
+set search_path = ''
 as $$
-  select
-    not exists (select 1 from public.dipendenti d where d.auth_user_id = auth.uid())
-    or exists (
-      select 1 from public.dipendenti d
-      where d.auth_user_id = auth.uid() and lower(coalesce(d.role, '')) = 'admin'
-    );
+  select (select public.is_play_money_admin_secure());
 $$;
-revoke all on function public.is_play_money_admin() from public;
-grant execute on function public.is_play_money_admin() to authenticated;
+revoke all on function public.is_play_money_admin() from public, anon;
+grant execute on function public.is_play_money_admin() to authenticated, service_role;
 
 drop policy if exists "programmazioni_select_authenticated" on public.conteggio_programmazioni;
 create policy "programmazioni_select_authenticated"

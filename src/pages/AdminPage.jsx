@@ -27,7 +27,7 @@ export default function AdminPage() {
     try {
       const [venues, dipendenti, movements, trash, fondi, machines] = await Promise.all([
         supabase.from('venues').select('*', { count: 'exact', head: true }),
-        supabase.from('dipendenti').select('*', { count: 'exact', head: true }),
+        supabase.from('dipendenti').select('id', { count: 'exact', head: true }),
         supabase.from('movements_cassa').select('*', { count: 'exact', head: true }).is('deleted_at', null),
         supabase.from('movements_cassa').select('*', { count: 'exact', head: true }).not('deleted_at', 'is', null),
         supabase.from('fondo_cassa_giornaliero').select('*', { count: 'exact', head: true }),

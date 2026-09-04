@@ -16,6 +16,7 @@ import {
   dipendenteName, dipendenteId, normNumber,
 } from '../lib/helpers'
 import { closePdfPreviewWindow, createPdfPreviewWindow, openPdfPreview } from '../lib/pdfPreview'
+import { DIPENDENTI_SAFE_FIELDS } from '../lib/dipendentiFields'
 
 /* ============ PDF EXPORT ============ */
 async function toDataUrl(url) {
@@ -331,7 +332,7 @@ const [confirmDeleteOne, setConfirmDeleteOne] = useState(null)
     const [movRes, venRes, dipRes, fondoRes] = await Promise.all([
       movementsQuery.order('created_at', { ascending: false }),
       supabase.from('venues').select('*'),
-      supabase.from('dipendenti').select('*'),
+      supabase.from('dipendenti').select(DIPENDENTI_SAFE_FIELDS),
       fondoQuery,
     ])
     if (movRes.error) toast.error(`Errore movimenti: ${movRes.error.message}`)

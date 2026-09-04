@@ -33,6 +33,7 @@ import {
 import { PageLayout, PageBody } from "../components/PageLayout";
 import { useToast } from "../components/Toast";
 import { venueSortFn } from "../lib/helpers";
+import { DIPENDENTI_SAFE_FIELDS } from "../lib/dipendentiFields";
 
 const fmtEuro = (n) =>
   `${Math.trunc(Number(n) || 0).toLocaleString("it-IT")} €`;
@@ -210,7 +211,7 @@ export default function DebitiBonusPage() {
         { data: noteData },
       ] = await Promise.all([
         supabase.from("venues").select("*"),
-        supabase.from("dipendenti").select("*"),
+        supabase.from("dipendenti").select(DIPENDENTI_SAFE_FIELDS),
         supabase
           .from("debiti")
           .select("*")

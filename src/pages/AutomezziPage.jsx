@@ -18,6 +18,7 @@ import { PageLayout, PageBody } from "../components/PageLayout";
 import { ConfirmDialog } from "../components/FormDialog";
 import { useToast } from "../components/Toast";
 import { dipendenteId, dipendenteName, formatEuro0 } from "../lib/helpers";
+import { DIPENDENTI_SAFE_FIELDS } from "../lib/dipendentiFields";
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 const normalizePlate = (value) =>
@@ -62,7 +63,7 @@ export default function AutomezziPage() {
         .from("fondo_cassa_giornaliero")
         .select("*")
         .order("work_date", { ascending: false }),
-      supabase.from("dipendenti").select("*").order("full_name"),
+      supabase.from("dipendenti").select(DIPENDENTI_SAFE_FIELDS).order("full_name"),
     ]);
     const error =
       vehicleResult.error || recordResult.error || employeeResult.error;

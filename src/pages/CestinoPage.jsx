@@ -25,6 +25,7 @@ import {
   dipendenteName,
   dipendenteId,
 } from "../lib/helpers";
+import { DIPENDENTI_SAFE_FIELDS } from "../lib/dipendentiFields";
 
 export default function CestinoPage() {
   const toast = useToast();
@@ -52,7 +53,7 @@ export default function CestinoPage() {
         .not("deleted_at", "is", null)
         .order("deleted_at", { ascending: false }),
       supabase.from("venues").select("*"),
-      supabase.from("dipendenti").select("*"),
+      supabase.from("dipendenti").select(DIPENDENTI_SAFE_FIELDS),
     ]);
     if (movRes.error) toast.error(`Errore: ${movRes.error.message}`);
     setMovements(movRes.data || []);

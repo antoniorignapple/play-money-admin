@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Download,
-  Eye,
-  EyeOff,
   KeyRound,
   Mail,
   Pencil,
@@ -22,6 +20,7 @@ import { Button, Field, Input, Select } from "../components/ui";
 import { PageLayout, PageBody } from "../components/PageLayout";
 import { useToast } from "../components/Toast";
 import { initials, avatarColor } from "../lib/helpers";
+import { DIPENDENTI_SAFE_FIELDS } from "../lib/dipendentiFields";
 
 const SUPABASE_FN_URL =
   "https://ufkgncqqvqgynncswkiv.supabase.co/functions/v1/admin-update-user";
@@ -54,7 +53,6 @@ export default function AgentiPage() {
   const [dipendenti, setDipendenti] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [revealedPins, setRevealedPins] = useState(new Set());
   const [createOpen, setCreateOpen] = useState(false);
   const [editTarget, setEditTarget] = useState(null);
   const [pinTarget, setPinTarget] = useState(null);
@@ -67,7 +65,7 @@ export default function AgentiPage() {
     setLoading(true);
     const { data, error } = await supabase
       .from("dipendenti")
-      .select("*")
+      .select(DIPENDENTI_SAFE_FIELDS)
       .order("full_name", { ascending: true });
     if (error) {
       toast.error(`Errore: ${error.message}`);
@@ -91,19 +89,18 @@ export default function AgentiPage() {
   ).length;
   const admins = dipendenti.filter((d) => d.role === "admin").length;
 
-  function togglePin(id) {
-    setRevealedPins((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
-  }
   async function callAdminFn(body) {
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    const token = sessionData?.session?.access_token;
+    if (sessionError || !token) {
+      throw new Error("Sessione Admin non valida. Accedi nuovamente.");
+    }
+
     const response = await fetch(SUPABASE_FN_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify(body),
     });
@@ -130,15 +127,15 @@ export default function AgentiPage() {
   }
   async function handleEdit(v) {
     const full_name = String(v.full_name || "").trim();
-    const { data, error } = await supabase
-      .from("dipendenti")
-      .update({ full_name, email: v.email, role: v.role || "operator" })
-      .eq("id", editTarget.id)
-      .select("*")
-      .single();
-    if (error) throw new Error(error.message);
+    const result = await callAdminFn({
+      action: "update_user_profile",
+      auth_user_id: editTarget.auth_user_id,
+      full_name,
+      email: v.email,
+      role: v.role || "operator",
+    });
     setDipendenti((prev) =>
-      prev.map((x) => (x.id === editTarget.id ? data : x)),
+      prev.map((x) => (x.id === editTarget.id ? result.dipendente : x)),
     );
     setEditTarget(null);
     toast.success("Dipendente aggiornato");
@@ -149,9 +146,6 @@ export default function AgentiPage() {
       auth_user_id: pinTarget.auth_user_id,
       new_pin: v.pin,
     });
-    setDipendenti((prev) =>
-      prev.map((x) => (x.id === pinTarget.id ? { ...x, pin: v.pin } : x)),
-    );
     setPinTarget(null);
     toast.success("PIN aggiornato");
   }
@@ -166,12 +160,11 @@ export default function AgentiPage() {
     toast.success(`"${name}" eliminato`);
   }
   function downloadCsv() {
-    const rows = [["Dipendente", "Email", "PIN", "Ruolo", "Stato"]];
+    const rows = [["Dipendente", "Email", "Ruolo", "Stato"]];
     filtered.forEach((d) =>
       rows.push([
         d.full_name || "",
         d.email || "",
-        d.pin || "",
         d.role || "",
         d.active ? "Attivo" : "Disattivato",
       ]),
@@ -291,8 +284,6 @@ export default function AgentiPage() {
                   <AgentCard
                     key={d.id}
                     d={d}
-                    revealed={revealedPins.has(d.id)}
-                    onToggle={() => togglePin(d.id)}
                     onEdit={() => setEditTarget(d)}
                     onPin={() => setPinTarget(d)}
                     onDelete={() => setDeleteTarget(d)}
@@ -343,7 +334,7 @@ export default function AgentiPage() {
   );
 }
 
-function AgentCard({ d, revealed, onToggle, onEdit, onPin, onDelete }) {
+function AgentCard({ d, onEdit, onPin, onDelete }) {
   const ls = lastSeenInfo(d.last_seen);
   const admin = d.role === "admin";
   return (
@@ -382,22 +373,13 @@ function AgentCard({ d, revealed, onToggle, onEdit, onPin, onDelete }) {
             </p>
           </div>
         </div>
-        <div className="mt-4 flex items-center justify-between rounded-2xl border border-amber-100 bg-amber-50/50 px-3 py-2.5">
-          <div>
-            <p className="text-[8px] font-black tracking-[.16em] text-amber-700">
-              PIN DI ACCESSO
-            </p>
-            <p className="mt-0.5 font-mono text-sm font-black tracking-[.22em] text-slate-800">
-              {revealed ? d.pin || "—" : "••••"}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onToggle}
-            className="grid h-9 w-9 place-items-center rounded-xl bg-white text-amber-700 shadow-sm"
-          >
-            {revealed ? <EyeOff size={17} /> : <Eye size={17} />}
-          </button>
+        <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50/55 px-3 py-2.5">
+          <p className="text-[8px] font-black tracking-[.16em] text-emerald-700">
+            CREDENZIALE PROTETTA
+          </p>
+          <p className="mt-1 text-[11px] font-bold text-slate-600">
+            Il PIN è gestito esclusivamente da Supabase Auth e non è visualizzabile.
+          </p>
         </div>
       </div>
       <div className="grid grid-cols-3 border-t border-amber-100 bg-amber-50/30">

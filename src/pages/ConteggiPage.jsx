@@ -47,6 +47,7 @@ import {
 import { PageLayout, PageHeader, PageBody } from "../components/PageLayout";
 import { Skeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
+import { DIPENDENTI_SAFE_FIELDS } from "../lib/dipendentiFields";
 
 const fmtEuro = (n) =>
   `${Math.trunc(Number(n) || 0).toLocaleString("it-IT")} €`;
@@ -398,7 +399,7 @@ export default function ConteggiPage() {
     const [{ data: venuesData }, { data: dipendentiData }, { data: giriData }] =
       await Promise.all([
         supabase.from("venues").select("*"),
-        supabase.from("dipendenti").select("*"),
+        supabase.from("dipendenti").select(DIPENDENTI_SAFE_FIELDS),
         supabase.from("giri").select("id,name,code,default_employee_id"),
       ]);
     setVenues([...(venuesData || [])].sort(sortVenueIds));
