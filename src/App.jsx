@@ -479,7 +479,8 @@ function AuthLoadingScreen() {
 
 function LoginScreen({ externalError = "", onAttempt }) {
   const ADMIN_EMAIL = "admin@playmoney.com";
-  const [pin, setPin] = useState("");
+  const [password, setPassword] = useState("");
+  const [passwordVisible, setPasswordVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const visibleError = error || externalError;
@@ -488,27 +489,27 @@ function LoginScreen({ externalError = "", onAttempt }) {
     event.preventDefault();
     onAttempt?.();
     setError("");
-    if (!/^\d{4}$/.test(pin)) {
-      setError("Inserisci il PIN amministratore di 4 cifre.");
+    if (password.length < 4) {
+      setError("Inserisci la password amministratore.");
       return;
     }
     setLoading(true);
     let { error: authError } = await supabase.auth.signInWithPassword({
       email: ADMIN_EMAIL,
-      password: pin,
+      password,
     });
-    // Compatibilità con eventuali credenziali Admin già uniformate agli account Dipendenti.
-    if (authError) {
+    // Compatibilità temporanea con il vecchio PIN durante la migrazione.
+    if (authError && /^\d{4}$/.test(password)) {
       const fallback = await supabase.auth.signInWithPassword({
         email: ADMIN_EMAIL,
-        password: `pm${pin}`,
+        password: `pm${password}`,
       });
       authError = fallback.error;
     }
     setLoading(false);
     if (authError) {
-      setPin("");
-      setError("PIN amministratore non corretto.");
+      setPassword("");
+      setError("Password amministratore non corretta.");
     }
   };
 
@@ -592,7 +593,7 @@ function LoginScreen({ externalError = "", onAttempt }) {
                 ACCESSO ADMIN
               </h2>
               <p className="mt-2 text-xs font-semibold text-white/40">
-                Inserisci il PIN per aprire il pannello.
+                Inserisci la password per aprire il pannello.
               </p>
             </div>
 
@@ -619,31 +620,29 @@ function LoginScreen({ externalError = "", onAttempt }) {
 
               <label className="block">
                 <span className="mb-2 block text-[9px] font-black tracking-[.2em] text-amber-200/70">
-                  PIN AMMINISTRATORE
+                  PASSWORD AMMINISTRATORE
                 </span>
-                <input
-                  autoFocus
-                  type="password"
-                  inputMode="numeric"
-                  autoComplete="current-password"
-                  pattern="[0-9]{4}"
-                  maxLength={4}
-                  value={pin}
-                  onChange={(event) => {
-                    onAttempt?.();
-                    setPin(
-                      String(event.target.value || "")
-                        .replace(/\D/g, "")
-                        .slice(0, 4),
-                    );
-                    setError("");
-                  }}
-                  placeholder="••••"
-                  disabled={loading}
-                  className="h-[66px] w-full rounded-[20px] border border-amber-300/15 bg-black/25 px-5 text-center text-2xl font-black tracking-[.55em] text-white outline-none shadow-inner transition placeholder:text-white/20 focus:border-amber-300/50 focus:ring-4 focus:ring-amber-300/10 disabled:opacity-60"
-                />
+                <div className="relative">
+                  <input
+                    autoFocus
+                    type={passwordVisible ? "text" : "password"}
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(event) => {
+                      onAttempt?.();
+                      setPassword(String(event.target.value || ""));
+                      setError("");
+                    }}
+                    placeholder="Inserisci la password"
+                    disabled={loading}
+                    className="h-[66px] w-full rounded-[20px] border border-amber-300/15 bg-black/25 px-5 pr-14 text-base font-black text-white outline-none shadow-inner transition placeholder:text-white/20 focus:border-amber-300/50 focus:ring-4 focus:ring-amber-300/10 disabled:opacity-60"
+                  />
+                  <button type="button" aria-label={passwordVisible ? "Nascondi password" : "Mostra password"} onClick={() => setPasswordVisible((value) => !value)} className="absolute right-3 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-xl text-amber-200/65 hover:bg-white/5">
+                    {passwordVisible ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
                 <p className="mt-2 text-center text-[10px] font-semibold text-white/35">
-                  Quattro cifre · accesso riservato
+                  Accesso riservato · credenziale personale
                 </p>
               </label>
 
@@ -655,7 +654,7 @@ function LoginScreen({ externalError = "", onAttempt }) {
 
               <button
                 type="submit"
-                disabled={loading || pin.length !== 4}
+                disabled={loading || password.length < 4}
                 className="flex h-[60px] w-full items-center justify-center gap-2 rounded-[20px] bg-gradient-to-r from-[#f2d477] via-[#d5a33c] to-[#a56d12] text-xs font-black tracking-[.18em] text-[#241704] shadow-[0_22px_48px_-20px_rgba(224,175,65,.75)] transition hover:-translate-y-0.5 hover:brightness-105 active:scale-[.985] disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {loading ? (

@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Download,
+  Eye,
+  EyeOff,
   KeyRound,
+  LockKeyhole,
   Mail,
   Pencil,
   Plus,
@@ -25,6 +28,18 @@ import { DIPENDENTI_SAFE_FIELDS } from "../lib/dipendentiFields";
 const SUPABASE_FN_URL =
   "https://ufkgncqqvqgynncswkiv.supabase.co/functions/v1/admin-update-user";
 const ONLINE_THRESHOLD_MS = 2 * 60 * 1000;
+const ADMIN_DISPLAY_NAME = "ADMIN GIOVANNI";
+
+function isStrongAdminPassword(value) {
+  const password = String(value || "");
+  return (
+    password.length >= 10 &&
+    /[a-z]/.test(password) &&
+    /[A-Z]/.test(password) &&
+    /\d/.test(password) &&
+    /[^A-Za-z0-9]/.test(password)
+  );
+}
 
 function lastSeenInfo(value) {
   if (!value) return { online: false, label: "Mai collegato" };
@@ -51,26 +66,42 @@ function lastSeenInfo(value) {
 export default function AgentiPage() {
   const toast = useToast();
   const [dipendenti, setDipendenti] = useState([]);
+  const [adminProfile, setAdminProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [editTarget, setEditTarget] = useState(null);
   const [pinTarget, setPinTarget] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [adminPasswordOpen, setAdminPasswordOpen] = useState(false);
 
   useEffect(() => {
     load();
   }, []);
   async function load() {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("dipendenti")
-      .select(DIPENDENTI_SAFE_FIELDS)
-      .order("full_name", { ascending: true });
+    const [{ data, error }, { data: userData, error: userError }] = await Promise.all([
+      supabase
+        .from("dipendenti")
+        .select(DIPENDENTI_SAFE_FIELDS)
+        .order("full_name", { ascending: true }),
+      supabase.auth.getUser(),
+    ]);
     if (error) {
       toast.error(`Errore: ${error.message}`);
       setDipendenti([]);
     } else setDipendenti(data || []);
+    if (!userError && userData?.user) {
+      setAdminProfile({
+        id: userData.user.id,
+        full_name: ADMIN_DISPLAY_NAME,
+        email: userData.user.email || "admin@playmoney.com",
+        active: true,
+        role: "admin",
+      });
+    } else {
+      setAdminProfile(null);
+    }
     setLoading(false);
   }
   const filtered = useMemo(() => {
@@ -84,10 +115,18 @@ export default function AgentiPage() {
       ),
     );
   }, [dipendenti, search]);
+  const adminVisible = useMemo(() => {
+    if (!adminProfile) return false;
+    const s = search.trim().toLowerCase();
+    if (!s) return true;
+    return [adminProfile.full_name, adminProfile.email, adminProfile.role].some((value) =>
+      String(value || "").toLowerCase().includes(s),
+    );
+  }, [adminProfile, search]);
   const online = dipendenti.filter(
     (d) => lastSeenInfo(d.last_seen).online,
   ).length;
-  const admins = dipendenti.filter((d) => d.role === "admin").length;
+  const admins = adminProfile ? 1 : 0;
 
   async function callAdminFn(body) {
     const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
@@ -158,6 +197,32 @@ export default function AgentiPage() {
     setDipendenti((prev) => prev.filter((x) => x.id !== deleteTarget.id));
     setDeleteTarget(null);
     toast.success(`"${name}" eliminato`);
+  }
+  async function handleChangeAdminPassword(values) {
+    const email = adminProfile?.email || "admin@playmoney.com";
+    let verifiedPassword = values.currentPassword;
+    let verification = await supabase.auth.signInWithPassword({
+      email,
+      password: verifiedPassword,
+    });
+
+    // Compatibilità controllata durante la migrazione dal vecchio PIN.
+    if (verification.error && /^\d{4}$/.test(verifiedPassword)) {
+      verifiedPassword = `pm${verifiedPassword}`;
+      verification = await supabase.auth.signInWithPassword({
+        email,
+        password: verifiedPassword,
+      });
+    }
+    if (verification.error) throw new Error("La password attuale non è corretta.");
+
+    const { error } = await supabase.auth.updateUser({
+      password: values.newPassword,
+      current_password: verifiedPassword,
+    });
+    if (error) throw error;
+    setAdminPasswordOpen(false);
+    toast.success("Password Admin aggiornata");
   }
   function downloadCsv() {
     const rows = [["Dipendente", "Email", "Ruolo", "Stato"]];
@@ -267,29 +332,39 @@ export default function AgentiPage() {
               </div>
               {search && (
                 <p className="mt-2 px-1 text-[10px] font-black uppercase tracking-wider text-amber-700">
-                  {filtered.length} risultati trovati
+                  {filtered.length + (adminVisible ? 1 : 0)} risultati trovati
                 </p>
               )}
             </section>
             {loading ? (
               <AgentSkeleton />
-            ) : filtered.length === 0 ? (
+            ) : filtered.length === 0 && !adminVisible ? (
               <PremiumEmpty
                 onCreate={!search ? () => setCreateOpen(true) : null}
                 search={search}
               />
             ) : (
-              <div className="grid gap-3 lg:grid-cols-2">
-                {filtered.map((d) => (
-                  <AgentCard
-                    key={d.id}
-                    d={d}
-                    onEdit={() => setEditTarget(d)}
-                    onPin={() => setPinTarget(d)}
-                    onDelete={() => setDeleteTarget(d)}
+              <>
+                {adminVisible && (
+                  <AdminIdentityCard
+                    admin={adminProfile}
+                    onPassword={() => setAdminPasswordOpen(true)}
                   />
-                ))}
-              </div>
+                )}
+                {filtered.length > 0 && (
+                  <div className="grid gap-3 lg:grid-cols-2">
+                    {filtered.map((d) => (
+                      <AgentCard
+                        key={d.id}
+                        d={d}
+                        onEdit={() => setEditTarget(d)}
+                        onPin={() => setPinTarget(d)}
+                        onDelete={() => setDeleteTarget(d)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -318,6 +393,12 @@ export default function AgentiPage() {
         target={pinTarget}
         onSubmit={handleChangePin}
       />
+      {adminPasswordOpen && (
+        <AdminPasswordForm
+          onClose={() => setAdminPasswordOpen(false)}
+          onSubmit={handleChangeAdminPassword}
+        />
+      )}
       <ConfirmDialog
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
@@ -331,6 +412,31 @@ export default function AgentiPage() {
         onConfirm={handleDelete}
       />
     </PageLayout>
+  );
+}
+
+function AdminIdentityCard({ admin, onPassword }) {
+  return (
+    <article className="overflow-hidden rounded-[24px] border border-[#c89b3d] bg-[linear-gradient(145deg,#17130c,#2f210d)] text-white shadow-[0_16px_38px_-22px_rgba(72,43,3,.9)]">
+      <div className="flex items-center gap-4 p-4 md:p-5">
+        <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl border border-amber-300/35 bg-amber-300/10 text-amber-200">
+          <ShieldCheck size={27} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="truncate text-[16px] font-black">{admin.full_name}</h3>
+            <span className="rounded-full border border-amber-300/30 bg-amber-300/10 px-2 py-1 text-[8px] font-black tracking-wider text-amber-200">AMMINISTRATORE PRINCIPALE</span>
+          </div>
+          <p className="mt-1 truncate text-xs font-semibold text-white/55">{admin.email}</p>
+          <p className="mt-2 inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wider text-emerald-300">
+            <span className="h-2 w-2 rounded-full bg-emerald-400" /> Identità Auth verificata
+          </p>
+        </div>
+      </div>
+      <button type="button" onClick={onPassword} className="flex h-12 w-full items-center justify-center gap-2 border-t border-white/10 bg-white/[.055] text-[10px] font-black tracking-[.1em] text-amber-100 transition hover:bg-white/10">
+        <LockKeyhole size={15} /> CAMBIA PASSWORD
+      </button>
+    </article>
   );
 }
 
@@ -693,6 +799,102 @@ function PinForm({ open, onClose, target, onSubmit }) {
     </PremiumModal>
   );
 }
+
+function PasswordFieldInput({ value, onChange, visible, onToggle, autoFocus, autoComplete }) {
+  return (
+    <div className="relative">
+      <Input
+        autoFocus={autoFocus}
+        type={visible ? "text" : "password"}
+        autoComplete={autoComplete}
+        value={value}
+        onChange={onChange}
+        className="pr-12"
+      />
+      <button type="button" aria-label={visible ? "Nascondi password" : "Mostra password"} onClick={onToggle} className="absolute right-2 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-xl text-amber-800 hover:bg-amber-50">
+        {visible ? <EyeOff size={17} /> : <Eye size={17} />}
+      </button>
+    </div>
+  );
+}
+
+function AdminPasswordForm({ onClose, onSubmit }) {
+  const [form, setForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
+  const [show, setShow] = useState({ current: false, next: false });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const strong = isStrongAdminPassword(form.newPassword);
+  const matches = Boolean(form.newPassword) && form.newPassword === form.confirmPassword;
+  const ready = Boolean(form.currentPassword) && strong && matches && !busy;
+
+  async function save() {
+    if (!ready) return;
+    setBusy(true);
+    setError("");
+    try {
+      await onSubmit(form);
+    } catch (e) {
+      setError(e?.message || "Impossibile aggiornare la password.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <PremiumModal
+      open
+      onClose={busy ? () => {} : onClose}
+      title="Cambia password Admin"
+      subtitle={ADMIN_DISPLAY_NAME}
+      footer={
+        <>
+          <Button variant="ghost" disabled={busy} onClick={onClose}>ANNULLA</Button>
+          <Button variant="primary" icon={LockKeyhole} disabled={!ready} onClick={save}>
+            {busy ? "AGGIORNAMENTO…" : "SALVA PASSWORD"}
+          </Button>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        <Field label="Password attuale" required>
+          <PasswordFieldInput
+            autoFocus
+            autoComplete="current-password"
+            value={form.currentPassword}
+            onChange={(e) => setForm((prev) => ({ ...prev, currentPassword: e.target.value }))}
+            visible={show.current}
+            onToggle={() => setShow((prev) => ({ ...prev, current: !prev.current }))}
+          />
+        </Field>
+        <Field label="Nuova password" required>
+          <PasswordFieldInput
+            autoComplete="new-password"
+            value={form.newPassword}
+            onChange={(e) => setForm((prev) => ({ ...prev, newPassword: e.target.value }))}
+            visible={show.next}
+            onToggle={() => setShow((prev) => ({ ...prev, next: !prev.next }))}
+          />
+        </Field>
+        <Field label="Conferma nuova password" required>
+          <Input
+            type={show.next ? "text" : "password"}
+            autoComplete="new-password"
+            value={form.confirmPassword}
+            onChange={(e) => setForm((prev) => ({ ...prev, confirmPassword: e.target.value }))}
+          />
+        </Field>
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-[10px] font-bold leading-relaxed text-amber-950">
+          Almeno 10 caratteri, con maiuscola, minuscola, numero e simbolo.
+        </div>
+        {form.newPassword && !strong && <p className="text-xs font-bold text-red-600">La nuova password non rispetta tutti i requisiti.</p>}
+        {form.confirmPassword && !matches && <p className="text-xs font-bold text-red-600">Le due nuove password non coincidono.</p>}
+        {error && <p className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-bold text-red-700">{error}</p>}
+      </div>
+    </PremiumModal>
+  );
+}
+
 function ConfirmDialog({ open, onClose, title, message, confirm, onConfirm }) {
   return (
     <PremiumModal
