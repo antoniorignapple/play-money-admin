@@ -1,3 +1,4 @@
+import { getRomeISODate } from '../lib/dates.js';
 import { useEffect, useMemo, useState } from "react";
 import {
   Plus,
@@ -37,7 +38,7 @@ import { DIPENDENTI_SAFE_FIELDS } from "../lib/dipendentiFields";
 
 const fmtEuro = (n) =>
   `${Math.trunc(Number(n) || 0).toLocaleString("it-IT")} €`;
-const todayKey = () => new Date().toISOString().slice(0, 10);
+const todayKey = () => getRomeISODate();
 const formatITDate = (d) => {
   if (!d) return "—";
   const [y, m, day] = String(d).slice(0, 10).split("-");

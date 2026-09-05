@@ -28,7 +28,7 @@ export default defineConfig({
     tailwindcss(),
     releaseMetadata(),
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
       includeAssets: ['favicon.ico', 'app-icon.png', 'logo192.png.png', 'logo512.png.png'],
       manifest: {
         id: '/',

@@ -1,3 +1,4 @@
+import { getRomeISODate } from '../lib/dates.js';
 import { useEffect, useMemo, useState } from 'react'
 import {
   ArrowDownToLine, CalendarDays, Landmark, Plus, RefreshCw, Trash2,
@@ -21,7 +22,7 @@ function fmtDate(value) {
 }
 
 function todayISO() {
-  return new Date().toISOString().slice(0, 10)
+  return getRomeISODate()
 }
 
 export default function ContabilitaCassaPage() {

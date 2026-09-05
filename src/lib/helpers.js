@@ -1,18 +1,9 @@
+import { getRomeISODate, firstDayOfRomeMonth, shiftDateKey } from './dates.js'
+
 // ============ DATE UTILS ============
-export function todayISO() {
-  return new Date().toISOString().slice(0, 10)
-}
-
-export function firstDayOfMonthISO() {
-  const d = new Date()
-  return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10)
-}
-
-export function daysAgoISO(n) {
-  const d = new Date()
-  d.setDate(d.getDate() - n)
-  return d.toISOString().slice(0, 10)
-}
+export const todayISO = () => getRomeISODate()
+export const firstDayOfMonthISO = () => firstDayOfRomeMonth()
+export const daysAgoISO = (n) => shiftDateKey(getRomeISODate(), -n)
 
 export function toIT(value) {
   if (!value) return '—'

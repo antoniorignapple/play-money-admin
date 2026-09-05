@@ -1,3 +1,4 @@
+import { getRomeISODate } from '../lib/dates.js';
 import { useEffect, useMemo, useState } from "react";
 import {
   CalendarDays,
@@ -20,7 +21,7 @@ import { useToast } from "../components/Toast";
 import { dipendenteId, dipendenteName, formatEuro0 } from "../lib/helpers";
 import { DIPENDENTI_SAFE_FIELDS } from "../lib/dipendentiFields";
 
-const todayISO = () => new Date().toISOString().slice(0, 10);
+const todayISO = () => getRomeISODate();
 const normalizePlate = (value) =>
   String(value || "")
     .replace(/[^a-z0-9]/gi, "")

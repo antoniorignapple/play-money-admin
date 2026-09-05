@@ -1,3 +1,4 @@
+import { getRomeISODate } from '../lib/dates.js';
 import { useEffect, useMemo, useState } from "react";
 import {
   Download,
@@ -242,7 +243,7 @@ export default function AgentiPage() {
     );
     const a = document.createElement("a");
     a.href = url;
-    a.download = `agenti_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `agenti_${getRomeISODate()}.csv`;
     a.click();
     URL.revokeObjectURL(url);
     toast.success("CSV scaricato");

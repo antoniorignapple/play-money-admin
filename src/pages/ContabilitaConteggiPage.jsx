@@ -1,3 +1,4 @@
+import { getRomeISODate } from '../lib/dates.js';
 import { useEffect, useMemo, useState } from 'react'
 import {
   CalendarDays, Check, ChevronRight, Plus, RefreshCw, Search, Trash2, Calculator, X, AlertTriangle, FileText, ReceiptText,
@@ -20,7 +21,7 @@ function fmtDate(value) {
 }
 
 function todayISO() {
-  return new Date().toISOString().slice(0, 10)
+  return getRomeISODate()
 }
 
 const normalizeText = (value) =>
