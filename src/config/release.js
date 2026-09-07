@@ -1,10 +1,10 @@
 export const RELEASE = Object.freeze({
-  "VERSION": "9.9",
+  "VERSION": "10.0",
   "TITLE": "Novità della versione",
   "ITEMS": [
-    "Date operative corrette nel fuso italiano",
-    "Aggiornamento disponibile con conferma manuale",
-    "Dipendenze aggiornate con verifica di sicurezza"
+    "Slot installate per ogni locale con gestione quantità",
+    "Nuova sezione Change installati nel locale",
+    "Popup protetti dai click accidentali sullo sfondo"
   ]
 });
 export const APP_VERSION = RELEASE.VERSION;

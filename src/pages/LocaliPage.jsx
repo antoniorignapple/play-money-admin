@@ -7,7 +7,9 @@ import {
   ChevronUp,
   Clock3,
   Database,
+  Gamepad2,
   MapPin,
+  Minus,
   Pencil,
   Plus,
   RefreshCw,
@@ -27,8 +29,10 @@ import { useToast } from "../components/Toast";
 import { venueSortFn, formatEuro0, formatDateTime } from "../lib/helpers";
 
 const PROTECTED_VENUES = new Set(["D01", "D02", "D03", "D04", "D05"]);
+const SLOT_MODELS = ["QUEEN 1", "QUEEN 2", "JACK", "GAMINATOR", "MARIM TOUCH"];
 const impactLabels = {
   machines: "Change",
+  venue_slots: "Slot installate",
   change_reports: "Report Change",
   movements_cassa: "Movimenti Cassa",
   conteggi_tool: "Conteggi",
@@ -101,14 +105,10 @@ function PremiumFormModal({
     }
   };
   return (
-    <div
-      className="fixed inset-0 z-[10001] flex items-center justify-center bg-[#120d05]/70 p-3 backdrop-blur-md"
-      onClick={() => !saving && onClose()}
-    >
+    <div className="fixed inset-0 z-[10001] flex items-center justify-center bg-[#120d05]/70 p-3 backdrop-blur-md">
       <form
         onSubmit={submit}
         className="w-full max-w-[560px] overflow-hidden rounded-[30px] border border-[#d5b66c] bg-[#fffdf9] shadow-[0_40px_100px_-30px_rgba(0,0,0,.9)]"
-        onClick={(e) => e.stopPropagation()}
       >
         <div className="relative overflow-hidden bg-[linear-gradient(135deg,#3f2908_0%,#895912_58%,#c89532_100%)] px-5 py-6 text-white">
           <div className="pointer-events-none absolute -right-12 -top-16 h-48 w-48 rounded-full bg-amber-200/20 blur-3xl" />
@@ -201,24 +201,163 @@ function PremiumFormModal({
             </div>
           )}
         </div>
-        <div className="grid grid-cols-[1fr_2fr] gap-2 border-t border-[#e5d7bb] bg-[#faf2e2] p-3">
-          <button
-            type="button"
-            disabled={saving}
-            onClick={onClose}
-            className="h-12 rounded-[14px] border border-[#d8c8a8] bg-white text-[10px] font-black text-slate-500"
-          >
-            ANNULLA
-          </button>
+        <div className="border-t border-[#e5d7bb] bg-[#faf2e2] p-3">
           <button
             type="submit"
             disabled={saving}
-            className="h-12 rounded-[14px] bg-[linear-gradient(135deg,#aa741b,#68420a)] text-[11px] font-black tracking-[.1em] text-white shadow-[0_14px_25px_-16px_rgba(75,45,3,.9)] disabled:opacity-45"
+            className="h-12 w-full rounded-[14px] bg-[linear-gradient(135deg,#aa741b,#68420a)] text-[11px] font-black tracking-[.1em] text-white shadow-[0_14px_25px_-16px_rgba(75,45,3,.9)] disabled:opacity-45"
           >
             {saving ? "SALVATAGGIO…" : submitLabel}
           </button>
         </div>
       </form>
+    </div>
+  );
+}
+
+
+function SlotManagementModal({ open, onClose, slots = [], onSave }) {
+  const [quantities, setQuantities] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!open) return;
+    const next = Object.fromEntries(SLOT_MODELS.map((model) => [model, 0]));
+    for (const row of slots) {
+      if (SLOT_MODELS.includes(row.model)) next[row.model] = Number(row.quantity || 0);
+    }
+    setQuantities(next);
+    setError("");
+  }, [open, slots]);
+
+  if (!open) return null;
+
+  const setQuantity = (model, value) => {
+    const numeric = Math.max(0, Math.min(999, Number(value) || 0));
+    setQuantities((current) => ({ ...current, [model]: numeric }));
+  };
+
+  const save = async () => {
+    setError("");
+    try {
+      setSaving(true);
+      await onSave(
+        SLOT_MODELS.map((model) => ({
+          model,
+          quantity: Number(quantities[model] || 0),
+        })).filter((row) => row.quantity > 0),
+      );
+    } catch (e) {
+      setError(e?.message || "Impossibile salvare le Slot");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[10002] flex items-center justify-center bg-[#120d05]/75 p-3 backdrop-blur-md">
+      <div className="max-h-[94vh] w-full max-w-[620px] overflow-hidden rounded-[30px] border border-[#d5b66c] bg-[#fffdf9] shadow-[0_40px_100px_-30px_rgba(0,0,0,.9)]">
+        <div className="relative overflow-hidden bg-[linear-gradient(135deg,#3f2908_0%,#895912_58%,#c89532_100%)] px-5 py-6 text-white">
+          <div className="pointer-events-none absolute -right-12 -top-16 h-48 w-48 rounded-full bg-amber-200/20 blur-3xl" />
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() => !saving && onClose()}
+            aria-label="Chiudi popup"
+            className="absolute right-3 top-3 z-50 flex h-10 w-10 items-center justify-center rounded-[12px] border border-white/25 bg-black/20 text-white shadow-lg transition hover:bg-black/35 active:scale-90 disabled:opacity-40"
+          >
+            <X size={18} />
+          </button>
+          <div className="relative flex items-center gap-4">
+            <span className="flex h-14 w-14 items-center justify-center rounded-[18px] border border-white/20 bg-white/12 shadow-lg">
+              <Gamepad2 size={26} />
+            </span>
+            <div>
+              <p className="text-[9px] font-black tracking-[.25em] text-amber-200">
+                PARCO SLOT
+              </p>
+              <h2 className="mt-1 text-[23px] font-black tracking-[.06em]">
+                SLOT INSTALLATE NEL LOCALE
+              </h2>
+            </div>
+          </div>
+        </div>
+
+        <div className="max-h-[calc(94vh-190px)] overflow-y-auto p-5">
+          <div className="mb-4 rounded-[18px] border border-amber-200 bg-[linear-gradient(135deg,#fff9e9,#f7e5b7)] p-3 text-[10px] font-bold leading-relaxed text-[#795116]">
+            Imposta la quantità presente per ogni modello. Lascia <strong>0</strong> per i mobili non installati.
+          </div>
+
+          <div className="space-y-2.5">
+            {SLOT_MODELS.map((model) => {
+              const quantity = Number(quantities[model] || 0);
+              return (
+                <div
+                  key={model}
+                  className={`flex items-center gap-3 rounded-[18px] border p-3 transition ${quantity > 0 ? "border-[#c99b42] bg-[#fff8e8] shadow-[0_12px_24px_-22px_rgba(90,55,4,.9)]" : "border-[#e5d8bd] bg-white"}`}
+                >
+                  <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[13px] ${quantity > 0 ? "bg-[#8c5d12] text-white" : "bg-[#f4ecdd] text-[#9c7c47]"}`}>
+                    <Gamepad2 size={19} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[9px] font-black tracking-[.14em] text-[#a06c17]">MOBILE SLOT</p>
+                    <p className="truncate text-[15px] font-black text-[#33250f]">{model}</p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <button
+                      type="button"
+                      disabled={saving || quantity <= 0}
+                      onClick={() => setQuantity(model, quantity - 1)}
+                      className="flex h-10 w-10 items-center justify-center rounded-[12px] border border-[#d8c08b] bg-white text-[#805718] transition active:scale-95 disabled:opacity-30"
+                      aria-label={`Riduci ${model}`}
+                    >
+                      <Minus size={16} />
+                    </button>
+                    <input
+                      type="number"
+                      min="0"
+                      max="999"
+                      inputMode="numeric"
+                      disabled={saving}
+                      value={quantity}
+                      onChange={(event) => setQuantity(model, event.target.value)}
+                      className="h-10 w-16 rounded-[12px] border border-[#d8c08b] bg-white text-center text-[17px] font-black tabular-nums text-[#3d2a0b] outline-none focus:border-[#a87318] focus:ring-2 focus:ring-amber-200"
+                      aria-label={`Quantità ${model}`}
+                    />
+                    <button
+                      type="button"
+                      disabled={saving || quantity >= 999}
+                      onClick={() => setQuantity(model, quantity + 1)}
+                      className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-[linear-gradient(135deg,#a97218,#70490d)] text-white transition active:scale-95 disabled:opacity-30"
+                      aria-label={`Aumenta ${model}`}
+                    >
+                      <Plus size={16} />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {error && (
+            <div className="mt-4 rounded-[14px] border border-red-200 bg-red-50 p-3 text-center text-[11px] font-black text-red-700">
+              {error}
+            </div>
+          )}
+        </div>
+
+        <div className="border-t border-[#e5d7bb] bg-[#faf2e2] p-3">
+          <button
+            type="button"
+            disabled={saving}
+            onClick={save}
+            className="h-12 w-full rounded-[14px] bg-[linear-gradient(135deg,#aa741b,#68420a)] text-[11px] font-black tracking-[.1em] text-white shadow-[0_14px_25px_-16px_rgba(75,45,3,.9)] disabled:opacity-45"
+          >
+            {saving ? "SALVATAGGIO…" : "SALVA SLOT INSTALLATE"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -238,6 +377,7 @@ export default function LocaliPage() {
   const [createMachineOpen, setCreateMachineOpen] = useState(false);
   const [editMachineTarget, setEditMachineTarget] = useState(null);
   const [deleteMachineTarget, setDeleteMachineTarget] = useState(null);
+  const [slotModalOpen, setSlotModalOpen] = useState(false);
   const [dangerOpen, setDangerOpen] = useState(false);
   const [impact, setImpact] = useState(null);
   const [impactLoading, setImpactLoading] = useState(false);
@@ -279,12 +419,22 @@ export default function LocaliPage() {
   }
 
   async function selectVenue(venue) {
-    const machineResult = await supabase
-      .from("machines")
-      .select("*")
-      .eq("venue_id", venue.id)
-      .order("name");
+    const [machineResult, slotResult] = await Promise.all([
+      supabase
+        .from("machines")
+        .select("*")
+        .eq("venue_id", venue.id)
+        .order("name"),
+      supabase
+        .from("venue_slots")
+        .select("venue_id,model,quantity,updated_at,updated_by")
+        .eq("venue_id", venue.id)
+        .order("model"),
+    ]);
+    if (machineResult.error) toast.error(machineResult.error.message);
+    if (slotResult.error) toast.error(`Slot: ${slotResult.error.message}`);
     const machines = machineResult.data || [];
+    const slots = slotResult.data || [];
     let reports = [];
     if (machines.length) {
       const historyResult = await supabase
@@ -308,7 +458,7 @@ export default function LocaliPage() {
         return true;
       });
     }
-    setSelectedVenue({ ...venue, machines });
+    setSelectedVenue({ ...venue, machines, slots });
     setHistory(reports);
     setHistoryOpen({});
     setEditMachineTarget(null);
@@ -407,6 +557,17 @@ export default function LocaliPage() {
     toast.success("Change rimosso dalla visualizzazione");
   }
 
+  async function saveVenueSlots(rows) {
+    const { error } = await supabase.rpc("set_venue_slots", {
+      p_venue_id: selectedVenue.id,
+      p_slots: rows,
+    });
+    if (error) throw new Error(error.message);
+    setSlotModalOpen(false);
+    await selectVenue(selectedVenue);
+    toast.success("Slot installate aggiornate");
+  }
+
   async function deleteReport(report) {
     const reportFingerprint = (row) => {
       const level = Number(row.level ?? row.new_level ?? 0);
@@ -485,6 +646,16 @@ export default function LocaliPage() {
       [...(selectedVenue?.machines || [])]
         .filter((machine) => machine.active !== false)
         .sort((a, b) => String(a.name).localeCompare(String(b.name))),
+    [selectedVenue],
+  );
+  const sortedSlots = useMemo(
+    () =>
+      [...(selectedVenue?.slots || [])]
+        .filter((slot) => Number(slot.quantity || 0) > 0)
+        .sort(
+          (a, b) =>
+            SLOT_MODELS.indexOf(a.model) - SLOT_MODELS.indexOf(b.model),
+        ),
     [selectedVenue],
   );
   const recentHistory = useMemo(
@@ -679,7 +850,7 @@ export default function LocaliPage() {
                       PARCO MACCHINE
                     </p>
                     <h3 className="text-[21px] font-black tracking-[.1em] text-[#3d2a0b]">
-                      CHANGE DEL LOCALE
+                      CHANGE INSTALLATI NEL LOCALE
                     </h3>
                   </div>
                   <button
@@ -855,6 +1026,72 @@ export default function LocaliPage() {
                   </div>
                 )}
 
+                <section className="overflow-hidden rounded-[26px] border border-[#d9c18a] bg-[#fffdf9] shadow-[0_22px_48px_-35px_rgba(66,39,3,.75)]">
+                  <div className="flex flex-col gap-3 border-b border-[#e8dcc3] bg-[linear-gradient(135deg,#fff9eb,#f1dfb4)] p-5 md:flex-row md:items-center md:justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-11 w-11 items-center justify-center rounded-[14px] bg-[linear-gradient(135deg,#a97218,#70490d)] text-white shadow-lg">
+                        <Gamepad2 size={20} />
+                      </span>
+                      <div>
+                        <p className="text-[9px] font-black tracking-[.2em] text-[#a06c17]">
+                          PARCO SLOT
+                        </p>
+                        <h3 className="text-[19px] font-black tracking-[.08em] text-[#3d2a0b] md:text-[21px]">
+                          SLOT INSTALLATE NEL LOCALE
+                        </h3>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSlotModalOpen(true)}
+                      className="flex h-11 items-center justify-center gap-2 rounded-[14px] bg-[linear-gradient(135deg,#a97218,#70490d)] px-5 text-[10px] font-black tracking-[.08em] text-white shadow-lg"
+                    >
+                      {sortedSlots.length ? <Pencil size={14} /> : <Plus size={14} />}
+                      {sortedSlots.length ? "GESTISCI SLOT" : "AGGIUNGI SLOT"}
+                    </button>
+                  </div>
+
+                  {sortedSlots.length === 0 ? (
+                    <div className="p-4">
+                      <EmptyState
+                        icon={Gamepad2}
+                        title="Nessuna Slot installata"
+                        description="Aggiungi i mobili presenti in questo locale e indica le quantità."
+                        action={
+                          <button
+                            type="button"
+                            onClick={() => setSlotModalOpen(true)}
+                            className="flex h-10 items-center gap-2 rounded-[13px] border border-[#c99b42] bg-[#fff8e8] px-4 text-[10px] font-black text-[#805718]"
+                          >
+                            <Plus size={14} /> AGGIUNGI SLOT
+                          </button>
+                        }
+                      />
+                    </div>
+                  ) : (
+                    <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">
+                      {sortedSlots.map((slot) => (
+                        <article
+                          key={slot.model}
+                          className="flex min-h-[100px] items-center gap-3 rounded-[19px] border border-[#e1d0aa] bg-white p-4 shadow-[0_14px_28px_-26px_rgba(72,43,3,.8)]"
+                        >
+                          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[15px] bg-[#f5ead3] text-[#8a5d16]">
+                            <Gamepad2 size={21} />
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[8px] font-black tracking-[.16em] text-[#a06c17]">MOBILE SLOT</p>
+                            <h4 className="mt-1 truncate text-[15px] font-black text-[#33250f]">{slot.model}</h4>
+                          </div>
+                          <div className="shrink-0 rounded-[14px] bg-[linear-gradient(135deg,#aa741b,#68420a)] px-3 py-2 text-center text-white shadow-md">
+                            <p className="text-[20px] font-black leading-none tabular-nums">{slot.quantity}</p>
+                            <p className="mt-1 text-[7px] font-black tracking-[.12em] text-amber-100">SLOT</p>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  )}
+                </section>
+
                 <section className="overflow-hidden rounded-[26px] border border-red-200 bg-white shadow-[0_20px_45px_-38px_rgba(185,28,28,.65)]">
                   <div className="flex flex-col gap-3 p-5 md:flex-row md:items-center md:justify-between">
                     <div className="flex items-start gap-3">
@@ -999,6 +1236,12 @@ export default function LocaliPage() {
           },
         ]}
         onSubmit={saveMachine}
+      />
+      <SlotManagementModal
+        open={slotModalOpen}
+        onClose={() => setSlotModalOpen(false)}
+        slots={selectedVenue?.slots || []}
+        onSave={saveVenueSlots}
       />
       <ConfirmDialog
         open={!!deleteMachineTarget}

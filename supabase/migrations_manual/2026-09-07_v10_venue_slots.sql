@@ -1,6 +1,130 @@
--- Eliminazione completa e atomica di un locale.
--- Eseguire una sola volta nel SQL Editor Supabase prima di usare il pulsante nell'app.
+-- Play Money Admin v10.0
+-- Slot installate per locale + salvataggio atomico.
+-- Eseguire nel SQL Editor Supabase prima di usare la nuova sezione SLOT.
 
+create table if not exists public.venue_slots (
+  venue_id text not null references public.venues(id) on delete cascade,
+  model text not null,
+  quantity integer not null,
+  updated_at timestamptz not null default now(),
+  updated_by uuid,
+  constraint venue_slots_pkey primary key (venue_id, model),
+  constraint venue_slots_model_check check (
+    model in ('QUEEN 1','QUEEN 2','JACK','GAMINATOR','MARIM TOUCH')
+  ),
+  constraint venue_slots_quantity_check check (quantity between 1 and 999)
+);
+
+create index if not exists venue_slots_venue_id_idx
+  on public.venue_slots(venue_id);
+
+alter table public.venue_slots enable row level security;
+
+drop policy if exists venue_slots_read on public.venue_slots;
+create policy venue_slots_read
+  on public.venue_slots
+  for select
+  to authenticated
+  using (true);
+
+-- Le scritture passano esclusivamente dalla RPC protetta set_venue_slots.
+revoke insert, update, delete on table public.venue_slots from anon, authenticated;
+grant select on table public.venue_slots to authenticated, service_role;
+
+create or replace function public.set_venue_slots(
+  p_venue_id text,
+  p_slots jsonb
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  result jsonb;
+begin
+  if auth.uid() is null or not public.is_play_money_admin_secure() then
+    raise exception 'Operazione consentita esclusivamente a un amministratore.'
+      using errcode = '42501';
+  end if;
+
+  if not exists (
+    select 1 from public.venues where id::text = p_venue_id
+  ) then
+    raise exception 'Locale non trovato.';
+  end if;
+
+  if p_slots is null or jsonb_typeof(p_slots) <> 'array' then
+    raise exception 'Elenco Slot non valido.';
+  end if;
+
+  if exists (
+    select 1
+    from jsonb_to_recordset(p_slots) as x(model text, quantity integer)
+    where upper(trim(coalesce(x.model, ''))) not in (
+      'QUEEN 1','QUEEN 2','JACK','GAMINATOR','MARIM TOUCH'
+    )
+       or x.quantity is null
+       or x.quantity < 1
+       or x.quantity > 999
+  ) then
+    raise exception 'Modello o quantità Slot non validi.';
+  end if;
+
+  if exists (
+    select 1
+    from jsonb_to_recordset(p_slots) as x(model text, quantity integer)
+    group by upper(trim(x.model))
+    having count(*) > 1
+  ) then
+    raise exception 'Lo stesso modello Slot è presente più di una volta.';
+  end if;
+
+  -- DELETE + INSERT avvengono nella stessa transazione della funzione:
+  -- in caso di errore il precedente stato resta intatto.
+  delete from public.venue_slots
+  where venue_id::text = p_venue_id;
+
+  insert into public.venue_slots (
+    venue_id,
+    model,
+    quantity,
+    updated_at,
+    updated_by
+  )
+  select
+    p_venue_id,
+    upper(trim(x.model)),
+    x.quantity,
+    now(),
+    auth.uid()
+  from jsonb_to_recordset(p_slots) as x(model text, quantity integer);
+
+  select coalesce(
+    jsonb_agg(
+      jsonb_build_object(
+        'venue_id', s.venue_id,
+        'model', s.model,
+        'quantity', s.quantity,
+        'updated_at', s.updated_at,
+        'updated_by', s.updated_by
+      ) order by s.model
+    ),
+    '[]'::jsonb
+  )
+  into result
+  from public.venue_slots s
+  where s.venue_id::text = p_venue_id;
+
+  return result;
+end;
+$$;
+
+revoke all on function public.set_venue_slots(text, jsonb) from public, anon, authenticated;
+grant execute on function public.set_venue_slots(text, jsonb) to authenticated, service_role;
+
+-- Aggiorna anche l'anteprima/cancellazione definitiva del locale
+-- includendo le Slot installate nel conteggio e nella rimozione atomica.
 create or replace function public.preview_venue_deletion(p_venue_id text)
 returns jsonb
 language plpgsql
@@ -59,7 +183,6 @@ declare
   affected bigint;
   is_admin boolean := false;
 begin
-  -- Solo gli account registrati nella tabella Admin protetta possono procedere.
   select auth.uid() is not null and public.is_play_money_admin_secure() into is_admin;
   if not is_admin then
     raise exception 'Operazione consentita esclusivamente a un amministratore.'
@@ -74,7 +197,6 @@ begin
     get diagnostics affected = row_count; deleted_count := deleted_count + affected;
   end if;
 
-  -- Prima i movimenti figli, poi le rispettive testate.
   foreach t_name in array array[
     'venue_slots','debiti_movimenti','bonus_movimenti','change_favorites','codici_favorites','giro_venue_assignments',
     'movements_cassa','conteggi_tool','conteggi_admin_rows','calendario_conteggi','simulazioni_richieste','simulazioni','note_generiche','debiti','bonus'
