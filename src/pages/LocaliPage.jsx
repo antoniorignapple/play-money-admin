@@ -29,7 +29,40 @@ import { useToast } from "../components/Toast";
 import { venueSortFn, formatEuro0, formatDateTime } from "../lib/helpers";
 
 const PROTECTED_VENUES = new Set(["D01", "D02", "D03", "D04", "D05"]);
-const SLOT_MODELS = ["QUEEN 1", "QUEEN 2", "JACK", "GAMINATOR", "MARIM TOUCH"];
+const SLOT_CATALOG = [
+  {
+    model: "QUEEN 1",
+    image: "/slot-machine/queen-1.png",
+    aliases: ["QUEEN", "QUEEN I"],
+  },
+  {
+    model: "QUEEN 2",
+    image: "/slot-machine/queen-2.png",
+    aliases: ["QUEEN II"],
+  },
+  {
+    model: "JACK",
+    image: "/slot-machine/jack.png",
+    aliases: [],
+  },
+  {
+    model: "GAMINATOR",
+    image: "/slot-machine/gaminator.png",
+    aliases: [],
+  },
+  {
+    model: "MARIK TOUCH",
+    image: "/slot-machine/marik-touch.png",
+    aliases: ["MARIM TOUCH"],
+  },
+];
+const SLOT_MODELS = SLOT_CATALOG.map((slot) => slot.model);
+const SLOT_MODEL_LOOKUP = Object.fromEntries(
+  SLOT_CATALOG.flatMap(({ model, aliases = [] }) => [
+    [model.toUpperCase(), model],
+    ...aliases.map((alias) => [alias.toUpperCase(), model]),
+  ]),
+);
 const impactLabels = {
   machines: "Change",
   venue_slots: "Slot installate",
@@ -57,6 +90,37 @@ function getChangeImage(name = "") {
   if (value.includes("twin")) return "/change-machine/twin-icon.png";
   if (value.includes("bell")) return "/change-machine/bell-icon.png";
   return "/change-machine/generic.png";
+}
+function normalizeSlotModel(model = "") {
+  const value = String(model).trim().toUpperCase();
+  return SLOT_MODEL_LOOKUP[value] || value;
+}
+
+function getSlotImage(model = "") {
+  const normalized = normalizeSlotModel(model);
+  return SLOT_CATALOG.find((slot) => slot.model === normalized)?.image || null;
+}
+
+function getSlotSortIndex(model = "") {
+  const index = SLOT_MODELS.indexOf(normalizeSlotModel(model));
+  return index === -1 ? SLOT_MODELS.length + 99 : index;
+}
+
+function normalizeSlotRows(rows = []) {
+  const bucket = new Map();
+  for (const row of rows) {
+    const model = normalizeSlotModel(row.model);
+    const quantity = Number(row.quantity || 0);
+    const current = bucket.get(model);
+    if (current) {
+      current.quantity += quantity;
+      current.updated_at = row.updated_at || current.updated_at;
+      current.updated_by = row.updated_by || current.updated_by;
+      continue;
+    }
+    bucket.set(model, { ...row, model, quantity });
+  }
+  return [...bucket.values()];
 }
 function generateVenueCode() {
   const values = new Uint32Array(1);
@@ -225,7 +289,10 @@ function SlotManagementModal({ open, onClose, slots = [], onSave }) {
     if (!open) return;
     const next = Object.fromEntries(SLOT_MODELS.map((model) => [model, 0]));
     for (const row of slots) {
-      if (SLOT_MODELS.includes(row.model)) next[row.model] = Number(row.quantity || 0);
+      const normalized = normalizeSlotModel(row.model);
+      if (SLOT_MODELS.includes(normalized)) {
+        next[normalized] = Number(next[normalized] || 0) + Number(row.quantity || 0);
+      }
     }
     setQuantities(next);
     setError("");
@@ -292,13 +359,23 @@ function SlotManagementModal({ open, onClose, slots = [], onSave }) {
           <div className="space-y-2.5">
             {SLOT_MODELS.map((model) => {
               const quantity = Number(quantities[model] || 0);
+              const slotImage = getSlotImage(model);
               return (
                 <div
                   key={model}
                   className={`flex items-center gap-3 rounded-[18px] border p-3 transition ${quantity > 0 ? "border-[#c99b42] bg-[#fff8e8] shadow-[0_12px_24px_-22px_rgba(90,55,4,.9)]" : "border-[#e5d8bd] bg-white"}`}
                 >
-                  <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[13px] ${quantity > 0 ? "bg-[#8c5d12] text-white" : "bg-[#f4ecdd] text-[#9c7c47]"}`}>
-                    <Gamepad2 size={19} />
+                  <span className={`flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-[15px] border ${quantity > 0 ? "border-[#d3ad61] bg-[linear-gradient(180deg,#fff7e7,#faedd1)]" : "border-[#eadcc0] bg-[#fffaf1]"}`}>
+                    {slotImage ? (
+                      <img
+                        src={slotImage}
+                        alt={model}
+                        className="h-full w-full object-contain p-1.5 drop-shadow-[0_10px_14px_rgba(0,0,0,.18)]"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <Gamepad2 size={21} className={quantity > 0 ? "text-[#8c5d12]" : "text-[#9c7c47]"} />
+                    )}
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="text-[9px] font-black tracking-[.14em] text-[#a06c17]">MOBILE SLOT</p>
@@ -434,7 +511,7 @@ export default function LocaliPage() {
     if (machineResult.error) toast.error(machineResult.error.message);
     if (slotResult.error) toast.error(`Slot: ${slotResult.error.message}`);
     const machines = machineResult.data || [];
-    const slots = slotResult.data || [];
+    const slots = normalizeSlotRows(slotResult.data || []);
     let reports = [];
     if (machines.length) {
       const historyResult = await supabase
@@ -652,10 +729,11 @@ export default function LocaliPage() {
     () =>
       [...(selectedVenue?.slots || [])]
         .filter((slot) => Number(slot.quantity || 0) > 0)
-        .sort(
-          (a, b) =>
-            SLOT_MODELS.indexOf(a.model) - SLOT_MODELS.indexOf(b.model),
-        ),
+        .sort((a, b) => {
+          const diff = getSlotSortIndex(a.model) - getSlotSortIndex(b.model);
+          if (diff !== 0) return diff;
+          return String(a.model).localeCompare(String(b.model));
+        }),
     [selectedVenue],
   );
   const recentHistory = useMemo(
@@ -1070,24 +1148,36 @@ export default function LocaliPage() {
                     </div>
                   ) : (
                     <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">
-                      {sortedSlots.map((slot) => (
-                        <article
-                          key={slot.model}
-                          className="flex min-h-[100px] items-center gap-3 rounded-[19px] border border-[#e1d0aa] bg-white p-4 shadow-[0_14px_28px_-26px_rgba(72,43,3,.8)]"
-                        >
-                          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[15px] bg-[#f5ead3] text-[#8a5d16]">
-                            <Gamepad2 size={21} />
-                          </span>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-[8px] font-black tracking-[.16em] text-[#a06c17]">MOBILE SLOT</p>
-                            <h4 className="mt-1 truncate text-[15px] font-black text-[#33250f]">{slot.model}</h4>
-                          </div>
-                          <div className="shrink-0 rounded-[14px] bg-[linear-gradient(135deg,#aa741b,#68420a)] px-3 py-2 text-center text-white shadow-md">
-                            <p className="text-[20px] font-black leading-none tabular-nums">{slot.quantity}</p>
-                            <p className="mt-1 text-[7px] font-black tracking-[.12em] text-amber-100">SLOT</p>
-                          </div>
-                        </article>
-                      ))}
+                      {sortedSlots.map((slot) => {
+                        const slotImage = getSlotImage(slot.model);
+                        return (
+                          <article
+                            key={slot.model}
+                            className="flex min-h-[118px] items-center gap-3 rounded-[19px] border border-[#e1d0aa] bg-white p-4 shadow-[0_14px_28px_-26px_rgba(72,43,3,.8)]"
+                          >
+                            <span className="flex h-[78px] w-[78px] shrink-0 items-center justify-center overflow-hidden rounded-[18px] border border-[#ecd9af] bg-[linear-gradient(180deg,#fff8ea,#fbf0d6)]">
+                              {slotImage ? (
+                                <img
+                                  src={slotImage}
+                                  alt={slot.model}
+                                  className="h-full w-full object-contain p-1.5 drop-shadow-[0_12px_18px_rgba(0,0,0,.2)]"
+                                  loading="lazy"
+                                />
+                              ) : (
+                                <Gamepad2 size={24} className="text-[#8a5d16]" />
+                              )}
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-[8px] font-black tracking-[.16em] text-[#a06c17]">MOBILE SLOT</p>
+                              <h4 className="mt-1 truncate text-[15px] font-black text-[#33250f]">{slot.model}</h4>
+                            </div>
+                            <div className="shrink-0 rounded-[14px] bg-[linear-gradient(135deg,#aa741b,#68420a)] px-3 py-2 text-center text-white shadow-md">
+                              <p className="text-[20px] font-black leading-none tabular-nums">{slot.quantity}</p>
+                              <p className="mt-1 text-[7px] font-black tracking-[.12em] text-amber-100">SLOT</p>
+                            </div>
+                          </article>
+                        );
+                      })}
                     </div>
                   )}
                 </section>
