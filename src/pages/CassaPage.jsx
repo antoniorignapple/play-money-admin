@@ -460,10 +460,19 @@ async function updateMovement() {
     note: editRow.note || null,
   }
 
+  if (editingRow.origine === 'chiusura_conteggio' &&
+      ['work_date', 'venue_id', 'created_by', 'acconto', 'recupero', 'da_riportare'].some(key =>
+        String(payload[key] ?? '') !== String(editingRow[key] ?? ''))) {
+    toast.warning('Questo riporto deriva da un conteggio finalizzato. Correggi il conteggio originale nella sezione Conteggi.');
+    return
+  }
+
   const { error } = await supabase
     .from('movements_cassa')
     .update(payload)
     .eq('id', editingRow.id)
+    .select('id')
+    .single()
 
   if (error) {
     toast.error(`Errore modifica: ${error.message}`)

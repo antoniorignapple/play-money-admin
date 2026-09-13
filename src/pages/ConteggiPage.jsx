@@ -47,6 +47,7 @@ import {
 import { PageLayout, PageHeader, PageBody } from "../components/PageLayout";
 import { Skeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
+import ConteggioEditor from "../components/ConteggioEditor";
 import { DIPENDENTI_SAFE_FIELDS } from "../lib/dipendentiFields";
 
 const fmtEuro = (n) =>
@@ -193,6 +194,7 @@ export default function ConteggiPage() {
   const [venueFilter, setVenueFilter] = useState("all");
   const [signFilter, setSignFilter] = useState("all");
   const [selectedRow, setSelectedRow] = useState(null);
+  const [editingConteggioId, setEditingConteggioId] = useState(null);
 
   const [finalization, setFinalization] = useState({
     open: false,
@@ -2125,6 +2127,7 @@ export default function ConteggiPage() {
         onFinalize={finalizePeriod}
       />
 
+      {editingConteggioId && <ConteggioEditor rowId={editingConteggioId} venues={venues} dipendenti={dipendenti} giri={giri} onClose={() => setEditingConteggioId(null)} onSaved={async () => { setEditingConteggioId(null); setSelectedRow(null); toast.success("Conteggio aggiornato e rettifica registrata"); await loadDashboard(); await loadGiroSubmissions(); }} />}
       {selectedRow && (
         <div
           className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/65 p-3 backdrop-blur-sm"
@@ -2136,7 +2139,7 @@ export default function ConteggiPage() {
           >
             <div className="border-b border-[#d9c49a] bg-[linear-gradient(135deg,#fff9eb,#ead18e)] px-5 py-4 text-center">
               <p className="text-[9px] font-black tracking-[0.24em] text-[#986619]">
-                FOTOGRAFIA DEL CONTEGGIO
+                DETTAGLIO DEL CONTEGGIO
               </p>
               <p className="mt-1 text-[11px] font-bold text-[#74501a]">
                 {formatITDate(selectedRow.conteggio_date)} · Effettuato da{" "}
@@ -2197,6 +2200,9 @@ export default function ConteggiPage() {
               <div className="space-y-2">
                 <SnapshotRow label="USO CASSA" value={selectedRow.uso_cassa} />
                 <SnapshotRow label="DEBITO" value={selectedRow.debito} danger />
+                <SnapshotRow label="ASSEGNO" value={selectedRow.assegno} />
+                <SnapshotRow label="DEBITO VIRTUALE" value={selectedRow.debito_virt} />
+                <SnapshotRow label="BONUS" value={selectedRow.bonus} />
               </div>
             </div>
 
@@ -2211,6 +2217,7 @@ export default function ConteggiPage() {
                   {fmtSigned(selectedRow.totale_finale)}
                 </span>
               </div>
+              <button className="pm11-primary w-full mb-2" onClick={() => { setEditingConteggioId(selectedRow.id); setSelectedRow(null); }}><Pencil size={16}/> Modifica completa · storico rettifiche</button>
               <button
                 type="button"
                 onClick={() => setSelectedRow(null)}

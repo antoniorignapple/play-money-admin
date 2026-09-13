@@ -37,6 +37,7 @@ import LocaliPage from "./pages/LocaliPage";
 import AnalisiPage from "./pages/AnalisiPage";
 import AutomezziPage from "./pages/AutomezziPage";
 import CestinoPage from "./pages/CestinoPage";
+import ModifichePage from "./pages/ModifichePage";
 import GiriPage from "./pages/GiriPage";
 import { ToastProvider } from "./components/Toast";
 import { CommandPalette } from "./components/CommandPalette";
@@ -44,6 +45,7 @@ import { supabase } from "./lib/supabase";
 import { APP_VERSION } from "./config/release";
 
 const NAV = [
+  { id: "modifiche", label: "CENTRO MODIFICHE", icon: "ShieldCheck", iconCmp: ShieldCheck, hint: "Rettifiche e storico Admin 11", component: ModifichePage },
   {
     id: "analisi",
     label: "ANALISI GIORNALIERA",
@@ -704,7 +706,7 @@ function Sidebar({
     },
     {
       label: "CONTROLLO",
-      ids: ["agenti", "locali", "giri", "automezzi", "cestino"],
+      ids: ["modifiche", "agenti", "locali", "giri", "automezzi", "cestino"],
     },
   ];
   const [cassaTotale, setCassaTotale] = useState(0);

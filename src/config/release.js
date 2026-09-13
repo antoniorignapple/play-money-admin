@@ -1,10 +1,12 @@
 export const RELEASE = Object.freeze({
-  "VERSION": "10.1",
-  "TITLE": "Novità della versione",
-  "ITEMS": [
-    "Immagini dedicate per Queen, Queen II, Jack, Gaminator e Marik Touch",
-    "Schede Slot del locale con anteprima grafica dei mobili",
-    "Compatibilità automatica tra MARIM TOUCH e MARIK TOUCH"
+  VERSION: "11.0",
+  TITLE: "Admin 11 · Il controllo, completo",
+  ITEMS: [
+    "Editor completo dei conteggi con esecutore, giro, locale e data",
+    "Ricalcolo immediato e recuperi dei giorni 2, 3 e 4",
+    "Confronto prima/dopo, motivo della rettifica e storico amministrativo",
+    "Centro modifiche per cassa, simulazioni, dipendenti, locali, change, giri e automezzi",
+    "Salvataggio atomico e controllo delle modifiche concorrenti"
   ]
 });
 export const APP_VERSION = RELEASE.VERSION;
