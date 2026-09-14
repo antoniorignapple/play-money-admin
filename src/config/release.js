@@ -1,12 +1,12 @@
 export const RELEASE = Object.freeze({
-  VERSION: "11.0",
-  TITLE: "Admin 11 · Il controllo, completo",
+  VERSION: "12.1",
+  TITLE: "Admin 12.1 · Storico simulazioni completo",
   ITEMS: [
-    "Editor completo dei conteggi con esecutore, giro, locale e data",
-    "Ricalcolo immediato e recuperi dei giorni 2, 3 e 4",
-    "Confronto prima/dopo, motivo della rettifica e storico amministrativo",
-    "Centro modifiche per cassa, simulazioni, dipendenti, locali, change, giri e automezzi",
-    "Salvataggio atomico e controllo delle modifiche concorrenti"
+    "Simulazioni: tutto lo storico, filtri dedicati e PDF coerente",
+    "Salvataggio diretto con un solo clic su Salva",
+    "Rimosso il riquadro Una rettifica trasparente e il motivo obbligatorio",
+    "Rimosso lo storico rettifiche dagli editor",
+    "Ricalcolo dei totali e protezione dai salvataggi duplicati"
   ]
 });
 export const APP_VERSION = RELEASE.VERSION;

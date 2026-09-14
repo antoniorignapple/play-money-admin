@@ -1,6 +1,14 @@
-# Play Money Admin 12.0
+# Play Money Admin 12.1
 
 Aggiornamento della versione 11.0 allegata.
+
+## Novità 12.1
+- Simulazioni indipendenti dal periodo conteggi attivo, anche prima del 01/09/2026.
+- Apertura su tutto lo storico; filtri Dal, Al e Dipendente applicati alla lista e al PDF. Pulsante Tutte per azzerarli.
+- Filtro sulla data della simulazione (work_date), con data di registrazione come ripiego.
+- Caricamento a pagine senza il precedente tetto di 3000 simulazioni / 1000 nel cestino.
+- Cestino completo, indipendente dal periodo conteggi.
+- Nessuna nuova migrazione database. Restano necessarie le funzioni già previste dalla versione 11.
 
 ## Modifiche
 - Rimosso il riquadro “Una rettifica trasparente” da Modifica conteggio.
@@ -20,3 +28,5 @@ Lo ZIP contiene sorgenti e cartella dist ricompilata. Per ricompilare: npm ci e 
 
 ## Verifiche
 Test automatici di calcolo, date e protezioni aggiornamento; build di produzione e test database locali. Nessuna operazione eseguita sul database online. Le immagini nella cartella docs si riferiscono alla versione 11 archiviata.
+
+Verifica 12.1: 14 test automatici superati e build produzione riuscita. ESLint segnala problemi preesistenti nella pagina Simulazioni (import inutilizzato e gestione effetti React). Nessuna verifica sul database online.

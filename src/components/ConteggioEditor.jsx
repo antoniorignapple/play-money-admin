@@ -1,10 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   ArrowRight,
-  Check,
-  History,
   Loader2,
-  Pencil,
   RotateCcw,
   Save,
   ShieldCheck,
@@ -23,8 +20,6 @@ import {
 import "./adminEditor.css";
 
 const euro = (n) => `${Number(n || 0).toLocaleString("it-IT")} €`;
-const dateLabel = (value) =>
-  new Date(value).toLocaleString("it-IT", { timeZone: "Europe/Rome" });
 export default function ConteggioEditor({
   rowId,
   venues,
@@ -38,22 +33,12 @@ export default function ConteggioEditor({
   const [error, setError] = useState(""),
     [saving, setSaving] = useState(false),
     [loading, setLoading] = useState(true);
-  const [reason, setReason] = useState(""),
-    [tab, setTab] = useState("edit"),
-    [review, setReview] = useState(false);
-  const [history, setHistory] = useState([]),
-    [historyError, setHistoryError] = useState("");
   const panel = useRef(null);
+  const savingRef = useRef(false);
   useEffect(() => {
     let active = true;
-    Promise.all([
-      supabase.from("conteggi_tool").select("*").eq("id", rowId).maybeSingle(),
-      supabase.rpc("admin_v11_history", {
-        p_table: "conteggi_tool",
-        p_id: String(rowId),
-      }),
-    ])
-      .then(([record, audit]) => {
+    supabase.from("conteggi_tool").select("*").eq("id", rowId).maybeSingle()
+      .then((record) => {
         if (!active) return;
         if (record.error || !record.data)
           setError(
@@ -64,11 +49,6 @@ export default function ConteggioEditor({
           setOriginal(record.data);
           setDraft(toDraft(record.data));
         }
-        if (audit.error)
-          setHistoryError(
-            "Storico non disponibile. Verifica che l’aggiornamento database v11 sia installato.",
-          );
-        else setHistory(audit.data || []);
         setLoading(false);
       })
       .catch((e) => {
@@ -117,7 +97,7 @@ export default function ConteggioEditor({
   try {
     if (draft) total = conteggioTotal(draft);
   } catch {
-    /* form shows validation on review */
+    /* Validation errors are shown on save. */
   }
   const changes =
     draft && original
@@ -157,32 +137,22 @@ export default function ConteggioEditor({
   }
   function setField(key, value) {
     setError("");
-    setReview(false);
     setDraft((current) => ({ ...current, [key]: value }));
   }
   function recover(key, value) {
     try {
       setDraft(changeRecovery(draft, key, value));
       setError("");
-      setReview(false);
     } catch (e) {
       setError(e.message);
     }
   }
   async function save() {
-    if (saving) return;
+    if (savingRef.current) return;
     try {
       const payload = editorPayload(draft);
-      if (reason.trim().length < 3)
-        throw new Error(
-          "Indica il motivo della rettifica (almeno 3 caratteri).",
-        );
       if (!changes.length) throw new Error("Non ci sono modifiche da salvare.");
-      if (!review) {
-        setReview(true);
-        setError("");
-        return;
-      }
+      savingRef.current = true;
       setSaving(true);
       setError("");
       const { data, error: saveError } = await supabase.rpc(
@@ -191,7 +161,7 @@ export default function ConteggioEditor({
           p_id: rowId,
           p_expected: original,
           p_patch: payload,
-          p_reason: reason.trim(),
+          p_reason: "Modifica conteggio Admin 12",
         },
       );
       if (saveError) throw saveError;
@@ -206,8 +176,8 @@ export default function ConteggioEditor({
           ? "Installa prima l’aggiornamento database v11 incluso nello ZIP."
           : e.message,
       );
-      setReview(false);
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   }
@@ -253,7 +223,7 @@ export default function ConteggioEditor({
         <header className="pm11-header">
           <div>
             <div className="pm11-eyebrow">
-              <ShieldCheck size={14} /> PLAY MONEY ADMIN · 11
+              <ShieldCheck size={14} /> PLAY MONEY ADMIN · 12
             </div>
             <h2 id="pm11-title">Il conteggio, sotto controllo.</h2>
             <p>
@@ -270,21 +240,6 @@ export default function ConteggioEditor({
             <X size={22} />
           </button>
         </header>
-        <nav className="pm11-tabs">
-          <button
-            className={tab === "edit" ? "active" : ""}
-            onClick={() => setTab("edit")}
-          >
-            <Pencil size={15} /> Modifica conteggio
-          </button>
-          <button
-            className={tab === "history" ? "active" : ""}
-            onClick={() => setTab("history")}
-          >
-            <History size={15} /> Storico rettifiche{" "}
-            <span>{history.length}</span>
-          </button>
-        </nav>
         <div className="pm11-body">
           {loading && (
             <p className="pm11-notice">
@@ -297,69 +252,7 @@ export default function ConteggioEditor({
               {error}
             </div>
           )}
-          {tab === "history" ? (
-            <div className="pm11-history">
-              {historyError && <p className="pm11-error">{historyError}</p>}
-              {!history.length && !historyError && (
-                <p className="pm11-notice">
-                  Nessuna rettifica registrata dalla versione 11.
-                </p>
-              )}
-              {history.map((h) => (
-                <article key={h.id}>
-                  <div className="pm11-eyebrow">
-                    {dateLabel(h.created_at)} · ADMIN
-                  </div>
-                  <h3>{h.reason || "Modifica amministrativa"}</h3>
-                  <div className="pm11-diff">
-                    {Object.keys(h.after_data || {})
-                      .filter(
-                        (k) =>
-                          JSON.stringify(h.before_data?.[k]) !==
-                            JSON.stringify(h.after_data?.[k]) &&
-                          !["updated_at", "admin_edited_at"].includes(k),
-                      )
-                      .map((k) => (
-                        <p key={k}>
-                          <b>
-                            {MONEY_FIELDS.find(([f]) => f === k)?.[1] ||
-                              {
-                                executed_by: "Effettuato da",
-                                user_id: "Assegnazione",
-                                venue_id: "Locale",
-                                giro_id: "Giro",
-                                conteggio_date: "Data",
-                                locked: "Blocco dipendente",
-                                totale_finale: "Totale",
-                              }[k] ||
-                              k}
-                          </b>
-                          <span>
-                            {String(label(k, h.before_data?.[k]) ?? "—")} →{" "}
-                            {String(label(k, h.after_data?.[k]) ?? "—")}
-                          </span>
-                        </p>
-                      ))}
-                  </div>
-                  {h.before_data && (
-                    <button
-                      className="pm11-secondary mt-3"
-                      onClick={() => {
-                        setDraft(toDraft({ ...original, ...h.before_data }));
-                        setReason(
-                          `Ripristino valori precedenti alla rettifica del ${dateLabel(h.created_at)}`,
-                        );
-                        setTab("edit");
-                        setReview(false);
-                      }}
-                    >
-                      <RotateCcw size={14} /> Riprendi questi valori
-                    </button>
-                  )}
-                </article>
-              ))}
-            </div>
-          ) : (
+          {
             draft && (
               <>
                 <div className="pm11-grid">
@@ -526,25 +419,6 @@ export default function ConteggioEditor({
                       </p>
                     </div>
                     <div className="pm11-card">
-                      <h3>Una rettifica trasparente</h3>
-                      <p className="pm11-help">
-                        Salvataggio unico con ricalcolo, aggiornamento dei
-                        riporti trasferiti e storico prima/dopo.
-                      </p>
-                      <label>
-                        Motivo della modifica
-                        <textarea
-                          value={reason}
-                          maxLength={1000}
-                          rows={3}
-                          disabled={saving}
-                          placeholder="Es. Correzione importo carta e attribuzione esecutore"
-                          onChange={(e) => {
-                            setReason(e.target.value);
-                            setReview(false);
-                          }}
-                        />
-                      </label>
                       <label className="pm11-check">
                         <input
                           type="checkbox"
@@ -574,22 +448,9 @@ export default function ConteggioEditor({
                     )}
                   </aside>
                 </div>
-                {review && (
-                  <div className="pm11-review" role="status">
-                    <Check size={20} />
-                    <div>
-                      <b>Controlla le variazioni, poi conferma.</b>
-                      <p>
-                        Il salvataggio aggiorna il conteggio originale.
-                        Eventuali rettifiche manuali dell’Esattore del giro
-                        rimangono attive.
-                      </p>
-                    </div>
-                  </div>
-                )}
               </>
             )
-          )}
+          }
         </div>
         <footer className="pm11-footer">
           {draft && (
@@ -603,14 +464,13 @@ export default function ConteggioEditor({
           <button className="pm11-secondary" disabled={saving} onClick={close}>
             Annulla
           </button>
-          {draft && tab === "edit" && (
+          {draft && (
             <>
               <button
                 className="pm11-secondary"
                 disabled={saving || !dirty}
                 onClick={() => {
                   setDraft(toDraft(original));
-                  setReview(false);
                   setError("");
                 }}
               >
@@ -626,11 +486,7 @@ export default function ConteggioEditor({
                 ) : (
                   <Save size={16} />
                 )}{" "}
-                {saving
-                  ? "Salvataggio…"
-                  : review
-                    ? "Conferma e salva"
-                    : "Rivedi e salva"}
+                {saving ? "Salvataggio…" : "Salva"}
               </button>
             </>
           )}

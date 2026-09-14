@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  History,
   Loader2,
   Pencil,
   RefreshCw,
@@ -25,16 +24,13 @@ export default function ModifichePage() {
     [error, setError] = useState("");
   const [target, setTarget] = useState(null),
     [draft, setDraft] = useState({}),
-    [reason, setReason] = useState(""),
-    [saving, setSaving] = useState(false),
-    [review, setReview] = useState(false);
+    [saving, setSaving] = useState(false);
   const [lookups, setLookups] = useState({
       venues: [],
       employees: [],
       employeeIds: [],
       vehicles: [],
     }),
-    [history, setHistory] = useState(null),
     [notice, setNotice] = useState("");
   useEffect(() => {
     let live = true;
@@ -120,6 +116,7 @@ export default function ModifichePage() {
     };
   }, [entity, page]);
   const dialogRef = useRef(null);
+  const savingRef = useRef(false);
   useEffect(() => {
     if (!target) return;
     const previous = document.activeElement;
@@ -150,10 +147,7 @@ export default function ModifichePage() {
   function open(row) {
     setTarget(row);
     setDraft({ ...row });
-    setReason("");
     setError("");
-    setReview(false);
-    setHistory(null);
   }
   function close() {
     if (
@@ -163,21 +157,8 @@ export default function ModifichePage() {
     )
       setTarget(null);
   }
-  async function audit(row) {
-    setTarget(row);
-    setDraft({ ...row });
-    setHistory([]);
-    setError("");
-    const { data, error } = await supabase.rpc("admin_v11_history", {
-      p_table: entity.table,
-      p_id: String(row.id),
-    });
-    if (error)
-      setError("Installa l’aggiornamento database v11 per usare lo storico.");
-    else setHistory(data || []);
-  }
   async function save() {
-    if (saving) return;
+    if (savingRef.current) return;
     try {
       const patch = {};
       for (const [key, , type] of fields) {
@@ -193,12 +174,7 @@ export default function ModifichePage() {
       }
       if (!Object.keys(patch).length)
         throw new Error("Nessuna modifica da salvare.");
-      if (reason.trim().length < 3)
-        throw new Error("Indica il motivo della modifica.");
-      if (!review) {
-        setReview(true);
-        return;
-      }
+      savingRef.current = true;
       setSaving(true);
       setError("");
       const { data, error } = await supabase.rpc("admin_v11_edit_record", {
@@ -206,12 +182,12 @@ export default function ModifichePage() {
         p_id: String(target.id),
         p_expected: target,
         p_patch: patch,
-        p_reason: reason.trim(),
+        p_reason: "Modifica amministrativa Admin 12",
       });
       if (error) throw error;
       if (!data?.success) throw new Error("Salvataggio non confermato");
       setTarget(null);
-      setNotice("Modifica salvata e registrata nello storico.");
+      setNotice("Modifica salvata.");
       await load();
     } catch (e) {
       setError(
@@ -219,8 +195,8 @@ export default function ModifichePage() {
           ? "Installa prima l’aggiornamento database v11 incluso nello ZIP."
           : e.message,
       );
-      setReview(false);
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   }
@@ -233,11 +209,11 @@ export default function ModifichePage() {
     <div className="pm11-hub">
       <header className="pm11-hub-head">
         <div className="pm11-eyebrow">
-          <ShieldCheck size={15} /> ADMIN 11 · CENTRO MODIFICHE
+          <ShieldCheck size={15} /> ADMIN 12 · CENTRO MODIFICHE
         </div>
         <h1>Ogni correzione, al posto giusto.</h1>
         <p>
-          Modifica i dati operativi e consulta lo storico. Per i conteggi usa
+          Modifica i dati operativi e premi Salva. Per i conteggi usa
           “Modifica completa” nel dettaglio del locale.
         </p>
       </header>
@@ -314,13 +290,6 @@ export default function ModifichePage() {
                     </p>
                   </div>
                   <div className="flex gap-2">
-                    <button
-                      className="pm11-secondary"
-                      aria-label={`Storico ${entityTitle(row)}`}
-                      onClick={() => audit(row)}
-                    >
-                      <History size={15} />
-                    </button>
                     <button className="pm11-primary" onClick={() => open(row)}>
                       <Pencil size={14} /> Modifica
                     </button>
@@ -353,8 +322,7 @@ export default function ModifichePage() {
           </div>
           <p className="pm11-help">
             Debiti, bonus, calendario, assegnazioni dei giri e credenziali si
-            gestiscono nelle rispettive sezioni. Le rettifiche amministrative
-            vengono registrate dalla versione 11.
+            gestiscono nelle rispettive sezioni.
           </p>
         </section>
       </div>
@@ -397,7 +365,7 @@ export default function ModifichePage() {
               <div>
                 <div className="pm11-eyebrow">{entity.title}</div>
                 <h2 id="pm11-record-title">
-                  {history ? "Storico modifiche" : entityTitle(target)}
+                  {entityTitle(target)}
                 </h2>
               </div>
               <button
@@ -415,45 +383,6 @@ export default function ModifichePage() {
                   {error}
                 </div>
               )}
-              {history ? (
-                <div className="pm11-history">
-                  {!history.length && (
-                    <p>Nessuna modifica registrata dalla versione 11.</p>
-                  )}
-                  {history.map((h) => (
-                    <article key={h.id}>
-                      <div className="pm11-eyebrow">
-                        {new Date(h.created_at).toLocaleString("it-IT")}
-                      </div>
-                      <h3>{h.reason || "Modifica amministrativa"}</h3>
-                      {entity.fields
-                        .filter(
-                          ([k]) =>
-                            JSON.stringify(h.before_data?.[k]) !==
-                            JSON.stringify(h.after_data?.[k]),
-                        )
-                        .map(([k, l, type]) => {
-                          const display = (v) =>
-                            lookups[type]?.find(
-                              (o) => String(o.id) === String(v),
-                            )?.label ??
-                            (type === "boolean"
-                              ? v
-                                ? "Sì"
-                                : "No"
-                              : String(v ?? "—"));
-                          return (
-                            <p className="pm11-help" key={k}>
-                              {l}: {display(h.before_data?.[k])} →{" "}
-                              {display(h.after_data?.[k])}
-                            </p>
-                          );
-                        })}
-                    </article>
-                  ))}
-                </div>
-              ) : (
-                <>
                   <div className="pm11-fields">
                     {fields.map(([key, label, type]) => (
                       <label key={key}>
@@ -467,7 +396,6 @@ export default function ModifichePage() {
                                 ...draft,
                                 [key]: e.target.value === "true",
                               });
-                              setReview(false);
                             }}
                           >
                             <option value="true">Sì</option>
@@ -479,7 +407,6 @@ export default function ModifichePage() {
                             value={draft[key] || ""}
                             onChange={(e) => {
                               setDraft({ ...draft, [key]: e.target.value });
-                              setReview(false);
                             }}
                           >
                             <option value="">Seleziona…</option>
@@ -499,52 +426,12 @@ export default function ModifichePage() {
                             value={draft[key] ?? ""}
                             onChange={(e) => {
                               setDraft({ ...draft, [key]: e.target.value });
-                              setReview(false);
                             }}
                           />
                         )}
                       </label>
                     ))}
                   </div>
-                  <label className="mt-5">
-                    Motivo della modifica
-                    <textarea
-                      rows={3}
-                      maxLength={1000}
-                      value={reason}
-                      disabled={saving}
-                      onChange={(e) => {
-                        setReason(e.target.value);
-                        setReview(false);
-                      }}
-                    />
-                  </label>
-                  {review && (
-                    <div className="pm11-review">
-                      <div>
-                        <b>Conferma queste modifiche</b>
-                        {fields
-                          .filter(
-                            ([k]) =>
-                              String(target[k] ?? "") !==
-                              String(draft[k] ?? ""),
-                          )
-                          .map(([k, l, type]) => {
-                            const display = (v) =>
-                              lookups[type]?.find(
-                                (o) => String(o.id) === String(v),
-                              )?.label ?? String(v ?? "—");
-                            return (
-                              <p key={k}>
-                                {l}: {display(target[k])} → {display(draft[k])}
-                              </p>
-                            );
-                          })}
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
             </div>
             <footer className="pm11-footer">
               <button
@@ -554,18 +441,14 @@ export default function ModifichePage() {
               >
                 Chiudi
               </button>
-              {!history && (
+              {(
                 <button
                   className="pm11-primary"
                   disabled={saving}
                   onClick={save}
                 >
                   <Save size={15} />
-                  {saving
-                    ? "Salvataggio…"
-                    : review
-                      ? "Conferma e salva"
-                      : "Rivedi e salva"}
+                  {saving ? "Salvataggio…" : "Salva"}
                 </button>
               )}
             </footer>

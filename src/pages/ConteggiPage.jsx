@@ -2127,7 +2127,7 @@ export default function ConteggiPage() {
         onFinalize={finalizePeriod}
       />
 
-      {editingConteggioId && <ConteggioEditor rowId={editingConteggioId} venues={venues} dipendenti={dipendenti} giri={giri} onClose={() => setEditingConteggioId(null)} onSaved={async () => { setEditingConteggioId(null); setSelectedRow(null); toast.success("Conteggio aggiornato e rettifica registrata"); await loadDashboard(); await loadGiroSubmissions(); }} />}
+      {editingConteggioId && <ConteggioEditor rowId={editingConteggioId} venues={venues} dipendenti={dipendenti} giri={giri} onClose={() => setEditingConteggioId(null)} onSaved={async () => { setEditingConteggioId(null); setSelectedRow(null); toast.success("Conteggio aggiornato"); await loadDashboard(); await loadGiroSubmissions(); }} />}
       {selectedRow && (
         <div
           className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/65 p-3 backdrop-blur-sm"
@@ -2217,7 +2217,7 @@ export default function ConteggiPage() {
                   {fmtSigned(selectedRow.totale_finale)}
                 </span>
               </div>
-              <button className="pm11-primary w-full mb-2" onClick={() => { setEditingConteggioId(selectedRow.id); setSelectedRow(null); }}><Pencil size={16}/> Modifica completa · storico rettifiche</button>
+              <button className="pm11-primary w-full mb-2" onClick={() => { setEditingConteggioId(selectedRow.id); setSelectedRow(null); }}><Pencil size={16}/> Modifica conteggio</button>
               <button
                 type="button"
                 onClick={() => setSelectedRow(null)}

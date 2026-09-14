@@ -45,7 +45,7 @@ import { supabase } from "./lib/supabase";
 import { APP_VERSION } from "./config/release";
 
 const NAV = [
-  { id: "modifiche", label: "CENTRO MODIFICHE", icon: "ShieldCheck", iconCmp: ShieldCheck, hint: "Rettifiche e storico Admin 11", component: ModifichePage },
+  { id: "modifiche", label: "CENTRO MODIFICHE", icon: "ShieldCheck", iconCmp: ShieldCheck, hint: "Modifiche rapide Admin 12", component: ModifichePage },
   {
     id: "analisi",
     label: "ANALISI GIORNALIERA",

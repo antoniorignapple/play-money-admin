@@ -17,6 +17,7 @@ import {
   User as UserIcon,
   X,
 } from "lucide-react";
+import { loadSimulationArchive, filterSimulations } from "../lib/simulationArchive";
 import { supabase } from "../lib/supabase";
 import { Button, EmptyState, Field, Select, Textarea } from "../components/ui";
 import { PageLayout, PageBody } from "../components/PageLayout";
@@ -51,26 +52,6 @@ const fmtDateTime = (v) => {
     minute: "2-digit",
   });
 };
-const dateInputValue = (date) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
-const today = new Date();
-const defaultPdfFrom = dateInputValue(
-  new Date(today.getFullYear(), today.getMonth(), 1),
-);
-const defaultPdfTo = dateInputValue(today);
-const simulationDateKey = (value) => {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? "" : dateInputValue(date);
-};
-const normalizeName = (value) =>
-  String(value || "")
-    .trim()
-    .toLocaleLowerCase("it-IT");
-
 export default function SimulazioniPage() {
   const toast = useToast();
   const [tab, setTab] = useState("archivio");
@@ -84,8 +65,8 @@ export default function SimulazioniPage() {
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [confirmHard, setConfirmHard] = useState(null);
   const [detail, setDetail] = useState(null);
-  const [pdfFrom, setPdfFrom] = useState(defaultPdfFrom);
-  const [pdfTo, setPdfTo] = useState(defaultPdfTo);
+  const [pdfFrom, setPdfFrom] = useState("");
+  const [pdfTo, setPdfTo] = useState("");
   const [pdfEmployee, setPdfEmployee] = useState("all");
   const [pdfLoading, setPdfLoading] = useState(false);
 
@@ -127,26 +108,17 @@ export default function SimulazioniPage() {
     [simulazioni],
   );
 
+  const selectedRows = useMemo(
+    () => filterSimulations(simulazioni, pdfFrom, pdfTo, pdfEmployee),
+    [simulazioni, pdfFrom, pdfTo, pdfEmployee],
+  );
+
   async function exportSimulationsPdf() {
-    if (!pdfFrom || !pdfTo) {
-      toast.warning("Seleziona entrambe le date");
-      return;
-    }
-    if (pdfFrom > pdfTo) {
+    if (loading) return;
+    if (pdfFrom && pdfTo && pdfFrom > pdfTo) {
       toast.warning("La data iniziale non può superare quella finale");
       return;
     }
-
-    const selectedRows = simulazioni.filter((simulation) => {
-      const date = simulationDateKey(simulation.created_at);
-      if (!date || date < pdfFrom || date > pdfTo) return false;
-      if (
-        pdfEmployee !== "all" &&
-        normalizeName(simulation.operator_name) !== normalizeName(pdfEmployee)
-      )
-        return false;
-      return true;
-    });
 
     if (!selectedRows.length) {
       toast.warning("Nessuna simulazione nel periodo selezionato");
@@ -181,34 +153,15 @@ export default function SimulazioniPage() {
   async function loadAll() {
     setLoading(true);
     try {
-      const { data: period, error: periodError } = await supabase
-        .from("active_conteggi_period")
-        .select("id,date_from,date_to,status")
-        .maybeSingle();
-      if (periodError) throw periodError;
-
-      let activeSimQuery = supabase.from("simulazioni").select("*").is("deleted_at", null);
-      let deletedSimQuery = supabase.from("simulazioni").select("*").not("deleted_at", "is", null);
-      if (period?.date_from) {
-        activeSimQuery = activeSimQuery.gte("work_date", period.date_from);
-        deletedSimQuery = deletedSimQuery.gte("work_date", period.date_from);
-      }
-      if (period?.date_to) {
-        activeSimQuery = activeSimQuery.lte("work_date", period.date_to);
-        deletedSimQuery = deletedSimQuery.lte("work_date", period.date_to);
-      }
-
       const [
         { data: v },
         { data: dip },
-        { data: sim },
-        { data: del },
+        sim,
         { data: req },
       ] = await Promise.all([
         supabase.from("venues").select("*"),
         supabase.from("dipendenti").select(DIPENDENTI_SAFE_FIELDS),
-        activeSimQuery.order("created_at", { ascending: false }).limit(3000),
-        deletedSimQuery.order("deleted_at", { ascending: false }).limit(1000),
+        loadSimulationArchive(supabase),
         supabase
           .from("simulazioni_richieste")
           .select("*")
@@ -217,8 +170,8 @@ export default function SimulazioniPage() {
       ]);
       setVenues([...(v || [])].filter(isSimulazioneVenue).sort(venueSortFn));
       setDipendenti(dip || []);
-      setSimulazioni(sim || []);
-      setCestino(del || []);
+      setSimulazioni(sim.filter((row) => !row.deleted_at));
+      setCestino(sim.filter((row) => row.deleted_at));
       setRichieste(req || []);
     } catch (e) {
       toast.error(`Errore: ${e.message}`);
@@ -315,7 +268,7 @@ export default function SimulazioniPage() {
   const pending = richieste.filter((r) => r.status === "in_attesa");
   const stats =
     tab === "archivio"
-      ? simulazioni.length
+      ? selectedRows.length
       : tab === "richieste"
         ? pending.length
         : cestino.length;
@@ -374,7 +327,7 @@ export default function SimulazioniPage() {
                   active={tab === "archivio"}
                   icon={Archive}
                   label="Archivio"
-                  count={simulazioni.length}
+                  count={selectedRows.length}
                   onClick={() => setTab("archivio")}
                 />
                 <PremiumTab
@@ -397,6 +350,11 @@ export default function SimulazioniPage() {
             {tab === "archivio" && (
               <>
                 <section className="rounded-[24px] border border-amber-200 bg-white p-4 shadow-[0_10px_30px_rgba(80,55,15,.08)] md:p-5">
+                  <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-sm font-bold text-slate-700">{pdfFrom || pdfTo || pdfEmployee !== "all" ? "Simulazioni filtrate" : "Tutto lo storico"} · {selectedRows.length} simulazioni</p>
+                    <button type="button" onClick={() => { setPdfFrom(""); setPdfTo(""); setPdfEmployee("all"); }} className="rounded-xl border border-amber-300 px-4 py-2 text-sm font-bold text-amber-800">Tutte</button>
+                  </div>
+                  <p className="mb-3 text-xs text-slate-500">Filtra per data della simulazione e dipendente. Il PDF include le stesse simulazioni mostrate.</p>
                   <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[1fr_1fr_1.35fr_auto] xl:items-end">
                     <label className="block">
                       <span className="mb-2 block text-[9px] font-black uppercase tracking-[.16em] text-amber-700">Dal</span>
@@ -436,7 +394,7 @@ export default function SimulazioniPage() {
                     <button
                       type="button"
                       onClick={exportSimulationsPdf}
-                      disabled={pdfLoading}
+                      disabled={pdfLoading || loading}
                       className="flex h-11 items-center justify-center gap-2 rounded-[14px] bg-gradient-to-r from-[#8f5d00] to-[#d2a437] px-6 text-[11px] font-black uppercase tracking-[.12em] text-white shadow-lg shadow-amber-900/15 transition hover:-translate-y-0.5 disabled:opacity-50 md:col-span-2 xl:col-span-1"
                     >
                       {pdfLoading ? (
@@ -449,10 +407,10 @@ export default function SimulazioniPage() {
                   </div>
                 </section>
                 <SimList
-                  items={simulazioni}
+                  items={selectedRows}
                   emptyIcon={Archive}
                   emptyTitle="Nessuna simulazione"
-                  emptyDescription="Le simulazioni effettuate dagli operatori compariranno qui."
+                  emptyDescription={loading ? "Caricamento dello storico…" : "Nessuna simulazione corrisponde ai filtri selezionati."}
                   venueLabel={venueLabel}
                   onOpen={setDetail}
                   onDelete={setConfirmDelete}
