@@ -1,5 +1,5 @@
 import { getRomeISODate } from '../lib/dates.js';
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef, createContext, useContext } from "react";
 import {
   Plus,
   RefreshCw,
@@ -7,8 +7,6 @@ import {
   Building2,
   Gift,
   Wallet,
-  ChevronDown,
-  ChevronUp,
   Banknote,
   Landmark,
   CheckCircle2,
@@ -18,7 +16,7 @@ import {
   StickyNote,
   Infinity as InfinityIcon,
   Pencil,
-  Sparkles,
+  FileText, Search, ArrowUpRight, X,
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import {
@@ -36,32 +34,27 @@ import { useToast } from "../components/Toast";
 import { venueSortFn } from "../lib/helpers";
 import { DIPENDENTI_SAFE_FIELDS } from "../lib/dipendentiFields";
 
-const fmtEuro = (n) =>
-  `${Math.trunc(Number(n) || 0).toLocaleString("it-IT")} €`;
+import { debtTotals, debtLedger, euro as fmtEuro, validAmount } from '../lib/debtLedger.js';
+import { fetchAllRows } from '../lib/fetchAllRows.js';
+import { buildDebitoPdf } from '../lib/generateDebitoPdf.js';
+import { createPdfPreviewWindow, openPdfPreview, closePdfPreviewWindow } from '../lib/pdfPreview.js';
+import '../styles/debitiBonus.css';
+const SavingContext = createContext(false);
 const todayKey = () => getRomeISODate();
 const formatITDate = (d) => {
   if (!d) return "—";
   const [y, m, day] = String(d).slice(0, 10).split("-");
   return `${day}/${m}/${y}`;
 };
-const formatITDateTime = (v) => {
-  if (!v) return "—";
-  return new Date(v).toLocaleString("it-IT", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-};
-
 const PERIODICITA_LABEL = {
   ogni_conteggio: "Ogni conteggio",
   ogni_fine_mese: "Ogni fine mese",
 };
 
 function Modal({ open, onClose, title, width = "md", footer, children }) {
+  const busy = useContext(SavingContext);
   if (!open) return null;
+  const close = () => { if (!busy) onClose?.(); };
   const maxWidth =
     width === "lg"
       ? "max-w-[760px]"
@@ -70,52 +63,25 @@ function Modal({ open, onClose, title, width = "md", footer, children }) {
         : "max-w-[600px]";
   return (
     <div
-      className="fixed inset-0 z-[10001] flex items-center justify-center bg-[#120d05]/70 p-3 backdrop-blur-md"
+      className="finance-theme fixed inset-0 z-[10001] flex items-center justify-center bg-[#120d05]/70 p-3 backdrop-blur-md"
       onPointerDown={(e) => {
-        if (e.target === e.currentTarget) onClose?.();
+        if (e.target === e.currentTarget) close();
       }}
     >
       <section
-        className={`flex max-h-[94vh] w-full ${maxWidth} flex-col overflow-hidden rounded-[30px] border border-[#d5b66c] bg-[#fffdf9] shadow-[0_40px_100px_-30px_rgba(0,0,0,.9)]`}
+        role="dialog" aria-modal="true" aria-label={title}
+        className={`finance-modal flex max-h-[94vh] w-full ${maxWidth} flex-col overflow-hidden rounded-[30px] border border-[#d5b66c] bg-[#fffdf9] shadow-[0_40px_100px_-30px_rgba(0,0,0,.9)]`}
         onPointerDown={(e) => e.stopPropagation()}
       >
-        <div className="relative shrink-0 overflow-hidden bg-[linear-gradient(135deg,#3f2908_0%,#895912_58%,#c89532_100%)] px-5 py-6 text-white">
-          <div className="pointer-events-none absolute -right-12 -top-16 h-48 w-48 rounded-full bg-amber-200/20 blur-3xl" />
-          <button
-            type="button"
-            onPointerDown={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onClose?.();
-            }}
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onClose?.();
-            }}
-            className="absolute right-3 top-3 z-50 flex h-10 w-10 select-none items-center justify-center rounded-[12px] border border-white/25 bg-black/20 text-[25px] font-light leading-none text-white shadow-lg active:scale-90"
-            aria-label="Chiudi popup"
-          >
-            <span className="pointer-events-none -mt-0.5">×</span>
-          </button>
-          <div className="relative flex items-center gap-4">
-            <span className="flex h-14 w-14 items-center justify-center rounded-[18px] border border-white/20 bg-white/10">
-              <Sparkles size={24} />
-            </span>
-            <div>
-              <p className="text-[9px] font-black tracking-[.25em] text-amber-200">
-                GESTIONE PREMIUM
-              </p>
-              <h2 className="mt-1 text-[22px] font-black uppercase tracking-[.08em]">
-                {title}
-              </h2>
-            </div>
-          </div>
+        <div className="finance-modal-title shrink-0">
+          <p className="finance-eyebrow">Play Money / Gestione locali</p>
+          <h2>{title}</h2>
+          <button type="button" disabled={busy} onClick={close} aria-label="Chiudi popup" className="absolute right-5 top-5 rounded-xl border border-white/20 p-2 text-white/80 hover:bg-white/10"><X size={19} /></button>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto p-5">{children}</div>
+        <div className="min-h-0 flex-1 overflow-y-auto p-5"><fieldset disabled={busy} className="min-w-0">{children}</fieldset></div>
         {footer && (
           <div className="flex shrink-0 justify-end gap-2 border-t border-[#e5d7bb] bg-[#faf2e2] p-3">
-            {footer}
+            <fieldset disabled={busy} className="flex flex-wrap items-center justify-end gap-2">{busy && <span className="text-xs text-amber-800">Salvataggio…</span>}{footer}</fieldset>
           </div>
         )}
       </section>
@@ -166,6 +132,22 @@ function ConfirmDialog({
 export default function DebitiBonusPage() {
   const toast = useToast();
   const [tab, setTab] = useState("debiti");
+  const [search, setSearch] = useState('');
+  const [saving, setSaving] = useState(false);
+  const saveLock = useRef(false);
+  const [loadError, setLoadError] = useState('');
+  const [manualDate, setManualDate] = useState(todayKey());
+  const [opening, setOpening] = useState(false);
+  async function saveAction(action) {
+    if (saveLock.current) return;
+    saveLock.current = true; setSaving(true);
+    try { await action(); } catch (error) { toast.error(error.message || 'Salvataggio non riuscito'); }
+    finally { saveLock.current = false; setSaving(false); }
+  }
+  function debtError(error) {
+    if (error.code === 'PGRST202' || error.code === '42P01' || error.code === 'PGRST205') return 'Installa prima l’aggiornamento SQL Admin 13.0 incluso nel pacchetto.';
+    return error.message || 'Operazione non riuscita';
+  }
 
   const [venues, setVenues] = useState([]);
   const [dipendenti, setDipendenti] = useState([]);
@@ -204,27 +186,13 @@ export default function DebitiBonusPage() {
   async function loadAll() {
     setLoading(true);
     try {
-      const [
-        { data: venuesData },
-        { data: dipData },
-        { data: debitiData },
-        { data: bonusData },
-        { data: noteData },
-      ] = await Promise.all([
-        supabase.from("venues").select("*"),
-        supabase.from("dipendenti").select(DIPENDENTI_SAFE_FIELDS),
-        supabase
-          .from("debiti")
-          .select("*")
-          .order("created_at", { ascending: false }),
-        supabase
-          .from("bonus")
-          .select("*")
-          .order("created_at", { ascending: false }),
-        supabase
-          .from("note_generiche")
-          .select("*")
-          .order("created_at", { ascending: false }),
+      setLoadError('');
+      const [venuesData, dipData, debitiData, bonusData, noteData] = await Promise.all([
+        fetchAllRows(() => supabase.from('venues').select('*').order('id')),
+        fetchAllRows(() => supabase.from('dipendenti').select(DIPENDENTI_SAFE_FIELDS).order('id')),
+        fetchAllRows(() => supabase.from('debiti').select('*').order('created_at', { ascending: true }).order('id')),
+        fetchAllRows(() => supabase.from('bonus').select('*').order('created_at', { ascending: true }).order('id')),
+        fetchAllRows(() => supabase.from('note_generiche').select('*').order('created_at', { ascending: true }).order('id')),
       ]);
       setVenues([...(venuesData || [])].sort(venueSortFn));
       setDipendenti(dipData || []);
@@ -232,6 +200,7 @@ export default function DebitiBonusPage() {
       setBonus(bonusData || []);
       setNote(noteData || []);
     } catch (e) {
+      setLoadError(e.message);
       toast.error(`Errore: ${e.message}`);
     } finally {
       setLoading(false);
@@ -239,129 +208,78 @@ export default function DebitiBonusPage() {
   }
 
   useEffect(() => {
+    // Initial fetch; later refreshes are explicit user actions.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function loadMovimenti(debitoId) {
-    const { data, error } = await supabase
-      .from("debiti_movimenti")
-      .select("*")
-      .eq("debito_id", debitoId)
-      .order("created_at", { ascending: false });
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
-    setMovByDebito((prev) => ({ ...prev, [debitoId]: data || [] }));
+  async function getDebtSnapshot(id) {
+    const { data: debt, error } = await supabase.from('debiti').select('*').eq('id', id).single();
+    if (error) throw error;
+    const [repayments, disbursements] = await Promise.all([
+      fetchAllRows(() => supabase.from('debiti_movimenti').select('*').eq('debito_id', id).order('data').order('created_at').order('id')),
+      fetchAllRows(() => supabase.from('debiti_erogazioni').select('*').eq('debito_id', id).order('data').order('created_at').order('id')),
+    ]);
+    const { data: latest, error: lastError } = await supabase.from('debiti').select('*').eq('id', id).single();
+    if (lastError) throw lastError;
+    if (JSON.stringify(debt) !== JSON.stringify(latest)) throw new Error('Il saldo è appena cambiato. Riprova per leggere lo storico aggiornato.');
+    return { debt, repayments, disbursements };
   }
-
-  function openDebitoDetail(d) {
-    setDetailDebito(d);
-    loadMovimenti(d.id);
+  async function openDebt(d, edit = false) {
+    if (opening) return;
+    setOpening(true);
+    try {
+      const snapshot = await getDebtSnapshot(d.id);
+      setMovByDebito(prev => ({ ...prev, [d.id]: snapshot }));
+      if (edit) setEditItem({ kind: 'debito', row: snapshot.debt });
+      else setDetailDebito(snapshot.debt);
+    } catch (e) { toast.error(debtError(e)); }
+    finally { setOpening(false); }
   }
-
-  // ─── CREATE DEBITO ──────────────────────────────────────────────
+  async function startDeduct(d, full = false) {
+    try {
+      const { data: latest, error } = await supabase.from('debiti').select('*').eq('id', d.id).single();
+      if (error) throw error;
+      setManualDeduct(latest); setManualAmount(full ? String(latest.residuo) : ''); setManualDate(todayKey());
+    } catch (e) { toast.error(debtError(e)); }
+  }
+  async function exportDebt(d) {
+    let target;
+    try {
+      target = createPdfPreviewWindow();
+      const snapshot = await getDebtSnapshot(d.id);
+      const doc = buildDebitoPdf({ ...snapshot, venue: venueLabel(snapshot.debt.venue_id) });
+      openPdfPreview(doc, target);
+    } catch (e) { closePdfPreviewWindow(target); toast.error(debtError(e)); }
+  }
+  function debtPatch(form) {
+    if (!form.venue_id) throw new Error('Seleziona un locale');
+    if (form.modalita === 'contanti' && form.rata_tipo === 'fisso' && !validAmount(form.rata_importo)) throw new Error('Inserisci una rata valida in euro interi');
+    return { venue_id: form.venue_id, modalita: form.modalita,
+      periodicita: form.modalita === 'contanti' ? form.periodicita : null,
+      rata_tipo: form.modalita === 'contanti' ? form.rata_tipo : null,
+      rata_importo: form.modalita === 'contanti' && form.rata_tipo === 'fisso' ? Number(form.rata_importo) : null,
+      note: form.note?.trim() || null };
+  }
   async function createDebito(form) {
-    if (!form.venue_id) return toast.warning("Seleziona un locale");
-    const importo = Math.trunc(Number(form.importo_iniziale) || 0);
-    if (importo <= 0) return toast.warning("Inserisci un importo valido");
-    if (form.modalita === "contanti") {
-      if (!form.periodicita) return toast.warning("Scegli la periodicità");
-      if (!form.rata_tipo) return toast.warning("Scegli il tipo di rata");
-      if (form.rata_tipo === "fisso" && !(Number(form.rata_importo) > 0))
-        return toast.warning("Inserisci l'importo della rata");
-    }
-    // blocca due debiti attivi sullo stesso locale
-    if (
-      debiti.some(
-        (d) =>
-          d.status === "attivo" && String(d.venue_id) === String(form.venue_id),
-      )
-    )
-      return toast.error("Questo locale ha già un debito attivo");
-
-    const payload = {
-      venue_id: form.venue_id,
-      agent_id: null,
-      agent_name: null,
-      importo_iniziale: importo,
-      residuo: importo,
-      modalita: form.modalita,
-      periodicita: form.modalita === "contanti" ? form.periodicita : null,
-      rata_tipo: form.modalita === "contanti" ? form.rata_tipo : null,
-      rata_importo:
-        form.modalita === "contanti" && form.rata_tipo === "fisso"
-          ? Math.trunc(Number(form.rata_importo) || 0)
-          : null,
-      status: "attivo",
-      note: form.note?.trim() || null,
-    };
-    const { error } = await supabase.from("debiti").insert(payload);
-    if (error) return toast.error(error.message);
-    setShowNewDebito(false);
-    toast.success("Debito creato");
-    loadAll();
+    if (!validAmount(form.importo_iniziale)) return toast.warning('Inserisci un importo valido in euro interi');
+    const { error } = await supabase.rpc('admin_v13_save_debito', {
+      p_id: form.id, p_expected: null, p_patch: { ...debtPatch(form), importo_iniziale: Number(form.importo_iniziale) }, p_erogazione: 0, p_data: form.data,
+    });
+    if (error) throw new Error(debtError(error));
+    setShowNewDebito(false); toast.success('Debito creato'); await loadAll();
   }
-
-  // ─── DECURTAZIONE MANUALE ───────────────────────────────────────
   async function applyManualDeduct() {
     const d = manualDeduct;
     if (!d) return;
-    const importo = Math.trunc(Number(manualAmount) || 0);
-    if (importo <= 0) return toast.warning("Inserisci un importo valido");
-    const residuoPrima = Math.trunc(Number(d.residuo) || 0);
-    const residuoDopo = Math.max(0, residuoPrima - importo);
-
-    const { error: movErr } = await supabase.from("debiti_movimenti").insert({
-      debito_id: d.id,
-      venue_id: d.venue_id,
-      data: todayKey(),
-      operator_name: "ADMIN",
-      importo,
-      residuo_prima: residuoPrima,
-      residuo_dopo: residuoDopo,
-      origine: "manuale",
-      note: "Decurtazione manuale da admin",
-    });
-    if (movErr) return toast.error(movErr.message);
-
-    const { error: updErr } = await supabase
-      .from("debiti")
-      .update({
-        residuo: residuoDopo,
-        status: residuoDopo <= 0 ? "estinto" : d.status,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", d.id);
-    if (updErr) return toast.error(updErr.message);
-
-    setManualDeduct(null);
-    setManualAmount("");
-    toast.success("Decurtazione registrata");
-    await loadAll();
-    if (detailDebito?.id === d.id) {
-      loadMovimenti(d.id);
-      setDetailDebito((prev) =>
-        prev ? { ...prev, residuo: residuoDopo } : prev,
-      );
-    }
+    if (!validAmount(manualAmount) || Number(manualAmount) > Number(d.residuo)) return toast.warning('Il rimborso deve essere positivo e non superiore al residuo');
+    const { error } = await supabase.rpc('admin_v13_rimborso_debito', { p_id: d.id, p_expected: d, p_importo: Number(manualAmount), p_data: manualDate });
+    if (error) throw new Error(debtError(error));
+    setManualDeduct(null); setDetailDebito(null); setManualAmount('');
+    toast.success('Rimborso registrato e saldo aggiornato'); await loadAll();
   }
 
-  async function setDebitoStatus(d, status) {
-    const { error } = await supabase
-      .from("debiti")
-      .update({ status, updated_at: new Date().toISOString() })
-      .eq("id", d.id);
-    if (error) return toast.error(error.message);
-    toast.success(
-      status === "estinto"
-        ? "Debito segnato come estinto"
-        : "Debito aggiornato",
-    );
-    loadAll();
-  }
-
-  // ─── BONUS ──────────────────────────────────────────────────────
   async function createBonus(form) {
     if (!form.venue_id) return toast.warning("Seleziona un locale");
     const importo = Math.trunc(Number(form.importo) || 0);
@@ -462,81 +380,13 @@ export default function DebitiBonusPage() {
 
   // ─── MODIFICA DEBITO / BONUS / NOTA ───────────────────────────
   async function updateDebito(row, form) {
-    if (!row) return;
-    if (!form.venue_id) return toast.warning("Seleziona un locale");
-    const importoIniziale = Math.trunc(Number(form.importo_iniziale) || 0);
-    if (importoIniziale <= 0)
-      return toast.warning("Inserisci un importo valido");
-    if (form.modalita === "contanti") {
-      if (!form.periodicita) return toast.warning("Scegli la periodicità");
-      if (!form.rata_tipo) return toast.warning("Scegli il tipo di rata");
-      if (form.rata_tipo === "fisso" && !(Number(form.rata_importo) > 0))
-        return toast.warning("Inserisci l'importo della rata");
-    }
-
-    const vecchioIniziale = Math.trunc(Number(row.importo_iniziale) || 0);
-    const vecchioResiduo = Math.trunc(Number(row.residuo) || 0);
-    const giaScalato = Math.max(0, vecchioIniziale - vecchioResiduo);
-    const nuovoResiduo = Math.max(0, importoIniziale - giaScalato);
-    const { error } = await supabase
-      .from("debiti")
-      .update({
-        venue_id: form.venue_id,
-        agent_id: null,
-        agent_name: null,
-        importo_iniziale: importoIniziale,
-        residuo: nuovoResiduo,
-        modalita: form.modalita,
-        periodicita: form.modalita === "contanti" ? form.periodicita : null,
-        rata_tipo: form.modalita === "contanti" ? form.rata_tipo : null,
-        rata_importo:
-          form.modalita === "contanti" && form.rata_tipo === "fisso"
-            ? Math.trunc(Number(form.rata_importo) || 0)
-            : null,
-        status:
-          nuovoResiduo <= 0
-            ? "estinto"
-            : row.status === "estinto"
-              ? "attivo"
-              : row.status,
-        note: form.note?.trim() || null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", row.id);
-    if (error) return toast.error(error.message);
-
-    setEditItem(null);
-    toast.success("Debito modificato");
-    await loadAll();
-    if (detailDebito?.id === row.id) {
-      setDetailDebito((prev) =>
-        prev
-          ? {
-              ...prev,
-              importo_iniziale: importoIniziale,
-              residuo: nuovoResiduo,
-              venue_id: form.venue_id,
-              agent_id: null,
-              agent_name: null,
-              modalita: form.modalita,
-              periodicita:
-                form.modalita === "contanti" ? form.periodicita : null,
-              rata_tipo: form.modalita === "contanti" ? form.rata_tipo : null,
-              rata_importo:
-                form.modalita === "contanti" && form.rata_tipo === "fisso"
-                  ? Math.trunc(Number(form.rata_importo) || 0)
-                  : null,
-              status:
-                nuovoResiduo <= 0
-                  ? "estinto"
-                  : row.status === "estinto"
-                    ? "attivo"
-                    : row.status,
-              note: form.note?.trim() || null,
-            }
-          : prev,
-      );
-    }
+    const added = form.nuova_erogazione === '' ? 0 : Number(form.nuova_erogazione);
+    if (!validAmount(added, true)) return toast.warning('Inserisci una nuova erogazione valida in euro interi');
+    const { error } = await supabase.rpc('admin_v13_save_debito', { p_id: row.id, p_expected: row,
+      p_patch: debtPatch(form), p_erogazione: added, p_data: added > 0 ? form.data : null });
+    if (error) throw new Error(debtError(error));
+    setEditItem(null); setDetailDebito(null);
+    toast.success(added > 0 ? 'Nuova erogazione registrata' : 'Condizioni aggiornate'); await loadAll();
   }
 
   async function updateBonus(row, form) {
@@ -640,114 +490,32 @@ export default function DebitiBonusPage() {
   const bonusAttivi = bonus.filter((b) => b.status === "attivo");
   const noteAttive = note.filter((n) => n.status === "attiva");
 
-  return (
-    <PageLayout>
-      <PageBody>
-        <div className="min-h-full bg-[radial-gradient(circle_at_12%_0%,rgba(226,186,99,.18),transparent_27%),linear-gradient(180deg,#f7f2e8,#f3eee5)] px-3 py-3 md:px-5 md:py-5">
-          <div className="mx-auto max-w-[1280px] space-y-4">
-            <section className="relative overflow-hidden rounded-[30px] border border-[#d6b76c] bg-[linear-gradient(135deg,#fffdf8,#efd79c)] p-5 shadow-[0_25px_60px_-38px_rgba(72,43,3,.8)] md:p-7">
-              <div className="pointer-events-none absolute -right-16 -top-24 h-64 w-64 rounded-full bg-amber-400/20 blur-3xl" />
-              <div className="relative flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <div>
-                  <p className="text-[9px] font-black tracking-[.25em] text-[#9b6a19]">
-                    GESTIONE FINANZIARIA
-                  </p>
-                  <h1 className="mt-1 text-[27px] font-black tracking-[.12em] text-[#3d2a0b] md:text-[34px]">
-                    DEBITI, BONUS E NOTE
-                  </h1>
-                  <p className="mt-2 text-[11px] font-bold text-[#76521b]">
-                    Controllo completo delle posizioni operative dei locali.
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={loadAll}
-                    className="flex h-12 w-12 items-center justify-center rounded-[15px] border border-[#d0b16c] bg-white/75 text-[#775016]"
-                  >
-                    <RefreshCw
-                      size={17}
-                      className={loading ? "animate-spin" : ""}
-                    />
-                  </button>
-                  <button
-                    onClick={() =>
-                      tab === "debiti"
-                        ? setShowNewDebito(true)
-                        : tab === "bonus"
-                          ? setShowNewBonus(true)
-                          : setShowNewNota(true)
-                    }
-                    className="flex h-12 items-center gap-2 rounded-[15px] bg-[linear-gradient(135deg,#a97218,#70490d)] px-5 text-[10px] font-black tracking-[.1em] text-white shadow-lg"
-                  >
-                    <Plus size={15} /> NUOVO
-                  </button>
-                </div>
-              </div>
-              <div className="relative mt-5 grid gap-2 sm:grid-cols-3">
-                <div className="rounded-[18px] border border-red-200/70 bg-white/75 p-4">
-                  <p className="text-[9px] font-black tracking-[.15em] text-red-600">
-                    DEBITO RESIDUO
-                  </p>
-                  <p className="mt-1 text-[23px] font-black text-red-800">
-                    {fmtEuro(debitoResiduoTotale)}
-                  </p>
-                </div>
-                <div className="rounded-[18px] border border-emerald-200/70 bg-white/75 p-4">
-                  <p className="text-[9px] font-black tracking-[.15em] text-emerald-600">
-                    BONUS ATTIVI
-                  </p>
-                  <p className="mt-1 text-[23px] font-black text-emerald-800">
-                    {bonusAttivi.length}
-                  </p>
-                </div>
-                <div className="rounded-[18px] border border-amber-200/70 bg-white/75 p-4">
-                  <p className="text-[9px] font-black tracking-[.15em] text-amber-700">
-                    NOTE ATTIVE
-                  </p>
-                  <p className="mt-1 text-[23px] font-black text-amber-900">
-                    {noteAttive.length}
-                  </p>
-                </div>
-              </div>
-            </section>
-            <section className="grid grid-cols-3 gap-2 rounded-[22px] border border-[#dfcfaa] bg-[#fffdf9] p-2 shadow-sm">
-              {[
-                {
-                  id: "debiti",
-                  label: "DEBITI",
-                  count: debitiAttivi.length,
-                  tone: "red",
-                },
-                {
-                  id: "bonus",
-                  label: "BONUS",
-                  count: bonusAttivi.length,
-                  tone: "emerald",
-                },
-                {
-                  id: "note",
-                  label: "NOTE",
-                  count: noteAttive.length,
-                  tone: "amber",
-                },
-              ].map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => setTab(item.id)}
-                  className={`min-h-[64px] rounded-[16px] border px-2 transition ${tab === item.id ? "border-[#9f6c13] bg-[linear-gradient(135deg,#4a3009,#a87318)] text-white shadow-lg" : "border-transparent bg-[#faf3e4] text-[#6e4a12] hover:border-[#d7bd82]"}`}
-                >
-                  <span className="block text-[10px] font-black tracking-[.14em]">
-                    {item.label}
-                  </span>
-                  <span
-                    className={`mt-1 block text-[18px] font-black ${tab === item.id ? "text-white" : "text-[#3d2a0b]"}`}
-                  >
-                    {item.count}
-                  </span>
-                </button>
-              ))}
-            </section>
+  const matchesSearch = r => venueLabel(r.venue_id).toLocaleLowerCase().includes(search.toLocaleLowerCase().trim());
 
+  return (
+    <SavingContext.Provider value={saving}><div className="finance-theme h-full min-h-0"><PageLayout>
+      <PageBody>
+        <div className="finance-shell">
+          <section className="finance-hero">
+            <div className="relative z-10 flex flex-wrap items-center justify-between gap-5">
+              <div><p className="finance-eyebrow">Play Money / Gestione finanziaria</p><h1>Debiti e Bonus<span className="text-[#b38e48]">.</span></h1><p className="finance-subtitle">Ogni erogazione, ogni rimborso. Tutto sotto controllo.</p></div>
+              <div className="flex gap-2"><button type="button" aria-label="Aggiorna" title="Aggiorna" disabled={loading} onClick={loadAll} className="rounded-xl border border-[#dbc89f] bg-white/70 p-3 text-[#8a682f]"><RefreshCw size={17} className={loading ? 'animate-spin' : ''} /></button><Button variant="primary" icon={Plus} onClick={() => tab === 'debiti' ? setShowNewDebito(true) : tab === 'bonus' ? setShowNewBonus(true) : setShowNewNota(true)}>Nuovo {tab === 'debiti' ? 'debito' : tab === 'bonus' ? 'bonus' : 'promemoria'}</Button></div>
+            </div>
+          </section>
+          <div className="finance-stats">
+            <div className="finance-stat"><p className="finance-eyebrow">Residuo da rimborsare</p><strong>{fmtEuro(debitoResiduoTotale)}</strong><small>{debitiAttivi.length} posizioni attive</small></div>
+            <div className="finance-stat"><p className="finance-eyebrow">Bonus attivi</p><strong>{bonusAttivi.length}</strong><small>Incentivi ai locali</small></div>
+            <div className="finance-stat"><p className="finance-eyebrow">Note attive</p><strong>{noteAttive.length}</strong><small>Promemoria per i conteggi</small></div>
+          </div>
+          <div className="finance-toolbar">
+            <nav className="finance-tabs" role="tablist" aria-label="Gestione locali">
+              {[['debiti', 'Debiti', debitiAttivi.length], ['bonus', 'Bonus', bonusAttivi.length], ['note', 'Note', noteAttive.length]].map(([id, label, count]) => <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)}>{label}<span>{count}</span></button>)}
+            </nav>
+            <div className="w-full sm:w-[260px]"><Input leftIcon={Search} aria-label="Cerca locale" placeholder="Cerca un locale…" value={search} onChange={e => setSearch(e.target.value)} /></div>
+          </div>
+          {loadError && <div role="alert" className="debt-ledger-note mb-4">Dati non aggiornati: {loadError}. Premi Aggiorna per riprovare.</div>}
+          {(loading || opening) && <p role="status" className="mb-3 text-xs text-[#8a795a]">{opening ? 'Caricamento dello storico…' : 'Aggiornamento dati…'}</p>}
+          {search && !(tab === 'debiti' ? debiti : tab === 'bonus' ? bonus : note).some(matchesSearch) && <EmptyState icon={Search} title="Nessun locale trovato" description="Prova a cambiare il nome o il codice cercato." />}
             {tab === "debiti" && (
               <div className="space-y-3">
                 {debitiAttivi.length === 0 && debitiChiusi.length === 0 ? (
@@ -758,17 +526,15 @@ export default function DebitiBonusPage() {
                   />
                 ) : (
                   <>
-                    {debitiAttivi.map((d) => (
+                    {debitiAttivi.filter(matchesSearch).map((d) => (
                       <DebitoCard
                         key={d.id}
                         d={d}
                         venueLabel={venueLabel}
-                        onOpen={() => openDebitoDetail(d)}
-                        onDeduct={() => {
-                          setManualDeduct(d);
-                          setManualAmount("");
-                        }}
-                        onEdit={() => setEditItem({ kind: "debito", row: d })}
+                        onOpen={() => openDebt(d)}
+                        onPdf={() => exportDebt(d)}
+                        onDeduct={() => startDeduct(d)}
+                        onEdit={() => openDebt(d, true)}
                         onDelete={() =>
                           setConfirmDelete({ kind: "debito", row: d })
                         }
@@ -779,14 +545,16 @@ export default function DebitiBonusPage() {
                         Estinti / annullati
                       </p>
                     )}
-                    {debitiChiusi.map((d) => (
+                    {debitiChiusi.filter(matchesSearch).map((d) => (
                       <DebitoCard
                         key={d.id}
                         d={d}
                         venueLabel={venueLabel}
                         closed
-                        onOpen={() => openDebitoDetail(d)}
-                        onEdit={() => setEditItem({ kind: "debito", row: d })}
+                        onDeduct={Number(d.residuo) > 0 && d.status !== "annullato" ? () => startDeduct(d) : undefined}
+                        onOpen={() => openDebt(d)}
+                        onPdf={() => exportDebt(d)}
+                        onEdit={() => openDebt(d, true)}
                         onDelete={() =>
                           setConfirmDelete({ kind: "debito", row: d })
                         }
@@ -806,12 +574,12 @@ export default function DebitiBonusPage() {
                     description="Crea un nuovo bonus per un locale."
                   />
                 ) : (
-                  bonus.map((b) => (
+                  bonus.filter(matchesSearch).map((b) => (
                     <BonusCard
                       key={b.id}
                       b={b}
                       venueLabel={venueLabel}
-                      onToggle={() => toggleBonus(b)}
+                      onToggle={() => saveAction(() => toggleBonus(b))}
                       onEdit={() => setEditItem({ kind: "bonus", row: b })}
                       onDelete={() =>
                         setConfirmDelete({ kind: "bonus", row: b })
@@ -831,7 +599,7 @@ export default function DebitiBonusPage() {
                     description="Crea una nota generica da mostrare sul conteggio di un locale."
                   />
                 ) : (
-                  note.map((n) => (
+                  note.filter(matchesSearch).map((n) => (
                     <NotaCard
                       key={n.id}
                       n={n}
@@ -851,34 +619,33 @@ export default function DebitiBonusPage() {
                 )}
               </div>
             )}
-          </div>
         </div>
       </PageBody>
 
       {/* NUOVO DEBITO */}
-      <NewDebitoModal
+      {showNewDebito && <NewDebitoModal
         open={showNewDebito}
         onClose={() => setShowNewDebito(false)}
         venues={venues}
-        onCreate={createDebito}
-      />
+        onCreate={form => saveAction(() => createDebito(form))}
+      />}
 
       {/* NUOVO BONUS */}
-      <NewBonusModal
+      {showNewBonus && <NewBonusModal
         open={showNewBonus}
         onClose={() => setShowNewBonus(false)}
         venues={venues}
         dipendenti={dipendenti}
-        onCreate={createBonus}
-      />
+        onCreate={form => saveAction(() => createBonus(form))}
+      />}
 
       {/* NUOVA NOTA */}
-      <NewNotaModal
+      {showNewNota && <NewNotaModal
         open={showNewNota}
         onClose={() => setShowNewNota(false)}
         venues={venues}
-        onCreate={createNota}
-      />
+        onCreate={form => saveAction(() => createNota(form))}
+      />}
 
       {/* DETTAGLIO DEBITO */}
       <Modal
@@ -887,97 +654,16 @@ export default function DebitiBonusPage() {
         title="Dettaglio debito"
         width="lg"
       >
-        {detailDebito && (
-          <div className="space-y-4">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-[12px] text-[var(--color-text-muted)]">
-                  {venueLabel(detailDebito.venue_id)}
-                </p>
-                <h3 className="text-[18px] font-semibold">
-                  {fmtEuro(detailDebito.residuo)}{" "}
-                  <span className="text-[12px] font-normal text-[var(--color-text-muted)]">
-                    residuo su {fmtEuro(detailDebito.importo_iniziale)}
-                  </span>
-                </h3>
-              </div>
-              <DebitoModeBadge d={detailDebito} />
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              {detailDebito.status === "attivo" && (
-                <>
-                  <Button
-                    icon={MinusCircle}
-                    size="sm"
-                    variant="primary"
-                    onClick={() => {
-                      setManualDeduct(detailDebito);
-                      setManualAmount("");
-                    }}
-                  >
-                    Registra decurtazione
-                  </Button>
-                  <Button
-                    icon={CheckCircle2}
-                    size="sm"
-                    variant="success"
-                    onClick={() => setDebitoStatus(detailDebito, "estinto")}
-                  >
-                    Segna estinto
-                  </Button>
-                </>
-              )}
-              <Button
-                icon={Trash2}
-                size="sm"
-                variant="danger"
-                onClick={() =>
-                  setConfirmDelete({ kind: "debito", row: detailDebito })
-                }
-              >
-                Elimina
-              </Button>
-            </div>
-
-            <div>
-              <p className="mb-2 text-[12px] font-bold uppercase tracking-wide text-[var(--color-text-muted)]">
-                Movimenti
-              </p>
-              <div className="space-y-2">
-                {(movByDebito[detailDebito.id] || []).length === 0 ? (
-                  <p className="text-[13px] text-[var(--color-text-muted)]">
-                    Nessuna decurtazione registrata.
-                  </p>
-                ) : (
-                  (movByDebito[detailDebito.id] || []).map((m) => (
-                    <div
-                      key={m.id}
-                      className="flex items-center justify-between gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2"
-                    >
-                      <div className="min-w-0">
-                        <p className="text-[13px] font-medium">
-                          − {fmtEuro(m.importo)}
-                          {m.origine === "manuale" && (
-                            <span className="ml-2 text-[10px] uppercase text-[var(--color-text-muted)]">
-                              manuale
-                            </span>
-                          )}
-                        </p>
-                        <p className="text-[11px] text-[var(--color-text-muted)]">
-                          {formatITDate(m.data)} · {m.operator_name || "—"}
-                        </p>
-                      </div>
-                      <span className="shrink-0 text-[12px] font-semibold tabular-nums text-[var(--color-text-secondary)]">
-                        residuo {fmtEuro(m.residuo_dopo)}
-                      </span>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
+        {detailDebito && <div>
+          <p className="mb-4 text-lg font-semibold">{venueLabel(detailDebito.venue_id)}</p>
+          <DebtSummary debt={detailDebito} />
+          <div className="debt-actions my-4">
+            <button onClick={() => exportDebt(detailDebito)}><FileText size={15} /> Apri PDF</button>
+            {Number(detailDebito.residuo) > 0 && detailDebito.status !== 'annullato' && <><button onClick={() => startDeduct(detailDebito)}><MinusCircle size={15} /> Aggiungi decurtazione</button><button onClick={() => startDeduct(detailDebito, true)}><CheckCircle2 size={15} /> Rimborsa tutto</button></>}
           </div>
-        )}
+          <div className="finance-section-label">Storico movimenti <span className="normal-case tracking-normal font-normal">Dal più vecchio</span></div>
+          <DebtLedgerTable debt={detailDebito} snapshot={movByDebito[detailDebito.id]} />
+        </div>}
       </Modal>
 
       {/* DECURTAZIONE MANUALE */}
@@ -991,7 +677,7 @@ export default function DebitiBonusPage() {
             <Button variant="ghost" onClick={() => setManualDeduct(null)}>
               Annulla
             </Button>
-            <Button variant="primary" onClick={applyManualDeduct}>
+            <Button variant="primary" onClick={() => saveAction(applyManualDeduct)}>
               Registra
             </Button>
           </>
@@ -1003,16 +689,19 @@ export default function DebitiBonusPage() {
               {venueLabel(manualDeduct.venue_id)} · residuo attuale{" "}
               <strong>{fmtEuro(manualDeduct.residuo)}</strong>
             </p>
+            <Field label="Data rimborso"><Input type="date" value={manualDate} min={manualDeduct.data_erogazione || undefined} max={todayKey()} onChange={e => setManualDate(e.target.value)} /></Field>
             <Field label="Importo da scalare (€)">
               <Input
                 type="number"
                 inputMode="numeric"
                 value={manualAmount}
+                min="1" step="1" max={manualDeduct.residuo}
                 onChange={(e) => setManualAmount(e.target.value)}
                 placeholder="es. 250"
                 autoFocus
               />
             </Field>
+            <div className="debt-balance-panel"><small>Residuo dopo il rimborso</small><strong>{fmtEuro(Number(manualDeduct.residuo) - (Number(manualAmount) || 0))}</strong></div>
           </div>
         )}
       </Modal>
@@ -1022,9 +711,10 @@ export default function DebitiBonusPage() {
         onClose={() => setEditItem(null)}
         venues={venues}
         dipendenti={dipendenti}
-        onSaveDebito={updateDebito}
-        onSaveBonus={updateBonus}
-        onSaveNota={updateNota}
+        snapshots={movByDebito}
+        onSaveDebito={(row, form) => saveAction(() => updateDebito(row, form))}
+        onSaveBonus={(row, form) => saveAction(() => updateBonus(row, form))}
+        onSaveNota={(row, form) => saveAction(() => updateNota(row, form))}
       />
 
       <ConfirmDialog
@@ -1039,9 +729,9 @@ export default function DebitiBonusPage() {
         }
         message="L'operazione eliminerà anche lo storico collegato e non è reversibile. Procedere?"
         confirmLabel="Elimina"
-        onConfirm={doDelete}
+        onConfirm={() => saveAction(doDelete)}
       />
-    </PageLayout>
+    </PageLayout></div></SavingContext.Provider>
   );
 }
 
@@ -1049,136 +739,32 @@ export default function DebitiBonusPage() {
 // SOTTO-COMPONENTI
 // ════════════════════════════════════════════════════════════════
 
-function DebitoModeBadge({ d }) {
-  if (d.modalita === "bonifico") {
-    return (
-      <Badge variant="info" size="sm">
-        <Landmark size={11} /> Bonifico
-      </Badge>
-    );
-  }
-  return (
-    <Badge variant="warning" size="sm">
-      <Banknote size={11} /> Contanti
-    </Badge>
-  );
+function DebtSummary({ debt }) {
+  const t = debtTotals(debt);
+  return <div className="debt-amounts"><div><small>Residuo da rimborsare</small><strong>{fmtEuro(t.remaining)}</strong></div><div><small>Totale erogato</small><strong>{fmtEuro(t.total)}</strong></div><div><small>Già rimborsato</small><strong>{fmtEuro(t.repaid)}</strong></div></div>;
 }
-
-function DebitoCard({
-  d,
-  venueLabel,
-  onOpen,
-  onDeduct,
-  onEdit,
-  onDelete,
-  closed = false,
-}) {
-  const iniziale = Math.trunc(Number(d.importo_iniziale) || 0);
-  const residuo = Math.trunc(Number(d.residuo) || 0);
-  const pct =
-    iniziale > 0
-      ? Math.min(100, Math.round(((iniziale - residuo) / iniziale) * 100))
-      : 0;
-  const rataLabel =
-    d.modalita === "contanti"
-      ? d.rata_tipo === "tutto_aggio"
-        ? "Tutto aggio"
-        : `Rata ${fmtEuro(d.rata_importo)}`
-      : "Bonifico";
-
-  return (
-    <article
-      className={`overflow-hidden rounded-[22px] border bg-[#fffdf9] shadow-[0_18px_38px_-32px_rgba(70,42,3,.75)] transition hover:-translate-y-0.5 ${closed ? "border-slate-200" : "border-red-200"}`}
-    >
-      <div className={`p-3 md:p-4 ${closed ? "opacity-70" : ""}`}>
-        <div className="flex items-start justify-between gap-3">
-          <button
-            type="button"
-            onClick={onOpen}
-            className="min-w-0 flex-1 text-left"
-          >
-            <div className="flex items-center gap-2">
-              <Building2
-                size={14}
-                className="shrink-0 text-[var(--color-text-muted)]"
-              />
-              <p className="truncate text-[14px] font-semibold">
-                {venueLabel(d.venue_id)}
-              </p>
-            </div>
-            <p className="mt-0.5 text-[11px] text-[var(--color-text-muted)]">
-              {rataLabel}
-              {d.modalita === "contanti" && d.periodicita
-                ? ` · ${PERIODICITA_LABEL[d.periodicita]}`
-                : ""}
-            </p>
-          </button>
-          <div className="flex shrink-0 items-center gap-1.5">
-            {closed ? (
-              <Badge
-                variant={d.status === "estinto" ? "success" : "default"}
-                size="sm"
-              >
-                {d.status}
-              </Badge>
-            ) : (
-              <DebitoModeBadge d={d} />
-            )}
-            {!closed && onDeduct && (
-              <IconButton
-                icon={MinusCircle}
-                variant="accent"
-                onClick={onDeduct}
-                title="Registra decurtazione"
-              />
-            )}
-            <IconButton
-              icon={Pencil}
-              variant="accent"
-              onClick={onEdit}
-              title="Modifica"
-            />
-            <IconButton
-              icon={Trash2}
-              variant="danger"
-              onClick={onDelete}
-              title="Elimina"
-            />
-          </div>
-        </div>
-
-        <button
-          type="button"
-          onClick={onOpen}
-          className="mt-3 block w-full text-left"
-        >
-          <div className="flex items-end justify-between">
-            <p className="text-[20px] font-extrabold tabular-nums text-[var(--color-danger)]">
-              {fmtEuro(residuo)}
-            </p>
-            <p className="text-[11px] text-[var(--color-text-muted)]">
-              su {fmtEuro(iniziale)}
-            </p>
-          </div>
-          <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-[var(--color-surface)]">
-            <div
-              className="h-full rounded-full bg-[var(--color-success)]"
-              style={{ width: `${pct}%` }}
-            />
-          </div>
-          <p className="mt-1 text-[10px] text-[var(--color-text-muted)]">
-            {pct}% rimborsato
-          </p>
-        </button>
-      </div>
-    </article>
-  );
+function DebtLedgerTable({ debt, snapshot }) {
+  if (!snapshot) return <p role="status">Caricamento movimenti…</p>;
+  const l = debtLedger(debt, snapshot.repayments, snapshot.disbursements);
+  return <div className="debt-ledger"><table aria-label="Erogazioni e rimborsi"><thead><tr><th scope="col">Data</th><th scope="col">Erogato</th><th scope="col">Rimborsato</th></tr></thead><tbody>{l.rows.map(r => <tr key={r.id}><td>{formatITDate(r.date)}<small>{r.label}</small></td><td className="font-semibold text-[#94702e]">{r.paid ? fmtEuro(r.paid) : '—'}</td><td className="font-semibold">{r.repaid ? fmtEuro(r.repaid) : '—'}</td></tr>)}</tbody><tfoot><tr><td>Totali</td><td>{fmtEuro(l.paid)}</td><td>{fmtEuro(l.repaid)}</td></tr></tfoot></table>{l.difference !== 0 && <div className="debt-ledger-note">Storico pregresso da verificare: il saldo dei movimenti differisce dal residuo registrato di {fmtEuro(l.difference)}. Nessun rimborso è stato aggiunto automaticamente.</div>}</div>;
+}
+function DebitoCard({ d, venueLabel, onOpen, onDeduct, onEdit, onDelete, onPdf, closed = false }) {
+  const t = debtTotals(d);
+  const terms = d.modalita === 'bonifico' ? 'Bonifico' : `${d.rata_tipo === 'tutto_aggio' ? 'Tutto aggio' : `Rata ${fmtEuro(d.rata_importo)}`} · ${PERIODICITA_LABEL[d.periodicita] || 'Contanti'}`;
+  return <article className="debt-card">
+    <div className="debt-card-head"><button className="debt-venue" onClick={onOpen}><span className="debt-venue-icon"><Building2 size={20} /></span><span><strong>{venueLabel(d.venue_id)}</strong><small>{terms}</small></span></button><span className={`debt-status ${closed ? d.status === 'estinto' ? 'closed' : 'cancelled' : ''}`}>{d.status === 'attivo' ? 'In rimborso' : d.status === 'estinto' ? 'Estinto' : 'Annullato'}</span></div>
+    <DebtSummary debt={d} />
+    {d.status === 'estinto' && t.remaining > 0 && <p className="debt-ledger-note mb-3">Questa posizione risulta estinta ma ha ancora un residuo. Verifica i rimborsi.</p>}
+    <div className="debt-track" role="progressbar" aria-label="Quota rimborsata" aria-valuenow={t.percent} aria-valuemin={0} aria-valuemax={100}><div style={{ width: `${t.percent}%` }} /></div>
+    <div className="flex justify-between gap-3 text-[10px] text-[#978669]"><span>{t.percent}% rimborsato</span><span>Iniziale {fmtEuro(t.initial)}{t.added > 0 ? ` + ${fmtEuro(t.added)} erogati` : ''}</span></div>
+    <div className="debt-card-foot"><button onClick={onOpen} className="flex items-center gap-1 text-[11px] font-semibold text-[#8b6d37]">Vedi movimenti <ArrowUpRight size={14} /></button><div className="debt-actions"><button onClick={onEdit} title="Modifica debito"><Pencil size={14} /><span>Modifica</span></button>{onDeduct && <button onClick={onDeduct}><MinusCircle size={14} /><span>Decurtazione</span></button>}<button onClick={onPdf}><FileText size={14} /><span>PDF</span></button><button className="danger" onClick={onDelete} aria-label={`Elimina debito ${venueLabel(d.venue_id)}`} title="Elimina debito"><Trash2 size={14} /></button></div></div>
+  </article>;
 }
 
 function BonusCard({ b, venueLabel, onToggle, onEdit, onDelete }) {
   const attivo = b.status === "attivo";
   return (
-    <article className="overflow-hidden rounded-[22px] border border-emerald-200 bg-[#fffdf9] shadow-[0_18px_38px_-32px_rgba(6,95,70,.55)] transition hover:-translate-y-0.5">
+    <article className="overflow-hidden rounded-[22px] border border-[#e5dccb] bg-[#fffdf9] shadow-[0_18px_38px_-32px_rgba(89,66,28,.5)] transition hover:-translate-y-0.5">
       <div
         className={`flex items-center justify-between gap-3 p-3 md:p-4 ${attivo ? "" : "opacity-70"}`}
       >
@@ -1196,7 +782,7 @@ function BonusCard({ b, venueLabel, onToggle, onEdit, onDelete }) {
             {PERIODICITA_LABEL[b.periodicita]}
             {b.agent_name ? ` · ${b.agent_name}` : ""}
           </p>
-          <p className="mt-1 text-[20px] font-extrabold tabular-nums text-[var(--color-success)]">
+          <p className="mt-1 text-[20px] font-extrabold tabular-nums text-[#916b28]">
             {fmtEuro(b.importo)}
           </p>
         </div>
@@ -1292,6 +878,7 @@ function NotaCard({ n, venueLabel, onToggle, onEdit, onDelete }) {
 
 function NewDebitoModal({ open, onClose, venues, onCreate }) {
   const [form, setForm] = useState({
+    id: crypto.randomUUID(), data: todayKey(),
     venue_id: "",
     importo_iniziale: "",
     modalita: "contanti",
@@ -1300,18 +887,6 @@ function NewDebitoModal({ open, onClose, venues, onCreate }) {
     rata_importo: "",
     note: "",
   });
-  useEffect(() => {
-    if (open)
-      setForm({
-        venue_id: "",
-        importo_iniziale: "",
-        modalita: "contanti",
-        periodicita: "ogni_conteggio",
-        rata_tipo: "fisso",
-        rata_importo: "",
-        note: "",
-      });
-  }, [open]);
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
   const isContanti = form.modalita === "contanti";
 
@@ -1341,7 +916,8 @@ function NewDebitoModal({ open, onClose, venues, onCreate }) {
           />
         </Field>
 
-        <Field label="Importo debito (€)" required>
+        <Field label="Data erogazione" required><Input type="date" value={form.data} max={todayKey()} onChange={e => set("data", e.target.value)} /></Field>
+        <Field label="Importo iniziale (€)" required>
           <Input
             type="number"
             inputMode="numeric"
@@ -1441,16 +1017,6 @@ function NewBonusModal({ open, onClose, venues, dipendenti, onCreate }) {
     periodicita: "ogni_conteggio",
     note: "",
   });
-  useEffect(() => {
-    if (open)
-      setForm({
-        venue_id: "",
-        agent_id: "",
-        importo: "",
-        periodicita: "ogni_conteggio",
-        note: "",
-      });
-  }, [open]);
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
 
   return (
@@ -1537,10 +1103,6 @@ function NewNotaModal({ open, onClose, venues, onCreate }) {
     sempre: false,
     conteggi_totali: "1",
   });
-  useEffect(() => {
-    if (open)
-      setForm({ venue_id: "", testo: "", sempre: false, conteggi_totali: "1" });
-  }, [open]);
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
 
   return (
@@ -1620,17 +1182,7 @@ function SearchableVenueSelect({ venues, value, onChange }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
 
-  useEffect(() => {
-    if (selectedVenue && !open) {
-      setQuery(
-        String(selectedVenue.name || "").startsWith(String(selectedVenue.id))
-          ? selectedVenue.name
-          : `${selectedVenue.id} ${selectedVenue.name}`,
-      );
-    }
-    if (!value && !open) setQuery("");
-  }, [selectedVenue, value, open]);
-
+  const selectedLabel = selectedVenue ? (String(selectedVenue.name || '').startsWith(String(selectedVenue.id)) ? selectedVenue.name : `${selectedVenue.id} ${selectedVenue.name}`) : '';
   const normalizedQuery = query.trim().toLowerCase();
 
   const filteredVenues = useMemo(() => {
@@ -1663,8 +1215,8 @@ function SearchableVenueSelect({ venues, value, onChange }) {
   return (
     <div className="relative">
       <Input
-        value={query}
-        onFocus={() => setOpen(true)}
+        value={open ? query : selectedLabel}
+        onFocus={() => { setQuery(''); setOpen(true); }}
         onChange={(e) => {
           setQuery(e.target.value);
           onChange("");
@@ -1677,17 +1229,13 @@ function SearchableVenueSelect({ venues, value, onChange }) {
         <div className="absolute z-50 mt-1 max-h-64 w-full overflow-auto rounded-lg border border-[var(--color-border)] bg-white shadow-xl">
           {filteredVenues.length > 0 ? (
             filteredVenues.map((v) => {
-              const label = String(v.name || "").startsWith(String(v.id))
-                ? v.name
-                : `${v.id} ${v.name}`;
-
               return (
                 <button
                   key={v.id}
                   type="button"
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => pickVenue(v)}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-blue-50"
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-amber-50"
                 >
                   <span className="font-semibold text-slate-900">{v.id}</span>
                   <span className="truncate text-slate-700">{v.name}</span>
@@ -1711,6 +1259,7 @@ function EditItemModal({
   venues,
   dipendenti,
   onSaveDebito,
+  snapshots,
   onSaveBonus,
   onSaveNota,
 }) {
@@ -1723,6 +1272,7 @@ function EditItemModal({
         row={item.row}
         venues={venues}
         onSave={onSaveDebito}
+        snapshot={snapshots?.[item.row.id]}
       />
     );
   }
@@ -1749,23 +1299,10 @@ function EditItemModal({
   );
 }
 
-function EditDebitoModal({ open, onClose, row, venues, onSave }) {
-  const [form, setForm] = useState({
-    venue_id: "",
-    importo_iniziale: "",
-    modalita: "contanti",
-    periodicita: "ogni_conteggio",
-    rata_tipo: "fisso",
-    rata_importo: "",
-    note: "",
-  });
-  useEffect(() => {
-    if (open && row)
-      setForm({
+function EditDebitoModal({ open, onClose, row, venues, onSave, snapshot }) {
+  const [form, setForm] = useState(() => ({
         venue_id: row.venue_id || "",
-        importo_iniziale: String(
-          Math.trunc(Number(row.importo_iniziale) || 0) || "",
-        ),
+        nuova_erogazione: "", data: todayKey(),
         modalita: row.modalita || "contanti",
         periodicita: row.periodicita || "ogni_conteggio",
         rata_tipo: row.rata_tipo || "fisso",
@@ -1774,22 +1311,18 @@ function EditDebitoModal({ open, onClose, row, venues, onSave }) {
             ? String(Math.trunc(Number(row.rata_importo) || 0))
             : "",
         note: row.note || "",
-      });
-  }, [open, row]);
+      }));
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
   const isContanti = form.modalita === "contanti";
-  const vecchioIniziale = Math.trunc(Number(row?.importo_iniziale) || 0);
-  const vecchioResiduo = Math.trunc(Number(row?.residuo) || 0);
-  const giaScalato = Math.max(0, vecchioIniziale - vecchioResiduo);
-  const nuovoIniziale = Math.trunc(Number(form.importo_iniziale) || 0);
-  const nuovoResiduo = Math.max(0, nuovoIniziale - giaScalato);
+  const totals = debtTotals(row || {});
+  const added = Number(form.nuova_erogazione) || 0;
 
   return (
     <Modal
       open={open}
       onClose={onClose}
       title="Modifica debito"
-      width="md"
+      width="lg"
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
@@ -1802,28 +1335,13 @@ function EditDebitoModal({ open, onClose, row, venues, onSave }) {
       }
     >
       <div className="flex flex-col gap-3">
-        <Field label="Locale" required>
-          <SearchableVenueSelect
-            venues={venues}
-            value={form.venue_id}
-            onChange={(value) => set("venue_id", value)}
-          />
-        </Field>
-
-        <Field
-          label="Importo debito (€)"
-          required
-          hint={`Scalature già fatte: ${fmtEuro(giaScalato)} · nuovo residuo: ${fmtEuro(nuovoResiduo)}`}
-        >
-          <Input
-            type="number"
-            inputMode="numeric"
-            value={form.importo_iniziale}
-            onChange={(e) => set("importo_iniziale", e.target.value)}
-            placeholder="es. 10000"
-          />
-        </Field>
-
+        <div><p className="finance-eyebrow">Locale</p><p className="mt-1 text-base font-semibold">{(() => { const v = venues.find(v => String(v.id) === String(row?.venue_id)); return v ? (v.name.toLowerCase().startsWith(String(v.id).toLowerCase()) ? v.name : `${v.id} ${v.name}`) : row?.venue_id; })()}</p></div>
+        <div className="debt-editor-summary my-2">
+          <div className="debt-balance-panel"><small>Importo iniziale</small><strong>{fmtEuro(totals.initial)}</strong><div className="mt-4 border-t border-[#dfcfaa] pt-3"><small>Residuo attuale</small><strong className="text-[#946b26]">{fmtEuro(totals.remaining)}</strong></div><p className="mt-2 text-[11px] text-[#8b7752]">Totale erogato {fmtEuro(totals.total)}</p></div>
+          <div className="debt-add-panel"><p className="mb-3 flex items-center gap-2 text-sm font-semibold text-[#896225]"><Plus size={16} /> Nuova erogazione</p><Field label="Importo da aggiungere (€)"><Input type="number" min="1" step="1" inputMode="numeric" placeholder="Nessuna aggiunta" value={form.nuova_erogazione} disabled={row?.status === 'annullato'} onChange={e => set('nuova_erogazione', e.target.value)} /></Field><div className="mt-3"><Field label="Data erogazione"><Input type="date" value={form.data} min={row?.data_erogazione || undefined} max={todayKey()} disabled={!added} onChange={e => set('data', e.target.value)} /></Field></div></div>
+        </div>
+        {added > 0 && <div className="flex flex-wrap justify-between gap-3 rounded-xl bg-[#f2e6c8] p-3 text-[12px] text-[#765522]"><span>Dopo il salvataggio · Totale erogato <strong>{fmtEuro(totals.total + added)}</strong></span><span>Nuovo residuo <strong>{fmtEuro(totals.remaining + added)}</strong></span></div>}
+        <div className="finance-section-label">Condizioni di rimborso</div>
         <Field label="Modalità di rimborso" required>
           <div className="grid grid-cols-2 gap-2">
             <ChoiceChip
@@ -1894,29 +1412,21 @@ function EditDebitoModal({ open, onClose, row, venues, onSave }) {
             onChange={(e) => set("note", e.target.value)}
           />
         </Field>
+        <div className="finance-section-label">Erogazioni e rimborsi <span className="normal-case tracking-normal font-normal">Dal più vecchio</span></div>
+        <DebtLedgerTable debt={row} snapshot={snapshot} />
       </div>
     </Modal>
   );
 }
 
 function EditBonusModal({ open, onClose, row, venues, dipendenti, onSave }) {
-  const [form, setForm] = useState({
-    venue_id: "",
-    agent_id: "",
-    importo: "",
-    periodicita: "ogni_conteggio",
-    note: "",
-  });
-  useEffect(() => {
-    if (open && row)
-      setForm({
+  const [form, setForm] = useState(() => ({
         venue_id: row.venue_id || "",
         agent_id: row.agent_id || "",
         importo: String(Math.trunc(Number(row.importo) || 0) || ""),
         periodicita: row.periodicita || "ogni_conteggio",
         note: row.note || "",
-      });
-  }, [open, row]);
+      }));
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
 
   return (
@@ -1997,15 +1507,7 @@ function EditBonusModal({ open, onClose, row, venues, dipendenti, onSave }) {
 }
 
 function EditNotaModal({ open, onClose, row, venues, onSave }) {
-  const [form, setForm] = useState({
-    venue_id: "",
-    testo: "",
-    sempre: false,
-    conteggi_totali: "1",
-  });
-  useEffect(() => {
-    if (open && row)
-      setForm({
+  const [form, setForm] = useState(() => ({
         venue_id: row.venue_id || "",
         testo: row.testo || "",
         sempre: row.conteggi_totali == null,
@@ -2013,8 +1515,7 @@ function EditNotaModal({ open, onClose, row, venues, onSave }) {
           row.conteggi_totali != null
             ? String(Math.trunc(Number(row.conteggi_totali) || 1))
             : "1",
-      });
-  }, [open, row]);
+      }));
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
   const vecchiTotali = Math.trunc(Number(row?.conteggi_totali) || 0);
   const vecchiRimasti = Math.trunc(Number(row?.conteggi_rimasti) || 0);

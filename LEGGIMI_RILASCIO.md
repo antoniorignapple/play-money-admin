@@ -1,32 +1,19 @@
-# Play Money Admin 12.1
+# Play Money Admin 13.2 — Zeri e chilometri mancanti
 
-Aggiornamento della versione 11.0 allegata.
+## Installazione
+Dalla 13.0 o 13.1: pubblicare il contenuto di `dist` e accettare l’aggiornamento dell’app. Nessun nuovo SQL e nessuna modifica ai dati registrati.
+Dalla 12.1: eseguire prima la migrazione della 13.0, come indicato in `LEGGIMI_RILASCIO_13.0_ARCHIVIO.md`.
 
-## Novità 12.1
-- Simulazioni indipendenti dal periodo conteggi attivo, anche prima del 01/09/2026.
-- Apertura su tutto lo storico; filtri Dal, Al e Dipendente applicati alla lista e al PDF. Pulsante Tutte per azzerarli.
-- Filtro sulla data della simulazione (work_date), con data di registrazione come ripiego.
-- Caricamento a pagine senza il precedente tetto di 3000 simulazioni / 1000 nel cestino.
-- Cestino completo, indipendente dal periodo conteggi.
-- Nessuna nuova migrazione database. Restano necessarie le funzioni già previste dalla versione 11.
+## Calcolo corretto
+Gli zeri indicano letture non inserite e vengono ignorati, insieme ai campi vuoti e non validi. Si prendono prima e ultima lettura positiva disponibili all’interno del range, in ordine cronologico, e se ne calcola la differenza.
 
-## Modifiche
-- Rimosso il riquadro “Una rettifica trasparente” da Modifica conteggio.
-- Rimosso il motivo obbligatorio della modifica da entrambi gli editor.
-- Rimossi la scheda Storico rettifiche e i pulsanti storico nel Centro modifiche.
-- Salvataggio diretto: modifica i campi e premi una sola volta **Salva**. Nessuna schermata Rivedi o Conferma e salva.
-- Protezione immediata contro clic ripetuti durante il salvataggio; gli errori mantengono aperti i campi per correggere e riprovare.
-- Mantenuti ricalcolo, confronto importi, blocco facoltativo del dipendente e controllo dei conflitti.
-- Versione applicazione e metadati di aggiornamento portati a 12.0.
+Esempio Caddy FX045RR: 363.091 km del 10/08/2026 e 364.551 km del 31/08/2026 danno **1.460 km**. Lo zero del 29/08 non blocca più il calcolo.
 
-## Database e installazione
-Non occorrono nuove migrazioni rispetto alla versione 11 funzionante. Le funzioni v11 restano compatibili: l’app invia automaticamente una descrizione tecnica della modifica, senza chiederla all’utente. Lo storico interno già presente nel database non viene cancellato.
+La stessa regola vale per zeri all’inizio o alla fine del range. Con meno di due letture positive il dato non è determinabile. Senza utilizzi si mostrano 0 km. Una diminuzione reale tra letture positive resta segnalata, senza inventare chilometri.
 
-Se l’aggiornamento database della 11 non è stato ancora installato, resta necessario seguire LEGGIMI_RILASCIO_11_ARCHIVIO.md, sezione “Prima di usare la 11”.
-
-Lo ZIP contiene sorgenti e cartella dist ricompilata. Per ricompilare: npm ci e npm run build. Caricare dist nell’hosting Admin esistente secondo la procedura abituale.
+Le registrazioni originali, gli utilizzi e i rifornimenti restano invariati. Date e valori effettivamente usati sono visibili nel riepilogo. Tutte le funzionalità Debiti e Bonus sono mantenute.
 
 ## Verifiche
-Test automatici di calcolo, date e protezioni aggiornamento; build di produzione e test database locali. Nessuna operazione eseguita sul database online. Le immagini nella cartella docs si riferiscono alla versione 11 archiviata.
+25 test automatici, inclusi il caso fotografato, gli zeri intermedi e agli estremi, periodi senza letture sufficienti e diminuzioni reali. Build produzione e lint del calcolo. Nessuna pubblicazione o modifica al database online eseguita.
 
-Verifica 12.1: 14 test automatici superati e build produzione riuscita. ESLint segnala problemi preesistenti nella pagina Simulazioni (import inutilizzato e gestione effetti React). Nessuna verifica sul database online.
+Sorgenti e `dist` compilata inclusi. Comandi: `npm ci`, `npm test`, `npm run build`.

@@ -1,4 +1,7 @@
 import { getRomeISODate } from '../lib/dates.js';
+import { currentMonthRange, inDateRange, vehicleDistance, odometer } from '../lib/vehiclePeriod.js';
+import { fetchAllRows } from '../lib/fetchAllRows.js';
+import '../styles/debitiBonus.css';
 import { useEffect, useMemo, useState } from "react";
 import {
   CalendarDays,
@@ -39,6 +42,8 @@ export default function AutomezziPage() {
   const [employees, setEmployees] = useState([]);
   const [selectedVehicleId, setSelectedVehicleId] = useState("");
   const [search, setSearch] = useState("");
+  const [dateRange, setDateRange] = useState(() => currentMonthRange());
+  const [loadError, setLoadError] = useState("");
   const [loading, setLoading] = useState(true);
   const [vehicleModal, setVehicleModal] = useState(null);
   const [vehicleForm, setVehicleForm] = useState({ name: "", plate: "" });
@@ -54,34 +59,23 @@ export default function AutomezziPage() {
 
   useEffect(() => {
     loadData();
+    // Initial load; later refreshes are user-triggered.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function loadData() {
     setLoading(true);
-    const [vehicleResult, recordResult, employeeResult] = await Promise.all([
-      supabase.from("automezzi").select("*").order("name"),
-      supabase
-        .from("fondo_cassa_giornaliero")
-        .select("*")
-        .order("work_date", { ascending: false }),
-      supabase.from("dipendenti").select(DIPENDENTI_SAFE_FIELDS).order("full_name"),
-    ]);
-    const error =
-      vehicleResult.error || recordResult.error || employeeResult.error;
-    if (error) toast.error(error.message);
-    const vehicleList = vehicleResult.data || [];
-    setVehicles(vehicleList);
-    setRecords(recordResult.data || []);
-    setEmployees(employeeResult.data || []);
-    setSelectedVehicleId((current) =>
-      current &&
-      vehicleList.some((vehicle) => String(vehicle.id) === String(current))
-        ? current
-        : vehicleList.find((vehicle) => vehicle.active !== false)?.id ||
-          vehicleList[0]?.id ||
-          "",
-    );
-    setLoading(false);
+    try {
+      setLoadError('');
+      const [vehicleList, allRecords, employeesList] = await Promise.all([
+        fetchAllRows(() => supabase.from('automezzi').select('*').order('name').order('id')),
+        fetchAllRows(() => supabase.from('fondo_cassa_giornaliero').select('*').order('work_date', { ascending: false }).order('id', { ascending: false })),
+        fetchAllRows(() => supabase.from('dipendenti').select(DIPENDENTI_SAFE_FIELDS).order('full_name').order('id')),
+      ]);
+      setVehicles(vehicleList); setRecords(allRecords); setEmployees(employeesList);
+      setSelectedVehicleId(current => current && vehicleList.some(v => String(v.id) === String(current)) ? current : vehicleList.find(v => v.active !== false)?.id || vehicleList[0]?.id || '');
+    } catch (error) { setLoadError(error.message); toast.error(error.message); }
+    finally { setLoading(false); }
   }
 
   function employeeName(id) {
@@ -96,8 +90,7 @@ export default function AutomezziPage() {
 
   function matchesVehicle(record, vehicle) {
     if (!record || !vehicle) return false;
-    if (record.vehicle_id && String(record.vehicle_id) === String(vehicle.id))
-      return true;
+    if (record.vehicle_id) return String(record.vehicle_id) === String(vehicle.id);
     const vehiclePlate = normalizePlate(vehicle.plate);
     const snapshotPlate = normalizePlate(record.vehicle_plate_snapshot);
     if (vehiclePlate && snapshotPlate === vehiclePlate) return true;
@@ -123,10 +116,14 @@ export default function AutomezziPage() {
     vehicles.find(
       (vehicle) => String(vehicle.id) === String(selectedVehicleId),
     ) || null;
+  const periodRecords = useMemo(() => records.filter(record => inDateRange(record, dateRange)), [records, dateRange]);
+  const fleetPeriodRecords = periodRecords.filter(record => activeVehicles.some(vehicle => matchesVehicle(record, vehicle)));
   const vehicleHistory = useMemo(
-    () => records.filter((record) => matchesVehicle(record, selectedVehicle)),
-    [records, selectedVehicle],
+    () => periodRecords.filter(record => matchesVehicle(record, selectedVehicle)),
+    [periodRecords, selectedVehicle],
   );
+  const distanceByVehicle = new Map(activeVehicles.map(vehicle => [vehicle.id, vehicleDistance(records.filter(record => matchesVehicle(record, vehicle)), dateRange)]));
+  const selectedDistance = distanceByVehicle.get(selectedVehicle?.id);
   const totalFuel = vehicleHistory.reduce(
     (sum, record) => sum + Number(record.rifornimento || 0),
     0,
@@ -196,6 +193,7 @@ export default function AutomezziPage() {
   async function createUsage() {
     if (!selectedVehicle || !usageForm.work_date || !usageForm.created_by)
       return toast.warning("Data e agente sono obbligatori");
+    if (usageForm.km !== '' && odometer(usageForm.km) === null) return toast.warning('Inserisci una lettura contachilometri valida');
     setSaving(true);
     const { error } = await supabase.from("fondo_cassa_giornaliero").insert({
       work_date: usageForm.work_date,
@@ -216,7 +214,7 @@ export default function AutomezziPage() {
   }
 
   return (
-    <PageLayout>
+    <div className="finance-theme h-full min-h-0"><PageLayout>
       <PageBody>
         <div className="min-h-full bg-[radial-gradient(circle_at_13%_0%,rgba(226,186,99,.18),transparent_28%),linear-gradient(180deg,#f7f2e8_0%,#f3eee5_100%)] px-3 py-3 md:px-6 md:py-5">
           <div className="mx-auto max-w-[1720px] space-y-4">
@@ -254,33 +252,10 @@ export default function AutomezziPage() {
               {[
                 ["MEZZI DISPONIBILI", activeVehicles.length],
                 [
-                  "UTILIZZI REGISTRATI",
-                  records.filter((record) =>
-                    activeVehicles.some((vehicle) =>
-                      matchesVehicle(record, vehicle),
-                    ),
-                  ).length,
+                  "UTILIZZI NEL PERIODO", fleetPeriodRecords.length,
                 ],
-                [
-                  "RIFORNIMENTI TOTALI",
-                  formatEuro0(
-                    records.reduce(
-                      (sum, record) => sum + Number(record.rifornimento || 0),
-                      0,
-                    ),
-                  ),
-                ],
-                [
-                  "ULTIMO UTILIZZO",
-                  records.find((record) => record.vehicle_id || record.mezzo)
-                    ?.work_date
-                    ? formatDate(
-                        records.find(
-                          (record) => record.vehicle_id || record.mezzo,
-                        ).work_date,
-                      )
-                    : "—",
-                ],
+                ["RIFORNIMENTI NEL PERIODO", formatEuro0(fleetPeriodRecords.reduce((sum, record) => sum + Number(record.rifornimento || 0), 0))],
+                ["ULTIMO UTILIZZO NEL PERIODO", fleetPeriodRecords[0] ? formatDate(fleetPeriodRecords[0].work_date) : '—'],
               ].map(([label, value]) => (
                 <div
                   key={label}
@@ -294,6 +269,15 @@ export default function AutomezziPage() {
                   </p>
                 </div>
               ))}
+            </section>
+
+            <section aria-label="Periodo automezzi" className="rounded-[20px] border border-[#e1d3b5] bg-[#fffdf8] p-4 md:p-5">
+              <div className="flex flex-wrap items-end justify-between gap-4">
+                <div className="flex items-center gap-3 self-center"><span className="rounded-xl bg-[#f4ebd5] p-3 text-[#9b742c]"><CalendarDays size={20} /></span><div><p className="text-sm font-bold text-[#654b21]">Periodo di consultazione</p><p className="mt-1 text-[11px] text-[#978366]">Utilizzi, rifornimenti e chilometri</p></div></div>
+                <div className="flex flex-wrap items-end gap-3"><label className="text-[11px] font-semibold text-[#8b7959]">Dal<input aria-label="Data inizio periodo" className="mt-1 block min-h-10 w-[145px] rounded-xl border border-[#dfcfac] bg-white px-3 text-sm text-[#453721]" type="date" value={dateRange.from} onChange={e => setDateRange(r => ({ ...r, from: e.target.value }))} /></label><label className="text-[11px] font-semibold text-[#8b7959]">Al<input aria-label="Data fine periodo" className="mt-1 block min-h-10 w-[145px] rounded-xl border border-[#dfcfac] bg-white px-3 text-sm text-[#453721]" type="date" value={dateRange.to} onChange={e => setDateRange(r => ({ ...r, to: e.target.value }))} /></label><button type="button" onClick={() => setDateRange(currentMonthRange())} className="min-h-10 rounded-xl border border-[#d9c393] bg-[#f7edda] px-4 text-xs font-bold text-[#8b6526]">Mese corrente</button></div>
+              </div>
+              {(!dateRange.from || !dateRange.to || dateRange.from > dateRange.to) && <p role="alert" className="mt-3 text-xs text-red-700">Scegli un intervallo valido: la data iniziale deve precedere quella finale.</p>}
+              {loadError && <p role="alert" className="mt-3 text-xs text-red-700">Dati non aggiornati: {loadError}. Premi Aggiorna per riprovare.</p>}
             </section>
 
             <section>
@@ -328,7 +312,8 @@ export default function AutomezziPage() {
                   {filteredVehicles.map((vehicle) => {
                     const active =
                       String(selectedVehicleId) === String(vehicle.id);
-                    const uses = records.filter((record) =>
+                    const distance = distanceByVehicle.get(vehicle.id);
+                    const uses = periodRecords.filter((record) =>
                       matchesVehicle(record, vehicle),
                     );
                     return (
@@ -353,11 +338,12 @@ export default function AutomezziPage() {
                             <h3 className="mt-1 max-w-[75%] text-[17px] font-black uppercase tracking-[.05em]">
                               {vehicle.name}
                             </h3>
-                            <p
-                              className={`mt-2 text-[19px] font-black tracking-[.13em] ${active ? "text-white" : "text-[#49300a]"}`}
-                            >
-                              {vehicle.plate}
-                            </p>
+                            <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1">
+                              <span className="text-[16px] font-bold tracking-[.09em]">{vehicle.plate}</span>
+                              <span title={distance.message} className={`inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[12px] font-semibold ${active ? 'bg-white/15 text-amber-50' : 'bg-[#eaddb9]/60 text-[#856122]'}`}><Gauge size={13} />{distance.km == null ? '—' : distance.km.toLocaleString('it-IT', { useGrouping: 'always' })} km</span>
+                            </div>
+                            <p className={`mt-1 text-[9px] ${active ? 'text-amber-100/75' : 'text-[#9a835b]'}`}>{distance.status === 'complete' ? 'Percorsi nel periodo' : distance.status === 'empty' ? 'Nessun utilizzo nel periodo' : distance.status === 'anomaly' ? 'Verifica contachilometri' : distance.status === 'invalid' ? 'Intervallo non valido' : distance.status === 'missing' ? 'Letture insufficienti' : 'Chilometri parziali'}</p>
+
                           </div>
                           <div className="flex items-end justify-between">
                             <div>
@@ -448,10 +434,11 @@ export default function AutomezziPage() {
                   ))}
                 </div>
                 <div className="p-3 md:p-5">
+                  {selectedDistance && <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#e8dcbf] bg-[#faf5e9] px-4 py-3"><div><p className="text-[10px] font-bold uppercase tracking-wide text-[#9c803f]">Chilometri percorsi nel periodo</p><p className="mt-1 text-[11px] text-[#8b7959]">{selectedDistance.message}</p>{selectedDistance.start && selectedDistance.end && <p className="mt-2 text-[12px] font-semibold text-[#745727]">{formatDate(selectedDistance.start.date)}: {selectedDistance.start.km.toLocaleString('it-IT', { useGrouping: 'always' })} km → {formatDate(selectedDistance.end.date)}: {selectedDistance.end.km.toLocaleString('it-IT', { useGrouping: 'always' })} km</p>}</div><strong className="text-xl text-[#8d6826]">{selectedDistance.km == null ? '—' : selectedDistance.km.toLocaleString('it-IT', { useGrouping: 'always' })} km</strong></div>}
                   {vehicleHistory.length === 0 ? (
                     <EmptyState
                       title="Nessun utilizzo registrato"
-                      description="Lo storico comparirà automaticamente quando un agente utilizzerà questo mezzo."
+                      description="Non ci sono registrazioni per questo mezzo nel periodo selezionato."
                     />
                   ) : (
                     <div className="space-y-3">
@@ -485,11 +472,11 @@ export default function AutomezziPage() {
                             </div>
                             <div>
                               <p className="text-[8px] font-black tracking-[.14em] text-slate-400">
-                                CHILOMETRI INSERITI
+                                CONTACHILOMETRI
                               </p>
                               <p className="mt-1 flex items-center gap-2 text-[18px] font-black tabular-nums text-slate-900">
                                 <Gauge size={16} className="text-[#a16d18]" />
-                                {record.km || "—"}{" "}
+                                {odometer(record.km)?.toLocaleString('it-IT', { useGrouping: 'always' }) ?? '—'}{" "}
                                 <span className="text-[9px] text-slate-400">
                                   KM
                                 </span>
@@ -657,7 +644,7 @@ export default function AutomezziPage() {
               ))}
             </select>
           </Field>
-          <Field label="Chilometri">
+          <Field label="Contachilometri (km totali)">
             <Input
               type="number"
               value={usageForm.km}
@@ -692,6 +679,6 @@ export default function AutomezziPage() {
         confirmLabel="RIMUOVI"
         onConfirm={removeVehicle}
       />
-    </PageLayout>
+    </PageLayout></div>
   );
 }

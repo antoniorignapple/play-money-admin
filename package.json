@@ -1,7 +1,7 @@
 {
   "name": "play-money-admin",
   "private": true,
-  "version": "12.1.0",
+  "version": "13.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "test": "node --test tests/*.test.js",
     "check": "npm run test && npm run build",
-    "test:database": "node tests/database/admin-v11.mjs && node tests/database/admin-v11.mjs --generated"
+    "test:database": "node tests/database/admin-v11.mjs && node tests/database/admin-v11.mjs --generated",
+    "test:database:v13": "node tests/database/debiti-v13.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.105.4",
