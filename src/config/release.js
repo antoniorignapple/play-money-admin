@@ -1,11 +1,11 @@
 export const RELEASE = Object.freeze({
-  VERSION: "13.3",
-  TITLE: "Admin 13.3 · Chilometri attuali",
+  VERSION: "13.4",
+  TITLE: "Admin 13.4 · PDF automezzi",
   ITEMS: [
-    "Km attuali sopra i km percorsi nei riquadri degli automezzi",
-    "Ultima lettura valida indipendente dal periodo selezionato",
-    "Indicazione inseriti oggi, ieri oppure data precisa",
-    "Zeri e campi vuoti ignorati: rimane l’ultima lettura disponibile"
+    "Pulsante PDF nel riquadro di ogni automezzo",
+    "Report del periodo con data, dipendente, km inseriti e rifornimento",
+    "Riepilogo km attuali, km percorsi e totale rifornimenti",
+    "Anteprima in una nuova scheda, senza scaricamento automatico"
   ]
 });
 export const APP_VERSION = RELEASE.VERSION;

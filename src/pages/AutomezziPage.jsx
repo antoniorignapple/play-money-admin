@@ -1,3 +1,5 @@
+import { buildAutomezzoPdf } from '../lib/generateAutomezzoPdf.js';
+import { createPdfPreviewWindow, openPdfPreview, closePdfPreviewWindow } from '../lib/pdfPreview.js';
 import { getRomeISODate } from '../lib/dates.js';
 import { currentMonthRange, inDateRange, vehicleDistance, odometer, latestVehicleReading } from '../lib/vehiclePeriod.js';
 import { fetchAllRows } from '../lib/fetchAllRows.js';
@@ -7,6 +9,7 @@ import {
   CalendarDays,
   CarFront,
   Fuel,
+  FileText,
   Gauge,
   Pencil,
   Plus,
@@ -134,6 +137,23 @@ export default function AutomezziPage() {
       .map((record) => String(record.created_by || ""))
       .filter(Boolean),
   ).size;
+
+  function exportVehicle(vehicle) {
+    let target;
+    try {
+      if (loading || loadError) throw new Error('Aggiorna i dati prima di aprire il PDF');
+      if (!dateRange.from || !dateRange.to || dateRange.from > dateRange.to) throw new Error('Scegli un periodo valido prima di aprire il PDF');
+      target = createPdfPreviewWindow();
+      const doc = buildAutomezzoPdf({
+        vehicle, records: records.filter(record => matchesVehicle(record, vehicle)),
+        range: dateRange, employeeName,
+      });
+      openPdfPreview(doc, target);
+    } catch (error) {
+      closePdfPreviewWindow(target);
+      toast.error(error.message || 'Impossibile aprire il PDF');
+    }
+  }
 
   function openCreateVehicle() {
     setVehicleForm({ name: "", plate: "" });
@@ -318,10 +338,8 @@ export default function AutomezziPage() {
                       matchesVehicle(record, vehicle),
                     );
                     return (
-                      <button
+                      <div
                         key={vehicle.id}
-                        type="button"
-                        onClick={() => setSelectedVehicleId(vehicle.id)}
                         className={`group relative min-h-[168px] overflow-hidden rounded-[24px] border p-4 text-left transition hover:-translate-y-1 active:scale-[.98] ${active ? "border-[#9d6913] bg-[linear-gradient(135deg,#3f2909,#8b5b13_58%,#c39332)] text-white shadow-[0_24px_45px_-28px_rgba(75,44,2,.95)]" : "border-[#ddc99a] bg-[linear-gradient(145deg,#fffdf8,#f5e8c9)] text-[#39270d] shadow-[0_17px_34px_-29px_rgba(71,44,4,.7)]"}`}
                       >
                         <div
@@ -330,7 +348,7 @@ export default function AutomezziPage() {
                           <CarFront size={25} strokeWidth={2.2} />
                         </div>
                         <div className="relative flex min-h-[136px] flex-col justify-between">
-                          <div>
+                          <button type="button" onClick={() => setSelectedVehicleId(vehicle.id)} aria-label={`Seleziona ${vehicle.name} ${vehicle.plate}`} className="block w-full text-left focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-amber-500">
                             <p
                               className={`text-[9px] font-black tracking-[.16em] ${active ? "text-amber-100/75" : "text-[#a07120]"}`}
                             >
@@ -353,7 +371,7 @@ export default function AutomezziPage() {
                               </div>
                             </div>
 
-                          </div>
+                          </button>
                           <div className="mt-3 flex items-end justify-between">
                             <div>
                               <p
@@ -365,14 +383,13 @@ export default function AutomezziPage() {
                                 {uses.length}
                               </p>
                             </div>
-                            <span
-                              className={`text-[9px] font-black ${active ? "text-white" : "text-[#8b5c13]"}`}
-                            >
-                              VEDI STORICO →
-                            </span>
+                            <div className="flex flex-wrap items-center justify-end gap-2">
+                              <button type="button" onClick={() => exportVehicle(vehicle)} disabled={loading || !!loadError || !dateRange.from || !dateRange.to || dateRange.from > dateRange.to} aria-label={`Apri PDF ${vehicle.name} ${vehicle.plate}`} title="Apri il PDF del periodo selezionato" className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-[10px] font-black disabled:cursor-not-allowed disabled:opacity-40 ${active ? 'border-white/25 bg-white/15 text-white' : 'border-[#d3b879] bg-white/70 text-[#8b5c13]'}`}><FileText size={14} /> PDF</button>
+                              <button type="button" onClick={() => setSelectedVehicleId(vehicle.id)} className={`text-[9px] font-black ${active ? 'text-white' : 'text-[#8b5c13]'}`}>VEDI STORICO →</button>
+                            </div>
                           </div>
                         </div>
-                      </button>
+                      </div>
                     );
                   })}
                 </div>
