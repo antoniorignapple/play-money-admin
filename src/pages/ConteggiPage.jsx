@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { getAccountingName as resolveAccountingName } from '../lib/conteggiAccounting.js';
 import {
   Lock,
   Unlock,
@@ -339,16 +340,7 @@ export default function ConteggiPage() {
   }
 
   function getAccountingName(row) {
-    const snapshot = String(row?.giro_name_snapshot || "")
-      .replace(/^GIRO\s*:?[\s-]*/i, "")
-      .trim();
-    if (snapshot) return snapshot;
-    const linkedGiro = giroById[String(row?.giro_id)];
-    if (linkedGiro?.name)
-      return String(linkedGiro.name)
-        .replace(/^GIRO\s*:?[\s-]*/i, "")
-        .trim();
-    return getOperatorName(row);
+    return resolveAccountingName(row, giroById, getOperatorName);
   }
 
   function getDepositCodeForRow(row) {

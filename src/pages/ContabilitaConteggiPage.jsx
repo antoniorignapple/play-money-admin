@@ -1,4 +1,5 @@
 import { getRomeISODate } from '../lib/dates.js';
+import { calculateEsattoreTotal } from '../lib/conteggiAccounting.js'
 import { useEffect, useMemo, useState } from 'react'
 import {
   CalendarDays, Check, ChevronRight, Plus, RefreshCw, Search, Trash2, Calculator, X, AlertTriangle, FileText, ReceiptText,
@@ -39,6 +40,7 @@ export default function ContabilitaConteggiPage() {
   const [detail, setDetail] = useState(null)
   const [conteggi, setConteggi] = useState([])
   const [overrides, setOverrides] = useState([])
+  const [giri, setGiri] = useState([])
   const [venues, setVenues] = useState([])
   const [selectedDebtIds, setSelectedDebtIds] = useState(new Set())
   const [loading, setLoading] = useState(true)
@@ -91,11 +93,11 @@ export default function ContabilitaConteggiPage() {
     if (silent) setRefreshing(true)
     else setLoading(true)
     try {
-      const [detailRes, conteggiRes, overrideRes, venueRes, selectedRes, manualRes] = await Promise.all([
+      const [detailRes, conteggiRes, overrideRes, venueRes, selectedRes, manualRes, giriRes] = await Promise.all([
         supabase.rpc('get_contabilita_cassa_periodo', { p_period_id: periodId }),
         supabase
           .from('conteggi_tool')
-          .select('id,period_id,venue_id,conteggio_date,esattore,debito,operator_name,executor_name_snapshot,giro_name_snapshot,created_at')
+          .select('id,period_id,venue_id,conteggio_date,esattore,debito,operator_name,executor_name_snapshot,giro_id,giro_name_snapshot,created_at')
           .eq('period_id', periodId)
           .order('conteggio_date', { ascending: true }),
         supabase
@@ -113,6 +115,7 @@ export default function ContabilitaConteggiPage() {
           .eq('period_id', periodId)
           .order('work_date', { ascending: false })
           .order('created_at', { ascending: false }),
+        supabase.from('giri').select('id,name'),
       ])
 
       if (detailRes.error) throw detailRes.error
@@ -121,10 +124,12 @@ export default function ContabilitaConteggiPage() {
       if (venueRes.error) throw venueRes.error
       if (selectedRes.error) throw selectedRes.error
       if (manualRes.error) throw manualRes.error
+      if (giriRes.error) throw giriRes.error
 
       setDetail(detailRes.data || null)
       setConteggi(conteggiRes.data || [])
       setOverrides(overrideRes.data || [])
+      setGiri(giriRes.data || [])
       setVenues(venueRes.data || [])
       setSelectedDebtIds(new Set((selectedRes.data || []).map((x) => String(x.conteggio_id))))
       setManualRows(manualRes.data || [])
@@ -152,23 +157,9 @@ export default function ContabilitaConteggiPage() {
     return map
   }, [venues])
 
-  const totaleEsattore = useMemo(() => {
-    const groups = new Map()
-    conteggi.forEach((row) => {
-      const operator = String(row.operator_name || row.executor_name_snapshot || 'Senza operatore').trim()
-      const key = normalizeText(operator)
-      if (!groups.has(key)) groups.set(key, { operator, value: 0 })
-      groups.get(key).value += Number(row.esattore) || 0
-    })
-
-    overrides.forEach((override) => {
-      const key = normalizeText(override.operator_name)
-      if (!groups.has(key)) groups.set(key, { operator: override.operator_name, value: 0 })
-      groups.get(key).value = Math.trunc(Number(override.esattore_override) || 0)
-    })
-
-    return Array.from(groups.values()).reduce((sum, item) => sum + (Number(item.value) || 0), 0)
-  }, [conteggi, overrides])
+  const totaleEsattore = useMemo(() => calculateEsattoreTotal(
+    conteggi, overrides, Object.fromEntries(giri.map((giro) => [String(giro.id), giro])),
+  ), [conteggi, overrides, giri])
 
   const debts = useMemo(() => conteggi
     .filter((row) => Number(row.debito) > 0)
