@@ -1,11 +1,11 @@
 export const RELEASE = Object.freeze({
-  VERSION: "13.2",
-  TITLE: "Admin 13.2 · Chilometri mancanti",
+  VERSION: "13.3",
+  TITLE: "Admin 13.3 · Chilometri attuali",
   ITEMS: [
-    "Zeri e campi vuoti ignorati nel calcolo dei chilometri",
-    "Prima e ultima lettura valida nel range selezionato",
-    "Il calcolo prosegue anche con registrazioni intermedie senza km",
-    "Date e letture utilizzate visibili nel riepilogo"
+    "Km attuali sopra i km percorsi nei riquadri degli automezzi",
+    "Ultima lettura valida indipendente dal periodo selezionato",
+    "Indicazione inseriti oggi, ieri oppure data precisa",
+    "Zeri e campi vuoti ignorati: rimane l’ultima lettura disponibile"
   ]
 });
 export const APP_VERSION = RELEASE.VERSION;

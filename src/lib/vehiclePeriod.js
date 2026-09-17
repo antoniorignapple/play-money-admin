@@ -1,4 +1,4 @@
-import { getRomeISODate } from './dates.js';
+import { getRomeISODate, shiftDateKey } from './dates.js';
 export function currentMonthRange(value = new Date()) {
   const key = getRomeISODate(value);
   const [year, month] = key.split('-').map(Number);
@@ -41,3 +41,18 @@ export function vehicleDistance(records, range) {
     message: partial ? 'Differenza tra prima e ultima lettura valida nel periodo; zeri e campi vuoti ignorati' : 'Differenza tra prima e ultima lettura nel periodo selezionato' };
 }
 const dateLabel = value => String(value).slice(0, 10).split('-').reverse().join('/');
+
+// Current odometer is independent of the consultation period; zero is missing.
+export function latestVehicleReading(records, today = getRomeISODate()) {
+  const valid = records.map(record => ({ ...record, reading: odometer(record.km) }))
+    .filter(record => record.reading > 0 && record.work_date && String(record.work_date).slice(0, 10) <= today)
+    .sort((a, b) => String(b.work_date).localeCompare(String(a.work_date))
+      || String(b.created_at || '').localeCompare(String(a.created_at || ''))
+      || String(b.id || '').localeCompare(String(a.id || '')));
+  if (!valid.length) return null;
+  const latest = valid[0];
+  const date = String(latest.work_date).slice(0, 10);
+  const label = date === today ? 'inseriti oggi'
+    : date === shiftDateKey(today, -1) ? 'inseriti ieri' : `inseriti il ${dateLabel(date)}`;
+  return { km: latest.reading, date, label };
+}

@@ -1,5 +1,5 @@
 import { getRomeISODate } from '../lib/dates.js';
-import { currentMonthRange, inDateRange, vehicleDistance, odometer } from '../lib/vehiclePeriod.js';
+import { currentMonthRange, inDateRange, vehicleDistance, odometer, latestVehicleReading } from '../lib/vehiclePeriod.js';
 import { fetchAllRows } from '../lib/fetchAllRows.js';
 import '../styles/debitiBonus.css';
 import { useEffect, useMemo, useState } from "react";
@@ -313,6 +313,7 @@ export default function AutomezziPage() {
                     const active =
                       String(selectedVehicleId) === String(vehicle.id);
                     const distance = distanceByVehicle.get(vehicle.id);
+                    const currentReading = latestVehicleReading(records.filter(record => matchesVehicle(record, vehicle)));
                     const uses = periodRecords.filter((record) =>
                       matchesVehicle(record, vehicle),
                     );
@@ -338,14 +339,22 @@ export default function AutomezziPage() {
                             <h3 className="mt-1 max-w-[75%] text-[17px] font-black uppercase tracking-[.05em]">
                               {vehicle.name}
                             </h3>
-                            <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1">
+                            <div className="mt-3 flex flex-wrap items-start gap-x-3 gap-y-2">
                               <span className="text-[16px] font-bold tracking-[.09em]">{vehicle.plate}</span>
-                              <span title={distance.message} className={`inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[12px] font-semibold ${active ? 'bg-white/15 text-amber-50' : 'bg-[#eaddb9]/60 text-[#856122]'}`}><Gauge size={13} />{distance.km == null ? '—' : distance.km.toLocaleString('it-IT', { useGrouping: 'always' })} km</span>
+                              <div className="min-w-0 flex-1 space-y-2">
+                                <div title={currentReading ? `Ultima lettura valida: ${formatDate(currentReading.date)}` : 'Nessuna lettura valida registrata'} className={`rounded-lg px-2 py-1 text-[12px] font-semibold ${active ? 'bg-white/15 text-amber-50' : 'bg-[#eaddb9]/60 text-[#856122]'}`}>
+                                  <span className="flex flex-wrap items-center gap-1.5"><Gauge size={13} className="shrink-0" />Km attuali: {currentReading ? currentReading.km.toLocaleString('it-IT', { useGrouping: 'always' }) : '—'}</span>
+                                  <span className="mt-0.5 block text-[10px] font-normal">({currentReading ? currentReading.label : 'nessun inserimento'})</span>
+                                </div>
+                                <div>
+                                  <span title={distance.message} className={`inline-flex flex-wrap items-center gap-1.5 rounded-lg px-2 py-1 text-[12px] font-semibold ${active ? 'bg-white/15 text-amber-50' : 'bg-[#eaddb9]/60 text-[#856122]'}`}><Gauge size={13} className="shrink-0" />Km percorsi: {distance.km == null ? '—' : distance.km.toLocaleString('it-IT', { useGrouping: 'always' })}</span>
+                                  <p className={`mt-1 text-[9px] ${active ? 'text-amber-100/75' : 'text-[#9a835b]'}`}>{distance.status === 'complete' ? 'Percorsi nel periodo' : distance.status === 'empty' ? 'Nessun utilizzo nel periodo' : distance.status === 'anomaly' ? 'Verifica contachilometri' : distance.status === 'invalid' ? 'Intervallo non valido' : distance.status === 'missing' ? 'Letture insufficienti' : 'Chilometri parziali'}</p>
+                                </div>
+                              </div>
                             </div>
-                            <p className={`mt-1 text-[9px] ${active ? 'text-amber-100/75' : 'text-[#9a835b]'}`}>{distance.status === 'complete' ? 'Percorsi nel periodo' : distance.status === 'empty' ? 'Nessun utilizzo nel periodo' : distance.status === 'anomaly' ? 'Verifica contachilometri' : distance.status === 'invalid' ? 'Intervallo non valido' : distance.status === 'missing' ? 'Letture insufficienti' : 'Chilometri parziali'}</p>
 
                           </div>
-                          <div className="flex items-end justify-between">
+                          <div className="mt-3 flex items-end justify-between">
                             <div>
                               <p
                                 className={`text-[8px] font-black tracking-[.12em] ${active ? "text-amber-100/70" : "text-slate-400"}`}
