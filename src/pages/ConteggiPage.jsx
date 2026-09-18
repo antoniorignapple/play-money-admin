@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { getAccountingName as resolveAccountingName } from '../lib/conteggiAccounting.js';
+import { notifyAccountingChanged } from '../lib/accountingService.js';
+import '../components/accounting.css';
 import {
+  Calculator,
   Lock,
   Unlock,
   RefreshCw,
@@ -167,13 +170,13 @@ function getFinaleWithoutTheoreticalCassa(row) {
   return (Number(row?.totale_finale) || 0) - getCassaDepositi(row);
 }
 
-export default function ConteggiPage() {
+export default function ConteggiPage({ initialPeriodId = '', onOpenAccounting }) {
   const toast = useToast();
   const [venues, setVenues] = useState([]);
   const [dipendenti, setDipendenti] = useState([]);
   const [giri, setGiri] = useState([]);
   const [periods, setPeriods] = useState([]);
-  const [selectedPeriodId, setSelectedPeriodId] = useState("");
+  const [selectedPeriodId, setSelectedPeriodId] = useState('');
   const [periodView, setPeriodView] = useState("active");
   const [summary, setSummary] = useState(null);
   const [rows, setRows] = useState([]);
@@ -411,10 +414,13 @@ export default function ConteggiPage() {
       return;
     }
     const list = data || [];
+    const requested = list.find(p => p.id === initialPeriodId);
+    if (requested) setPeriodView(requested.status === 'closed' ? 'archive' : 'active');
     setPeriods(list);
     if (list.length) {
       setSelectedPeriodId((current) => {
         if (current && list.some((p) => p.id === current)) return current;
+        if (requested) return requested.id;
         const firstOpen = list.find((p) => p.status !== "closed");
         return (firstOpen || list[0]).id;
       });
@@ -1373,6 +1379,7 @@ export default function ConteggiPage() {
         [key]: String(parsedValue),
       }));
       toast.success(`Esattore rettificato per ${operatorName}`);
+      notifyAccountingChanged();
     } catch (e) {
       toast.error(`Rettifica esattore: ${e.message}`);
     } finally {
@@ -1404,6 +1411,7 @@ export default function ConteggiPage() {
         return next;
       });
       toast.success(`Rettifica rimossa per ${operatorName}`);
+      notifyAccountingChanged();
     } catch (e) {
       toast.error(`Rimozione rettifica: ${e.message}`);
     } finally {
@@ -1421,7 +1429,8 @@ export default function ConteggiPage() {
               <div className="pointer-events-none absolute -right-12 -top-20 h-64 w-64 rounded-full bg-amber-400/20 blur-3xl" />
 
               <div className="relative min-h-[92px]">
-                <div className="mx-auto flex max-w-[900px] flex-col items-center justify-center px-14 text-center">
+                <div className="office-conteggi-entry"><button className="office-button primary" disabled={!selectedPeriodId || loading} onClick={() => onOpenAccounting(selectedPeriodId)}><Calculator size={16}/> CONTABILITÀ CONTEGGI</button></div>
+                <div className="office-conteggi-title mx-auto flex max-w-[900px] flex-col items-center justify-center px-14 text-center">
                   <h1 className="text-[29px] font-black tracking-[0.13em] text-[#3d2a0b] md:text-[35px]">
                     SEZIONE CONTEGGI
                   </h1>
@@ -1638,7 +1647,7 @@ export default function ConteggiPage() {
                   </p>
                 </div>
               ) : (
-                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                <div className="conteggi-operator-grid">
                   {operatorStats.map((op) => {
                     const open = !!expandedOperators[op.name];
                     const key = normalizeText(op.name);
@@ -1719,15 +1728,16 @@ export default function ConteggiPage() {
 
                         <div className="relative overflow-hidden border-b border-[#d6b36b] bg-[linear-gradient(135deg,#3f2b0d_0%,#765018_55%,#b8862f_100%)] px-3 py-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,.18)]">
                           <div className="absolute -right-8 -top-10 h-24 w-24 rounded-full bg-amber-200/20 blur-2xl" />
-                          <div className="relative flex items-center gap-2">
-                            <div className="flex h-10 shrink-0 items-center gap-2 px-1">
+                          <div className="relative conteggi-esattore-controls">
+                            <div className="conteggi-esattore-label flex items-center gap-2 px-1">
                               <span className="text-[10px] font-black tracking-[0.18em] text-amber-100">
                                 ESATTORE
                               </span>
                               <Pencil size={13} className="text-amber-200" />
                             </div>
-                            <div className="relative min-w-0 flex-1">
+                            <div className="relative conteggi-esattore-field">
                               <input
+                                aria-label={`Esattore ${op.name}`}
                                 inputMode="numeric"
                                 value={getOverrideInputValue(
                                   op.name,

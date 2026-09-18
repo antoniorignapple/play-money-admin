@@ -1,13 +1,11 @@
 export const RELEASE = Object.freeze({
-  VERSION: "13.5",
-  TITLE: "Admin 13.5 · Rettifiche conteggi",
+  VERSION: "15.0",
+  TITLE: "Admin 15.0 · Essenziale, elegante, leggibile",
   ITEMS: [
-    "Rettifiche esattore applicate al giro, anche con un esecutore diverso",
-    "Eliminato il doppio conteggio in Contabilità Conteggi e nel relativo PDF",
-    "Pulsante PDF nel riquadro di ogni automezzo",
-    "Report del periodo con data, dipendente, km inseriti e rifornimento",
-    "Riepilogo km attuali, km percorsi e totale rifornimenti",
-    "Anteprima in una nuova scheda, senza scaricamento automatico"
+    "Cassa Ufficio e Contabilità Conteggi: interfaccia più pulita",
+    "Titoli corposi e nuovo pulsante Apri la Cassa",
+    "Importi Esattore su una riga dedicata, sempre leggibili",
+    "Centro Modifiche rimosso dalla navigazione"
   ]
 });
 export const APP_VERSION = RELEASE.VERSION;

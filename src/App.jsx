@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import {
   Wallet,
   Users,
@@ -27,7 +27,9 @@ import {
 } from "lucide-react";
 import CassaPage from "./pages/CassaPage";
 import ContabilitaCassaPage from "./pages/ContabilitaCassaPage";
-import ContabilitaConteggiPage from "./pages/ContabilitaConteggiPage";
+import ContabilitaConteggiPage from "./pages/PeriodAccountingPage";
+import { OfficeCashProvider } from "./components/OfficeCashContext";
+import { CashSidebarCard } from "./components/AccountingUI";
 import ConteggiPage from "./pages/ConteggiPage";
 import DebitiBonusPage from "./pages/DebitiBonusPage";
 import CalendarioConteggiPage from "./pages/CalendarioConteggiPage";
@@ -37,7 +39,6 @@ import LocaliPage from "./pages/LocaliPage";
 import AnalisiPage from "./pages/AnalisiPage";
 import AutomezziPage from "./pages/AutomezziPage";
 import CestinoPage from "./pages/CestinoPage";
-import ModifichePage from "./pages/ModifichePage";
 import GiriPage from "./pages/GiriPage";
 import { ToastProvider } from "./components/Toast";
 import { CommandPalette } from "./components/CommandPalette";
@@ -45,7 +46,6 @@ import { supabase } from "./lib/supabase";
 import { APP_VERSION } from "./config/release";
 
 const NAV = [
-  { id: "modifiche", label: "CENTRO MODIFICHE", icon: "ShieldCheck", iconCmp: ShieldCheck, hint: "Modifiche rapide Admin 12", component: ModifichePage },
   {
     id: "analisi",
     label: "ANALISI GIORNALIERA",
@@ -66,10 +66,10 @@ const NAV = [
   },
   {
     id: "contabilita-cassa",
-    label: "CONTABILITÀ CASSA",
+    label: "CASSA UFFICIO",
     icon: "Landmark",
     iconCmp: Wallet,
-    hint: "Trasferimenti e storico Cassa",
+    hint: "Fondo, acconti, rientri e residuo azienda",
     component: ContabilitaCassaPage,
   },
   {
@@ -165,6 +165,10 @@ const NAV = [
 
 export default function App() {
   const [page, setPage] = useState("analisi");
+  const [accountingPeriodId, setAccountingPeriodId] = useState("");
+  const [returnPeriodId, setReturnPeriodId] = useState("");
+  function openAccounting(periodId) { setAccountingPeriodId(periodId); setPage("contabilita-conteggi"); }
+  function backToConteggi(periodId) { setReturnPeriodId(periodId); setPage("conteggi"); }
   const [collapsed, setCollapsed] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -367,6 +371,7 @@ export default function App() {
 
   return (
     <ToastProvider>
+      <OfficeCashProvider>
       <div className="flex h-[100dvh] min-h-0 w-screen overflow-hidden bg-[var(--app-page-background)] text-[var(--color-text)]">
         {/* TOPBAR MOBILE — visibile solo < 768px */}
         <header className="fixed left-0 right-0 top-0 z-40 flex h-[calc(48px+env(safe-area-inset-top))] items-center justify-between border-b border-[var(--color-sidebar-border)] bg-[var(--color-sidebar-bg)] px-2 pt-[env(safe-area-inset-top)] md:hidden">
@@ -428,13 +433,13 @@ export default function App() {
 
         {/* MAIN: con padding-top su mobile per topbar */}
         <main className="min-h-0 min-w-0 flex-1 overflow-hidden pt-[calc(48px+env(safe-area-inset-top))] md:pt-0">
-          <Current />
+          <Current initialPeriodId={page === "contabilita-conteggi" ? accountingPeriodId : returnPeriodId} onOpenAccounting={openAccounting} onBack={backToConteggi} />
         </main>
 
         <CommandPalette
           open={paletteOpen}
           onClose={() => setPaletteOpen(false)}
-          pages={NAV.map((n) => ({
+          pages={NAV.filter(n => n.id !== "contabilita-conteggi").map((n) => ({
             id: n.id,
             label: n.label,
             icon: n.icon,
@@ -443,6 +448,7 @@ export default function App() {
           onNavigate={(item) => setPage(item.id)}
         />
       </div>
+      </OfficeCashProvider>
     </ToastProvider>
   );
 }
@@ -706,61 +712,9 @@ function Sidebar({
     },
     {
       label: "CONTROLLO",
-      ids: ["modifiche", "agenti", "locali", "giri", "automezzi", "cestino"],
+      ids: ["agenti", "locali", "giri", "automezzi", "cestino"],
     },
   ];
-  const [cassaTotale, setCassaTotale] = useState(0);
-  const [daRientrare, setDaRientrare] = useState(0);
-  const [cassaUpdatedAt, setCassaUpdatedAt] = useState(null);
-  const [cassaLoading, setCassaLoading] = useState(false);
-
-  const refreshCassaTotale = useCallback(async () => {
-    setCassaLoading(true);
-    const { data, error } = await supabase.rpc("get_cassa_totale_attiva");
-
-    if (!error) {
-      setCassaTotale(Number(data?.cassa_disponibile || 0));
-      setDaRientrare(
-        Number(data?.da_riportare || 0) - Number(data?.recuperi || 0),
-      );
-      setCassaUpdatedAt(new Date());
-    }
-    setCassaLoading(false);
-  }, []);
-
-  useEffect(() => {
-    queueMicrotask(refreshCassaTotale);
-    window.addEventListener("cassa-totale-refresh", refreshCassaTotale);
-    return () =>
-      window.removeEventListener("cassa-totale-refresh", refreshCassaTotale);
-  }, [refreshCassaTotale]);
-
-  const cassaTone =
-    cassaTotale > 0
-      ? "text-emerald-300"
-      : cassaTotale < 0
-        ? "text-red-300"
-        : "text-white";
-  const formatSidebarEuro = (value) => {
-    const amount = Math.trunc(Number(value) || 0);
-    const sign = amount < 0 ? "-" : "";
-    const digits = String(Math.abs(amount)).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-    return `${sign}${digits} €`;
-  };
-  const cassaFormatted = formatSidebarEuro(cassaTotale);
-  const daRientrareTone =
-    daRientrare > 0
-      ? "text-yellow-300"
-      : daRientrare < 0
-        ? "text-red-300"
-        : "text-white";
-  const daRientrareFormatted = formatSidebarEuro(daRientrare);
-  const updatedLabel = cassaUpdatedAt
-    ? cassaUpdatedAt.toLocaleString("it-IT", {
-        dateStyle: "short",
-        timeStyle: "medium",
-      })
-    : "In attesa di aggiornamento";
 
   return (
     <aside
@@ -873,75 +827,7 @@ function Sidebar({
             </div>
           </div>
         ))}
-        {!collapsed && (
-          <section className="order-first mb-4 shrink-0 overflow-visible rounded-[24px] border border-[#d9b45f]/28 bg-[radial-gradient(circle_at_88%_0%,rgba(239,196,99,.16),transparent_34%),linear-gradient(150deg,rgba(223,184,96,.13),rgba(255,255,255,.025)_48%,rgba(0,0,0,.10))] p-3.5 shadow-[0_20px_48px_-30px_rgba(217,173,77,.9)] backdrop-blur-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-[8px] font-black tracking-[0.25em] text-[#e8c66e]/60">
-                  RIEPILOGO
-                </p>
-                <p className="mt-0.5 text-[12px] font-extrabold tracking-[0.02em] text-[#fff6dd]">
-                  Cassa
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={refreshCassaTotale}
-                disabled={cassaLoading}
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[11px] border border-[#e4c676]/22 bg-black/20 text-[#f0cc7b] shadow-inner transition hover:border-[#e4c676]/48 hover:bg-[#d5a441]/14 disabled:opacity-50"
-                aria-label="Aggiorna Cassa Totale"
-                title="Aggiorna Cassa Totale"
-              >
-                <RefreshCw size={13} className={cassaLoading ? "animate-spin" : ""} />
-              </button>
-            </div>
-
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <div className="min-w-0 rounded-[16px] border border-white/[.065] bg-black/15 px-3 py-3">
-                <p className="text-[7px] font-black uppercase tracking-[0.18em] text-emerald-300/65">
-                  Acconti
-                </p>
-                <p className={`mt-1 truncate text-[19px] font-black tabular-nums tracking-[-0.045em] ${cassaTone}`}>
-                  {cassaLoading && !cassaUpdatedAt ? "—" : cassaFormatted}
-                </p>
-              </div>
-
-              <div className="min-w-0 rounded-[16px] border border-white/[.065] bg-black/15 px-3 py-3">
-                <p className={`text-[7px] font-black uppercase tracking-[0.14em] ${daRientrare < 0 ? "text-red-300/70" : "text-yellow-300/70"}`}>
-                  Da rientrare
-                </p>
-                <p className={`mt-1 truncate text-[19px] font-black tabular-nums tracking-[-0.045em] ${daRientrareTone}`}>
-                  {cassaLoading && !cassaUpdatedAt ? "—" : daRientrareFormatted}
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-2.5 flex items-center justify-between gap-2 px-1">
-              <p className="truncate text-[7px] font-bold uppercase tracking-[0.13em] text-white/28">
-                Aggiornato {updatedLabel}
-              </p>
-            </div>
-
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setPage("contabilita-cassa")}
-                className="flex h-10 min-w-0 items-center justify-center gap-1.5 rounded-[13px] border border-[#e4c676]/22 bg-[#d5a441]/9 px-2 text-[7px] font-black uppercase tracking-[0.09em] text-[#efcc79] transition hover:border-[#e4c676]/48 hover:bg-[#d5a441]/17"
-              >
-                <Wallet size={12} />
-                <span className="truncate">Cont. Cassa</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setPage("contabilita-conteggi")}
-                className="flex h-10 min-w-0 items-center justify-center gap-1.5 rounded-[13px] border border-[#e4c676]/22 bg-[#d5a441]/9 px-2 text-[7px] font-black uppercase tracking-[0.08em] text-[#efcc79] transition hover:border-[#e4c676]/48 hover:bg-[#d5a441]/17"
-              >
-                <Calculator size={12} />
-                <span className="truncate">Cont. Conteggi</span>
-              </button>
-            </div>
-          </section>
-        )}
+        <CashSidebarCard collapsed={collapsed} onOpen={() => setPage("contabilita-cassa")} />
       </nav>
 
       <div className="relative shrink-0 border-t border-white/8 p-3 pb-safe">
