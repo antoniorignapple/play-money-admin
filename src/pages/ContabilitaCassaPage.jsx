@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { ArrowUpRight, ArrowDownToLine, Coins, Wallet, RotateCcw, Landmark, Pencil, Plus, RefreshCw, Trash2, History } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { getRomeISODate } from '../lib/dates.js';
-import { saveFund, saveCashTransfer } from '../lib/accountingService.js';
-import { euro, fmtDate, periodLabel, parseEuroInput } from '../lib/officeCash.js';
+import { loadCashRange, saveFundMovement, saveCashTransfer } from '../lib/accountingService.js';
+import { euro, fmtDate, officeCashTotals, periodLabel, parseEuroInput } from '../lib/officeCash.js';
 import { useOfficeCash } from '../components/OfficeCashContext';
 import { AccountingModal, Field, LoadError } from '../components/AccountingUI';
 import { PageLayout, PageBody } from '../components/PageLayout';
@@ -19,6 +19,8 @@ export default function ContabilitaCassaPage({ onOpenAccounting }) {
   const [tab, setTab] = useState('transfers');
   const [history, setHistory] = useState([]);
   const [fundEdit, setFundEdit] = useState(null);
+  const [fundDelete, setFundDelete] = useState(null);
+  const [dateRange, setDateRange] = useState({ from: '', to: '' });
   const [transferEdit, setTransferEdit] = useState(null);
   const [deleteRow, setDeleteRow] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -26,19 +28,24 @@ export default function ContabilitaCassaPage({ onOpenAccounting }) {
   const requestId = useRef(0);
   const period = data?.periods.find(p => p.id === selectedId);
   const safe = data && !error;
-  const amount = key => safe ? euro(data.totals[key]) : '—';
+  const shownTotals = safe ? officeCashTotals(data.fund.amount, detail?.summary || data.summary, data.totals.residuo) : null;
+  const amount = key => shownTotals ? euro(shownTotals[key]) : '—';
 
   useEffect(() => {
     if (data && !selectedId) setSelectedId(data.activePeriod?.id || data.periods[0]?.id || '');
   }, [data, selectedId]);
-  useEffect(() => { loadDetail(); return () => { requestId.current++; }; }, [selectedId, data?.loadedAt]);
+  useEffect(() => {
+    if (period) setDateRange({ from: period.date_from, to: period.date_to });
+  }, [selectedId, period?.date_from, period?.date_to]);
+  useEffect(() => { loadDetail(); return () => { requestId.current++; }; }, [selectedId, dateRange.from, dateRange.to, data?.loadedAt]);
 
   async function loadDetail() {
     const request = ++requestId.current;
     setDetailLoading(true); setDetailError(''); setDetail(null);
     try {
+      const validRange = period && dateRange.from >= period.date_from && dateRange.to <= period.date_to && dateRange.from <= dateRange.to;
       const [periodResult, historyResult] = await Promise.all([
-        selectedId ? supabase.rpc('get_contabilita_cassa_periodo', { p_period_id: selectedId }) : Promise.resolve({ data: null }),
+        selectedId && validRange ? loadCashRange(selectedId, dateRange.from, dateRange.to).then(data => ({ data })) : Promise.resolve({ data: null }),
         supabase.from('cassa_ufficio_fondo_storico').select('*').order('changed_at', { ascending: false }).limit(100),
       ]);
       if (periodResult.error) throw periodResult.error;
@@ -59,10 +66,23 @@ export default function ContabilitaCassaPage({ onOpenAccounting }) {
     e.preventDefault();
     const value = parseEuroInput(fundEdit.amount);
     if (value === null || value < 0) return setFormError('Inserisci un importo valido, maggiore o uguale a zero.');
+    if (!fundEdit.description.trim()) return setFormError('Inserisci la voce.');
     setSaving(true); setFormError('');
-    try { await saveFund(value, fundEdit.version); setFundEdit(null); toast.success('Fondo Cassa aggiornato'); }
+    try { await saveFundMovement(fundEdit.row, { description: fundEdit.description, amount: value }); setFundEdit(null); await refresh(); toast.success('Movimento salvato'); }
     catch (e) { setFormError(e.message); }
     finally { setSaving(false); }
+  }
+
+  async function removeFundMovement() {
+    setSaving(true); setFormError('');
+    try { await saveFundMovement(fundDelete, null, true); setFundDelete(null); await refresh(); toast.success('Movimento eliminato'); }
+    catch (e) { setFormError(e.message); }
+    finally { setSaving(false); }
+  }
+
+  function openFundMovement(row = null) {
+    setFormError('');
+    setFundEdit({ row, description: row?.description || '', amount: row ? String(row.amount).replace('.', ',') : '' });
   }
 
   async function submitTransfer(e) {
@@ -86,9 +106,9 @@ export default function ContabilitaCassaPage({ onOpenAccounting }) {
   return <PageLayout><PageBody><div className="office-page">
     {error && <LoadError message={error} onRetry={refresh}/>}
     <section className="office-overview" aria-label="Riepilogo Cassa Ufficio" aria-busy={loading}>
-      <div className="office-overview-top"><h1 className="sr-only">Cassa Ufficio</h1><span className="office-status">{loading ? 'Aggiornamento in corso' : safe ? `Aggiornata alle ${data.loadedAt.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}` : 'Dati non disponibili'}</span><button className="office-icon" onClick={refresh} disabled={loading} aria-label="Aggiorna Cassa"><RefreshCw size={17} className={loading ? 'animate-spin' : ''}/></button></div>
+      <div className="office-overview-top"><h1 className="sr-only">Cassa Ufficio</h1><div className="office-date-range"><label>Dal<input type="date" min={period?.date_from} max={dateRange.to || period?.date_to} value={dateRange.from} onChange={e => setDateRange(r => ({ ...r, from: e.target.value }))}/></label><label>Al<input type="date" min={dateRange.from || period?.date_from} max={period?.date_to} value={dateRange.to} onChange={e => setDateRange(r => ({ ...r, to: e.target.value }))}/></label></div><span className="office-status">{loading ? 'Aggiornamento in corso' : safe ? `Aggiornata alle ${data.loadedAt.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}` : 'Dati non disponibili'}</span><button className="office-icon" onClick={refresh} disabled={loading} aria-label="Aggiorna Cassa"><RefreshCw size={17} className={loading ? 'animate-spin' : ''}/></button></div>
       <div className="office-components">
-        <div className="office-component"><div className="office-component-heading"><Coins size={19}/><span>Fondo Cassa</span><button className="office-icon" disabled={!safe || loading} aria-label="Modifica Fondo Cassa" onClick={() => { setFormError(''); setFundEdit({ amount: String(data.fund.amount).replace('.', ','), version: data.fund.version }); }}><Pencil size={13}/></button></div><strong>{amount('fondo')}</strong></div>
+        <div className="office-component"><div className="office-component-heading"><Coins size={19}/><span>Fondo Cassa</span><button className="office-icon" disabled={!safe || loading} aria-label="Modifica Fondo Cassa" onClick={() => openFundMovement()}><Pencil size={13}/></button></div><strong>{amount('fondo')}</strong></div>
         <div className="office-component"><div className="office-component-heading"><Wallet size={19}/><span>Acconti</span></div><strong>{amount('acconti')}</strong></div>
         <div className="office-component"><div className="office-component-heading"><RotateCcw size={19}/><span>Da Rientrare</span></div><strong>{amount('daRientrare')}</strong></div>
         <div className="office-component"><div className="office-component-heading"><Landmark size={19}/><span>Residuo Azienda</span><button className="office-icon" disabled={!data?.closedPeriod} title={periodLabel(data?.closedPeriod)} aria-label="Apri contabilità ultimo periodo chiuso" onClick={() => onOpenAccounting(data.closedPeriod.id)}><ArrowUpRight size={13}/></button></div><strong>{amount('residuo')}</strong></div>
@@ -110,7 +130,8 @@ export default function ContabilitaCassaPage({ onOpenAccounting }) {
     </div>
     {!loading && data && !data.activePeriod && <p className="office-note">Nessun periodo attivo: Acconti e Da Rientrare valgono 0 €. Fondo Cassa e Residuo Azienda restano disponibili.</p>}
   </div></PageBody>
-    {fundEdit && <AccountingModal title="Il tuo Fondo Cassa" subtitle="Imposta il nuovo valore. Sostituirà quello precedente." onClose={() => setFundEdit(null)} busy={saving}><form onSubmit={submitFund}><Field label="Nuovo Fondo Cassa (€)" hint="Esempio: 10.000 oppure 10.000,50. Puoi impostare anche 0 €."><input autoFocus required className="money" inputMode="decimal" value={fundEdit.amount} onChange={e => setFundEdit({ ...fundEdit, amount: e.target.value })}/></Field>{formError && <p role="alert" className="office-error">{formError}</p>}<div className="office-modal-footer"><button type="button" className="office-button" disabled={saving} onClick={() => setFundEdit(null)}>Annulla</button><button className="office-button primary" disabled={saving}>{saving ? 'Salvataggio…' : 'Salva Fondo Cassa'}</button></div></form></AccountingModal>}
+    {fundEdit && <AccountingModal title="Fondo Cassa" onClose={() => setFundEdit(null)} busy={saving}><div className="office-fund-total"><span>Totale</span><strong>{euro(data?.fund.amount || 0)}</strong></div><div className="office-fund-movements">{data?.fundMovements.map(row => <div className="office-fund-movement" key={row.id}><div><strong>{row.description}</strong><span>{euro(row.amount)}</span></div><button type="button" className="office-icon" aria-label={`Modifica ${row.description}`} onClick={() => openFundMovement(row)}><Pencil size={13}/></button><button type="button" className="office-icon danger" aria-label={`Elimina ${row.description}`} onClick={() => { setFundEdit(null); setFundDelete(row); }}><Trash2 size={13}/></button></div>)}</div><form onSubmit={submitFund}><Field label="Voce"><input autoFocus required value={fundEdit.description} onChange={e => setFundEdit({ ...fundEdit, description: e.target.value })}/></Field><Field label="Importo (€)"><input required className="money" inputMode="decimal" value={fundEdit.amount} onChange={e => setFundEdit({ ...fundEdit, amount: e.target.value })}/></Field>{formError && <p role="alert" className="office-error">{formError}</p>}<div className="office-modal-footer"><button type="button" className="office-button" disabled={saving} onClick={() => setFundEdit(null)}>Annulla</button><button className="office-button primary" disabled={saving}>{saving ? 'Salvataggio…' : fundEdit.row ? 'Salva modifica' : 'Aggiungi movimento'}</button></div></form></AccountingModal>}
+    {fundDelete && <AccountingModal title="Elimina movimento" onClose={() => setFundDelete(null)} busy={saving}><p className="office-modal-message">{fundDelete.description}</p><p className="office-modal-amount">{euro(fundDelete.amount)}</p>{formError && <p role="alert" className="office-error">{formError}</p>}<div className="office-modal-footer"><button className="office-button" disabled={saving} onClick={() => setFundDelete(null)}>Annulla</button><button className="office-button danger" disabled={saving} onClick={removeFundMovement}>{saving ? 'Eliminazione…' : 'Elimina movimento'}</button></div></AccountingModal>}
     {transferEdit && <AccountingModal title={transferEdit.row ? 'Modifica trasferimento' : 'Nuovo trasferimento'} subtitle={periodLabel(period)} busy={saving} onClose={() => setTransferEdit(null)}><form onSubmit={submitTransfer}><Field label="Importo (€)"><input autoFocus required className="money" inputMode="decimal" value={transferEdit.amount} onChange={e => setTransferEdit({ ...transferEdit, amount: e.target.value })}/></Field><Field label="Destinazione"><input required value={transferEdit.destination} onChange={e => setTransferEdit({ ...transferEdit, destination: e.target.value })}/></Field><Field label="Data"><input type="date" required min={period?.date_from} max={period?.date_to} value={transferEdit.date} onChange={e => setTransferEdit({ ...transferEdit, date: e.target.value })}/></Field><Field label="Nota facoltativa"><textarea rows={2} value={transferEdit.note} onChange={e => setTransferEdit({ ...transferEdit, note: e.target.value })}/></Field>{formError && <p role="alert" className="office-error">{formError}</p>}<div className="office-modal-footer"><button type="button" className="office-button" disabled={saving} onClick={() => setTransferEdit(null)}>Annulla</button><button className="office-button primary" disabled={saving}>{saving ? 'Salvataggio…' : 'Salva trasferimento'}</button></div></form></AccountingModal>}
     {deleteRow && <AccountingModal title="Elimina trasferimento" subtitle={deleteRow.destination} busy={saving} onClose={() => setDeleteRow(null)}><p className="office-modal-message">Il trasferimento verrà rimosso dalla Cassa e dalla contabilità di questo periodo. I saldi saranno ricalcolati.</p><p className="office-modal-amount">{euro(deleteRow.amount)}</p>{formError && <p role="alert" className="office-error">{formError}</p>}<div className="office-modal-footer"><button className="office-button" disabled={saving} onClick={() => setDeleteRow(null)}>Annulla</button><button className="office-button danger" disabled={saving} onClick={removeTransfer}>{saving ? 'Eliminazione…' : 'Elimina trasferimento'}</button></div></AccountingModal>}
   </PageLayout>;

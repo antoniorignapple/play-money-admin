@@ -41,15 +41,29 @@ export async function loadAccounting(periodId) {
 }
 
 export async function loadOfficeCash() {
-  const [periods, fund, summary] = await Promise.all([
+  const [periods, fund, fundMovements, summary] = await Promise.all([
     loadPeriods(),
     supabase.from('cassa_ufficio_fondo').select('*').eq('id', true).single().then(checked),
+    supabase.from('cassa_ufficio_fondo_movimenti').select('*').order('created_at').order('id').then(checked),
     supabase.rpc('get_cassa_totale_attiva').then(checked),
   ]);
   const closedPeriod = latestClosedPeriod(periods);
   const accounting = closedPeriod ? await loadAccounting(closedPeriod.id) : null;
-  return { periods, fund, summary, closedPeriod, activePeriod: periods.find(p => p.id === summary?.period_id) || null,
+  return { periods, fund, fundMovements, summary, closedPeriod, activePeriod: periods.find(p => p.id === summary?.period_id) || null,
     totals: officeCashTotals(fund.amount, summary, accounting?.totals.saldo || 0), loadedAt: new Date() };
+}
+
+export async function loadCashRange(periodId, dateFrom, dateTo) {
+  return checked(await supabase.rpc('get_cassa_intervallo', { p_period_id: periodId, p_date_from: dateFrom, p_date_to: dateTo }));
+}
+
+export async function saveFundMovement(row, form, remove = false) {
+  const data = checked(await supabase.rpc('admin_v14_fund_movement', {
+    p_id: row?.id || null, p_delete: remove, p_description: form?.description || '', p_amount: form?.amount ?? 0,
+    p_expected_updated_at: row?.updated_at || null,
+  }));
+  notifyAccountingChanged();
+  return data;
 }
 
 export function notifyAccountingChanged() { window.dispatchEvent(new Event('cassa-totale-refresh')); }

@@ -43,13 +43,15 @@ try {
   assert.match(document.querySelector('.office-total').textContent, /11\.500/);
   assert.equal(document.querySelectorAll('.office-component').length, 4);
   await click(document.querySelector('[aria-label="Modifica Fondo Cassa"]'));
-  await fill(document.querySelector('dialog input'), '10.000');
+  await fill(document.querySelector('dialog input:not(.money)'), 'FONDO CASSA MONETE');
+  await fill(document.querySelector('dialog input.money'), '10.000');
   await act(async () => document.querySelector('dialog form').dispatchEvent(new window.Event('submit', { bubbles: true, cancelable: true })));
   await settle();
   assert.equal(fixture.fund.amount, 10000);
+  assert.equal(fixture.fundMovements[0].description, 'FONDO CASSA MONETE');
   assert.match(document.querySelector('.office-total').textContent, /21\.500/);
   assert.match(document.querySelector('.office-sidebar-amount').textContent, /21\.500/);
-  savePreview('ANTEPRIMA_CASSA_15');
+  savePreview('ANTEPRIMA_CASSA_14');
   await click(document.querySelector('[aria-label="Apri contabilità ultimo periodo chiuso"]'));
   assert.equal(document.querySelector('[aria-label="Periodo contabilità"]').value, 'closed');
   assert.match(document.querySelector('.office-ledger-total').textContent, /10\.000/);
@@ -68,7 +70,7 @@ try {
   await settle();
   assert.equal(fixture.manual.length, 1); assert.equal(fixture.manual[0].amount, 600);
   assert.match(document.querySelector('.office-ledger-total').textContent, /9\.400/);
-  savePreview('ANTEPRIMA_CONTABILITA_15');
+  savePreview('ANTEPRIMA_CONTABILITA_14');
   await click(document.querySelector('.office-back'));
   assert.match(document.body.textContent, /30\/08\/2026 — 16\/09\/2026/);
   await click(button('CONTABILITÀ CONTEGGI'));
