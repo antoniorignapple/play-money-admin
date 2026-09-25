@@ -59,6 +59,8 @@ export default function AutomezziPage() {
     rifornimento: "",
   });
   const [saving, setSaving] = useState(false);
+  const [editingUsage, setEditingUsage] = useState(null);
+  const [editUsageForm, setEditUsageForm] = useState({ km: '', rifornimento: '' });
 
   useEffect(() => {
     loadData();
@@ -233,6 +235,27 @@ export default function AutomezziPage() {
     await loadData();
   }
 
+  function openEditUsage(record) {
+    setEditingUsage(record);
+    setEditUsageForm({ km: record.km == null ? '' : String(record.km), rifornimento: record.rifornimento == null ? '' : String(record.rifornimento) });
+  }
+
+  async function saveEditedUsage() {
+    if (!editingUsage) return;
+    if (editUsageForm.km.trim() !== '' && odometer(editUsageForm.km) === null) return toast.warning('Inserisci un numero di chilometri valido');
+    const fuel = editUsageForm.rifornimento.trim() === '' ? null : Number(editUsageForm.rifornimento.replace(',', '.'));
+    if (fuel !== null && !Number.isFinite(fuel)) return toast.warning('Inserisci un importo carburante valido');
+    setSaving(true);
+    const { data, error } = await supabase.from('fondo_cassa_giornaliero')
+      .update({ km: editUsageForm.km.trim() === '' ? null : String(odometer(editUsageForm.km)), rifornimento: fuel, updated_at: new Date().toISOString() })
+      .eq('id', editingUsage.id).select('id,km,rifornimento,updated_at').maybeSingle();
+    setSaving(false);
+    if (error || !data) return toast.error(error?.message || 'Modifica non salvata: verifica i permessi Admin');
+    setRecords(current => current.map(record => String(record.id) === String(data.id) ? { ...record, ...data } : record));
+    setEditingUsage(null);
+    toast.success('Chilometri e rifornimento aggiornati');
+  }
+
   return (
     <div className="finance-theme h-full min-h-0"><PageLayout>
       <PageBody>
@@ -337,6 +360,7 @@ export default function AutomezziPage() {
                     const uses = periodRecords.filter((record) =>
                       matchesVehicle(record, vehicle),
                     );
+                    const vehicleFuel = uses.reduce((total, record) => total + Number(record.rifornimento || 0), 0);
                     return (
                       <div
                         key={vehicle.id}
@@ -359,6 +383,7 @@ export default function AutomezziPage() {
                             </h3>
                             <div className="mt-3 flex flex-wrap items-start gap-x-3 gap-y-2">
                               <span className="text-[16px] font-bold tracking-[.09em]">{vehicle.plate}</span>
+                              <span className={`basis-full text-[11px] font-bold ${active ? 'text-amber-50' : 'text-[#856122]'}`}><Fuel size={13} className="mr-1 inline" />Carburante nel periodo: {formatEuro0(vehicleFuel)}</span>
                               <div className="min-w-0 flex-1 space-y-2">
                                 <div title={currentReading ? `Ultima lettura valida: ${formatDate(currentReading.date)}` : 'Nessuna lettura valida registrata'} className={`rounded-lg px-2 py-1 text-[12px] font-semibold ${active ? 'bg-white/15 text-amber-50' : 'bg-[#eaddb9]/60 text-[#856122]'}`}>
                                   <span className="flex flex-wrap items-center gap-1.5"><Gauge size={13} className="shrink-0" />Km attuali: {currentReading ? currentReading.km.toLocaleString('it-IT', { useGrouping: 'always' }) : '—'}</span>
@@ -474,7 +499,7 @@ export default function AutomezziPage() {
                           className="relative overflow-hidden rounded-[19px] border border-[#e2d4b8] bg-[linear-gradient(145deg,#fffdf9,#faf3e7)] p-4 transition hover:-translate-y-0.5 hover:border-[#cfb476] hover:shadow-[0_14px_28px_-24px_rgba(72,43,3,.72)]"
                         >
                           <div className="absolute bottom-0 left-0 top-0 w-1 bg-[linear-gradient(180deg,#d6ad52,#8e5c10)]" />
-                          <div className="grid gap-4 md:grid-cols-[155px_minmax(180px,1fr)_150px_170px]">
+                          <div className="grid gap-4 md:grid-cols-[155px_minmax(180px,1fr)_150px_170px_40px]">
                             <div>
                               <p className="text-[8px] font-black tracking-[.14em] text-[#9b6b1c]">
                                 GIORNO DI UTILIZZO
@@ -517,6 +542,7 @@ export default function AutomezziPage() {
                                 {formatEuro0(record.rifornimento)}
                               </p>
                             </div>
+                            <button type="button" onClick={() => openEditUsage(record)} aria-label={`Modifica km e rifornimento del ${formatDate(record.work_date)}`} title="Modifica chilometri e rifornimento" className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#d8c18c] bg-white text-[#855914] hover:bg-[#fff3d6]"><Pencil size={16} /></button>
                           </div>
                         </article>
                       ))}
@@ -529,6 +555,13 @@ export default function AutomezziPage() {
         </div>
       </PageBody>
 
+      <Modal open={!!editingUsage} onClose={() => !saving && setEditingUsage(null)} title={`Modifica utilizzo · ${formatDate(editingUsage?.work_date)}`} width="md" footer={<><Button variant="ghost" onClick={() => setEditingUsage(null)} disabled={saving}>Annulla</Button><Button variant="primary" onClick={saveEditedUsage} disabled={saving}>{saving ? 'SALVATAGGIO…' : 'SALVA MODIFICHE'}</Button></>}>
+        <p className="mb-4 text-sm text-[#78613c]">{editingUsage ? employeeName(editingUsage.created_by) : ''} · Modifica anche le registrazioni dei periodi precedenti.</p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Contachilometri (km totali)"><Input type="number" value={editUsageForm.km} onChange={event => setEditUsageForm(form => ({ ...form, km: event.target.value }))} /></Field>
+          <Field label="Rifornimento (€)"><Input type="number" step="0.01" value={editUsageForm.rifornimento} onChange={event => setEditUsageForm(form => ({ ...form, rifornimento: event.target.value }))} /></Field>
+        </div>
+      </Modal>
       {vehicleModal && (
         <div
           className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/65 p-3 backdrop-blur-sm"

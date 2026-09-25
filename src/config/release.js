@@ -1,10 +1,10 @@
 export const RELEASE = Object.freeze({
-  VERSION: "16.0",
-  TITLE: "Admin 16.0",
+  VERSION: "17.0",
+  TITLE: "Admin 17.0",
   ITEMS: [
-    "Range date componibile nella Cassa Ufficio",
-    "Fondo Cassa calcolato automaticamente dai movimenti",
-    "Movimenti Fondo Cassa modificabili ed eliminabili"
+    "Rifornimento totale per mezzo nel periodo selezionato",
+    "Correzione retroattiva dei chilometri e dei rifornimenti",
+    "Storico e PDF aggiornati dopo ogni correzione"
   ]
 });
 export const APP_VERSION = RELEASE.VERSION;
