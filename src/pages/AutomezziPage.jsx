@@ -60,7 +60,8 @@ export default function AutomezziPage() {
   });
   const [saving, setSaving] = useState(false);
   const [editingUsage, setEditingUsage] = useState(null);
-  const [editUsageForm, setEditUsageForm] = useState({ km: '', rifornimento: '' });
+  const [editUsageForm, setEditUsageForm] = useState({ vehicle_id: '', km: '', rifornimento: '' });
+  const [removeUsageTarget, setRemoveUsageTarget] = useState(null);
 
   useEffect(() => {
     loadData();
@@ -237,23 +238,36 @@ export default function AutomezziPage() {
 
   function openEditUsage(record) {
     setEditingUsage(record);
-    setEditUsageForm({ km: record.km == null ? '' : String(record.km), rifornimento: record.rifornimento == null ? '' : String(record.rifornimento) });
+    const vehicle = vehicles.find(item => matchesVehicle(record, item));
+    setEditUsageForm({ vehicle_id: vehicle?.id || '', km: record.km == null ? '' : String(record.km), rifornimento: record.rifornimento == null ? '' : String(record.rifornimento) });
   }
 
   async function saveEditedUsage() {
     if (!editingUsage) return;
+    const vehicle = vehicles.find(item => String(item.id) === String(editUsageForm.vehicle_id));
+    if (!vehicle) return toast.warning('Seleziona un automezzo valido');
     if (editUsageForm.km.trim() !== '' && odometer(editUsageForm.km) === null) return toast.warning('Inserisci un numero di chilometri valido');
     const fuel = editUsageForm.rifornimento.trim() === '' ? null : Number(editUsageForm.rifornimento.replace(',', '.'));
     if (fuel !== null && !Number.isFinite(fuel)) return toast.warning('Inserisci un importo carburante valido');
     setSaving(true);
     const { data, error } = await supabase.from('fondo_cassa_giornaliero')
-      .update({ km: editUsageForm.km.trim() === '' ? null : String(odometer(editUsageForm.km)), rifornimento: fuel, updated_at: new Date().toISOString() })
-      .eq('id', editingUsage.id).select('id,km,rifornimento,updated_at').maybeSingle();
+      .update({ vehicle_id: vehicle.id, vehicle_name_snapshot: vehicle.name, vehicle_plate_snapshot: vehicle.plate, mezzo: `${vehicle.name} – ${vehicle.plate}`, km: editUsageForm.km.trim() === '' ? null : String(odometer(editUsageForm.km)), rifornimento: fuel, updated_at: new Date().toISOString() })
+      .eq('id', editingUsage.id).select('id,vehicle_id,vehicle_name_snapshot,vehicle_plate_snapshot,mezzo,km,rifornimento,updated_at').maybeSingle();
     setSaving(false);
     if (error || !data) return toast.error(error?.message || 'Modifica non salvata: verifica i permessi Admin');
     setRecords(current => current.map(record => String(record.id) === String(data.id) ? { ...record, ...data } : record));
     setEditingUsage(null);
-    toast.success('Chilometri e rifornimento aggiornati');
+    toast.success('Utilizzo aggiornato');
+  }
+
+  async function removeUsage() {
+    if (!removeUsageTarget) return;
+    const { data, error } = await supabase.from('fondo_cassa_giornaliero')
+      .delete().eq('id', removeUsageTarget.id).select('id').maybeSingle();
+    if (error || !data) throw new Error(error?.message || 'Eliminazione non riuscita: verifica i permessi Admin');
+    setRecords(current => current.filter(record => String(record.id) !== String(data.id)));
+    setRemoveUsageTarget(null);
+    toast.success('Utilizzo eliminato');
   }
 
   return (
@@ -499,7 +513,7 @@ export default function AutomezziPage() {
                           className="relative overflow-hidden rounded-[19px] border border-[#e2d4b8] bg-[linear-gradient(145deg,#fffdf9,#faf3e7)] p-4 transition hover:-translate-y-0.5 hover:border-[#cfb476] hover:shadow-[0_14px_28px_-24px_rgba(72,43,3,.72)]"
                         >
                           <div className="absolute bottom-0 left-0 top-0 w-1 bg-[linear-gradient(180deg,#d6ad52,#8e5c10)]" />
-                          <div className="grid gap-4 md:grid-cols-[155px_minmax(180px,1fr)_150px_170px_40px]">
+                          <div className="grid gap-4 md:grid-cols-[155px_minmax(180px,1fr)_150px_170px_88px]">
                             <div>
                               <p className="text-[8px] font-black tracking-[.14em] text-[#9b6b1c]">
                                 GIORNO DI UTILIZZO
@@ -542,7 +556,10 @@ export default function AutomezziPage() {
                                 {formatEuro0(record.rifornimento)}
                               </p>
                             </div>
-                            <button type="button" onClick={() => openEditUsage(record)} aria-label={`Modifica km e rifornimento del ${formatDate(record.work_date)}`} title="Modifica chilometri e rifornimento" className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#d8c18c] bg-white text-[#855914] hover:bg-[#fff3d6]"><Pencil size={16} /></button>
+                            <div className="flex items-center gap-2">
+                              <button type="button" onClick={() => openEditUsage(record)} aria-label={`Modifica utilizzo del ${formatDate(record.work_date)}`} title="Modifica mezzo, chilometri e rifornimento" className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#d8c18c] bg-white text-[#855914] hover:bg-[#fff3d6]"><Pencil size={16} /></button>
+                              <button type="button" onClick={() => setRemoveUsageTarget(record)} aria-label={`Elimina utilizzo del ${formatDate(record.work_date)}`} title="Elimina utilizzo" className="flex h-9 w-9 items-center justify-center rounded-xl border border-red-200 bg-white text-red-600 hover:bg-red-50"><Trash2 size={16} /></button>
+                            </div>
                           </div>
                         </article>
                       ))}
@@ -557,6 +574,12 @@ export default function AutomezziPage() {
 
       <Modal open={!!editingUsage} onClose={() => !saving && setEditingUsage(null)} title={`Modifica utilizzo · ${formatDate(editingUsage?.work_date)}`} width="md" footer={<><Button variant="ghost" onClick={() => setEditingUsage(null)} disabled={saving}>Annulla</Button><Button variant="primary" onClick={saveEditedUsage} disabled={saving}>{saving ? 'SALVATAGGIO…' : 'SALVA MODIFICHE'}</Button></>}>
         <p className="mb-4 text-sm text-[#78613c]">{editingUsage ? employeeName(editingUsage.created_by) : ''} · Modifica anche le registrazioni dei periodi precedenti.</p>
+        <Field label="Automezzo" required>
+          <select value={editUsageForm.vehicle_id} onChange={event => setEditUsageForm(form => ({ ...form, vehicle_id: event.target.value }))} className="mb-3 h-10 w-full rounded-[12px] border border-[#d9caa9] bg-white px-3 text-sm">
+            <option value="">Seleziona automezzo…</option>
+            {vehicles.filter(vehicle => vehicle.active !== false || String(vehicle.id) === String(editUsageForm.vehicle_id)).map(vehicle => <option key={vehicle.id} value={vehicle.id}>{vehicle.name} – {vehicle.plate}</option>)}
+          </select>
+        </Field>
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Contachilometri (km totali)"><Input type="number" value={editUsageForm.km} onChange={event => setEditUsageForm(form => ({ ...form, km: event.target.value }))} /></Field>
           <Field label="Rifornimento (€)"><Input type="number" step="0.01" value={editUsageForm.rifornimento} onChange={event => setEditUsageForm(form => ({ ...form, rifornimento: event.target.value }))} /></Field>
@@ -726,6 +749,14 @@ export default function AutomezziPage() {
           </Field>
         </div>
       </Modal>
+      <ConfirmDialog
+        open={!!removeUsageTarget}
+        onClose={() => setRemoveUsageTarget(null)}
+        title="ELIMINARE L’UTILIZZO?"
+        message={removeUsageTarget ? `Eliminare la registrazione del ${formatDate(removeUsageTarget.work_date)} di ${employeeName(removeUsageTarget.created_by)}? L’operazione non può essere annullata.` : ''}
+        confirmLabel="ELIMINA"
+        onConfirm={removeUsage}
+      />
       <ConfirmDialog
         open={!!removeTarget}
         onClose={() => setRemoveTarget(null)}
