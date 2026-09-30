@@ -7,6 +7,8 @@ import {
   ChevronUp,
   Clock3,
   Database,
+  FileText,
+  LoaderCircle,
   Gamepad2,
   MapPin,
   Minus,
@@ -27,6 +29,10 @@ import { ConfirmDialog } from "../components/FormDialog";
 import { SkeletonList } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import { venueSortFn, formatEuro0, formatDateTime } from "../lib/helpers";
+
+import { getChangeImage } from '../lib/changeImages.js';
+import { loadLocaliReport } from '../lib/localiReportData.js';
+import { createPdfPreviewWindow, openPdfPreview, closePdfPreviewWindow } from '../lib/pdfPreview.js';
 
 const PROTECTED_VENUES = new Set(["D01", "D02", "D03", "D04", "D05"]);
 const SLOT_CATALOG = [
@@ -83,14 +89,6 @@ const impactLabels = {
   simulazioni_richieste: "Richieste simulazioni",
 };
 
-function getChangeImage(name = "") {
-  const value = String(name).toLowerCase();
-  if (value.includes("apex")) return "/change-machine/apex-icon.png";
-  if (value.includes("pocket")) return "/change-machine/pocket-icon.png";
-  if (value.includes("twin")) return "/change-machine/twin-icon.png";
-  if (value.includes("bell")) return "/change-machine/bell-icon.png";
-  return "/change-machine/generic.png";
-}
 function normalizeSlotModel(model = "") {
   const value = String(model).trim().toUpperCase();
   return SLOT_MODEL_LOOKUP[value] || value;
@@ -441,6 +439,8 @@ function SlotManagementModal({ open, onClose, slots = [], onSave }) {
 
 export default function LocaliPage() {
   const toast = useToast();
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const pdfBusy = useRef(false);
   const [venues, setVenues] = useState([]);
   const [selectedVenue, setSelectedVenue] = useState(null);
   const [profiles, setProfiles] = useState([]);
@@ -466,6 +466,27 @@ export default function LocaliPage() {
   useEffect(() => {
     loadVenues();
   }, []);
+
+  async function exportLocaliPdf() {
+    if (pdfBusy.current) return;
+    pdfBusy.current = true;
+    setPdfLoading(true);
+    let preview;
+    try {
+      preview = createPdfPreviewWindow();
+      const report = await loadLocaliReport(supabase);
+      const { generateLocaliPdf } = await import('../lib/generateLocaliPdf.js');
+      const doc = await generateLocaliPdf(report);
+      if (preview.closed) throw new Error('Anteprima chiusa. Premi PDF per riprovare.');
+      openPdfPreview(doc, preview);
+    } catch (error) {
+      closePdfPreviewWindow(preview);
+      toast.error(error.message || 'Impossibile generare il PDF dei locali.');
+    } finally {
+      pdfBusy.current = false;
+      setPdfLoading(false);
+    }
+  }
 
   async function loadVenues() {
     setLoading(true);
@@ -779,6 +800,12 @@ export default function LocaliPage() {
                 <h1 className="text-[24px] font-black tracking-[.12em] text-[#3c290b]">
                   LOCALI
                 </h1>
+                <div className="flex items-center gap-2">
+                <button type="button" onClick={exportLocaliPdf} disabled={pdfLoading || loading}
+                  aria-label="Apri PDF di tutti i locali con Change" title="PDF di tutti i locali con Change"
+                  className="flex h-10 items-center gap-1.5 rounded-[13px] border border-[#b5822b] bg-[#fff8e8] px-2.5 text-[11px] font-black text-[#80530d] shadow-sm disabled:opacity-50">
+                  {pdfLoading ? <LoaderCircle size={16} className="animate-spin" /> : <FileText size={16} />} PDF
+                </button>
                 <button
                   onClick={() => {
                     setGeneratedCode(generateVenueCode());
@@ -788,6 +815,7 @@ export default function LocaliPage() {
                 >
                   <Plus size={17} />
                 </button>
+                </div>
               </div>
             </div>
             <div className="border-b border-[#eadfca] p-3">
