@@ -1,7 +1,7 @@
 {
   "name": "play-money-admin",
   "private": true,
-  "version": "17.5.0",
+  "version": "18.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -13,7 +13,9 @@
     "test:database": "node tests/database/admin-v11.mjs && node tests/database/admin-v11.mjs --generated",
     "test:database:v13": "node tests/database/debiti-v13.mjs",
     "test:database:v14": "node tests/database/office-cash-v14.mjs",
-    "test:ui:v14": "node tests/office-ui.mjs"
+    "test:ui:v14": "node tests/office-ui.mjs",
+    "test:database:v18": "node tests/database/accounting-v18.mjs",
+    "test:ui:v18": "node tests/accounting-ui-v18.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.105.4",

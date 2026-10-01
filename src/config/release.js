@@ -1,11 +1,11 @@
 export const RELEASE = Object.freeze({
-  VERSION: "17.5",
-  TITLE: "Admin 17.5",
+  VERSION: "18",
+  TITLE: "Admin 18",
   ITEMS: [
-    "PDF completo dei locali con Change, immagini, livelli e fondi cassa",
-    "Rifornimento totale per mezzo nel periodo selezionato",
-    "Correzione retroattiva dei chilometri e dei rifornimenti",
-    "Storico e PDF aggiornati dopo ogni correzione"
+    "Movimento automatico dell’ammanco netto del periodo",
+    "Importi dei debiti personalizzabili solo in Contabilità Conteggi",
+    "Ripristino del debito originale e salvataggio per periodo",
+    "Totali, saldo azienda e PDF coerenti con la selezione"
   ]
 });
 export const APP_VERSION = RELEASE.VERSION;

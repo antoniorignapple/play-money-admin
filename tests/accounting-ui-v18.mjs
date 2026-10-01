@@ -1,0 +1,81 @@
+import assert from 'node:assert/strict';
+import { JSDOM } from 'jsdom';
+import { createServer } from 'vite';
+import react from '@vitejs/plugin-react';
+import path from 'node:path';
+import fs from 'node:fs';
+const dom = new JSDOM('<!DOCTYPE html><html><head></head><body><div id="root"></div></body></html>', { url: 'https://local-test.invalid/' });
+for (const key of ['window','document','navigator','HTMLElement','HTMLInputElement','HTMLDialogElement','localStorage','sessionStorage','Event','MouseEvent']) Object.defineProperty(globalThis, key, { configurable: true, value: dom.window[key] });
+globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+window.matchMedia = () => ({ matches: false, addEventListener() {}, removeEventListener() {} });
+window.scrollTo = () => {};
+window.HTMLCanvasElement.prototype.getContext = () => null;
+window.HTMLDialogElement.prototype.showModal = function() { this.open = true; };
+window.HTMLDialogElement.prototype.close = function() { this.open = false; };
+const React = await import('react');
+const { createRoot } = await import('react-dom/client');
+const { act } = React;
+const server = await createServer({ configFile: false, plugins: [react()], optimizeDeps: { noDiscovery: true }, server: { middlewareMode: true }, resolve: { alias: [{ find: /(?:.*\/lib\/supabase|\.\/supabase)(?:\.js)?$/, replacement: path.resolve('tests/fixtures/accountingV18Supabase.js') }] } });
+const { default: Page } = await server.ssrLoadModule('/src/pages/PeriodAccountingPage.jsx');
+const { ToastProvider } = await server.ssrLoadModule('/src/components/Toast.jsx');
+const { fixture, rows } = await server.ssrLoadModule('/tests/fixtures/accountingV18Supabase.js');
+const root = createRoot(document.getElementById('root'));
+const settle = async (ms = 80) => { await act(async () => { await new Promise(r => setTimeout(r, ms)); }); };
+const click = async element => { assert.ok(element, 'Expected control exists'); assert.equal(element.disabled, false); await act(async () => { element.click(); }); await settle(); };
+const button = text => [...document.querySelectorAll('button')].find(b => b.textContent.trim() === text);
+const fill = async (input, value) => { await act(async () => { Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype,'value').set.call(input,value);input.dispatchEvent(new window.Event('input',{bubbles:true})); }); };
+function savePreview(name) {
+  if (!process.argv.includes('--preview')) return;
+  const cssFile = fs.readdirSync('dist/assets').find(f => f.endsWith('.css'));
+  const font = fs.readFileSync('public/fonts/manrope-latin-variable.woff2').toString('base64');
+  const css = fs.readFileSync(`dist/assets/${cssFile}`, 'utf8').replaceAll('/fonts/manrope-latin-variable.woff2', `data:font/woff2;base64,${font}`);
+  fs.mkdirSync('docs', { recursive: true });
+  const body = document.getElementById('root').innerHTML.replace(/src="\/([^\"]+)"/g, (match, name) => {
+    const file = path.join('public', name);
+    return fs.existsSync(file) ? `src="data:image/png;base64,${fs.readFileSync(file).toString('base64')}"` : match;
+  });
+  fs.writeFileSync(`docs/${name}.html`, `<!doctype html><html lang="it"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Play Money 18 · Anteprima dimostrativa</title><style>${css}</style><body><div id="root">${body}</div><div style="position:fixed;bottom:6px;right:12px;z-index:100;background:#33291e;color:#ecd8b3;padding:7px 12px;border-radius:8px;font:10px system-ui">ANTEPRIMA STATICA · DATI DIMOSTRATIVI</div></body></html>`);
+}
+try {
+  await act(async () => root.render(React.createElement(ToastProvider, null, React.createElement(Page, { initialPeriodId:'closed', onBack:()=>{} }))));
+  await settle(500);
+  assert.match(document.querySelector('.office-ledger-total').textContent, /9\.521/);
+  assert.equal(document.querySelectorAll('[aria-label="Modifica AMMANCO CONTEGGI"]').length,0);
+  await click(button('Seleziona debiti'));
+  const checkbox = document.querySelector('dialog input[type=checkbox]');
+  await click(checkbox);
+  await fill(document.querySelector('[aria-label="Importo contabilità Locale demo"]'), '125,50');
+  assert.match(document.querySelector('dialog .office-note').textContent,/125,5/);
+  await click(button('Fatto'));
+  assert.equal(fixture.selected[0].amount_override,125.5);
+  assert.equal(rows[0].debito,250);
+  assert.match(document.querySelector('.office-ledger-total').textContent,/9\.646,5/);
+  if (process.argv.includes('--pdf')) {
+    let pdfBlob;
+    window.open = () => ({ document: { title:'', body: { innerHTML:'' } }, location: { replace() {} } });
+    const originalCreate = URL.createObjectURL;
+    URL.createObjectURL = blob => { pdfBlob = blob; return originalCreate(blob); };
+    const originalTimeout = globalThis.setTimeout;
+    globalThis.setTimeout = (fn, ms, ...args) => { const timer = originalTimeout(fn, ms, ...args); if (ms === 300000) timer.unref(); return timer; };
+    await click(button('Apri PDF'));
+    assert.ok(pdfBlob, 'PDF generato');
+    fs.writeFileSync('/tmp/qa-accounting18.pdf', Buffer.from(await pdfBlob.arrayBuffer()));
+    URL.createObjectURL = originalCreate; globalThis.setTimeout = originalTimeout;
+  }
+  await click(button('Seleziona debiti'));
+  assert.equal(document.querySelector('[aria-label="Importo contabilità Locale demo"]').value,'125,5');
+  savePreview('ANTEPRIMA_DEBITI_18');
+  await click(button('Ripristina')); await click(button('Fatto'));
+  assert.equal(fixture.selected[0].amount_override,null);
+  assert.match(document.querySelector('.office-ledger-total').textContent,/9\.771/);
+  await click(button('Seleziona debiti'));
+  await fill(document.querySelector('[aria-label="Importo contabilità Locale demo"]'), '-1');
+  await click(button('Fatto'));
+  assert.match(document.querySelector('dialog [role=alert]').textContent,/non negativi/);
+  await click(button('Annulla'));
+  await click(button('Seleziona debiti')); await click(document.querySelector('dialog input[type=checkbox]')); await click(button('Fatto'));
+  assert.equal(fixture.selected.length,0);
+  assert.match(document.querySelector('.office-ledger-total').textContent,/9\.521/);
+  savePreview('ANTEPRIMA_CONTABILITA_18');
+  console.log('PASS UI 18: movimento automatico protetto, selezione, modifica, salvataggio/riapertura, ripristino, esclusione, validazione, debito originale invariato.');
+} finally { await act(async () => root.unmount()); await server.close(); dom.window.close(); }

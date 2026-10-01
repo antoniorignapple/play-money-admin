@@ -18,10 +18,10 @@ export function latestClosedPeriod(periods) {
     .sort((a, b) => b.date_to.localeCompare(a.date_to) || b.date_from.localeCompare(a.date_from) || String(b.id).localeCompare(String(a.id)))[0] || null;
 }
 
-export function accountingTotals(rows, overrides, selectedIds, movements, giri = []) {
+export function accountingTotals(rows, overrides, selectedIds, movements, giri = [], debtAmounts = {}) {
   const esattore = calculateEsattoreTotal(rows, overrides, Object.fromEntries(giri.map(g => [String(g.id), g])));
   const selected = new Set(selectedIds.map(String));
-  const recuperi = rows.reduce((sum, row) => sum + (selected.has(String(row.id)) && Number(row.debito) > 0 ? Math.trunc(Number(row.debito)) : 0), 0);
+  const recuperi = roundMoney(rows.reduce((sum, row) => sum + (selected.has(String(row.id)) && Number(row.debito) > 0 ? Number(debtAmounts[String(row.id)] ?? Math.trunc(Number(row.debito))) : 0), 0));
   const movimenti = roundMoney(movements.reduce((sum, row) => sum + Number(row.amount || 0), 0));
   return { esattore, recuperi, globale: roundMoney(esattore + recuperi), movimenti, saldo: roundMoney(esattore + recuperi - movimenti) };
 }

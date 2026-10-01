@@ -25,6 +25,8 @@ export default function PeriodAccountingPage({ initialPeriodId, onBack }) {
   const [formError, setFormError] = useState('');
   const [debtsOpen, setDebtsOpen] = useState(false);
   const [debtSearch, setDebtSearch] = useState('');
+  const [debtDraft, setDebtDraft] = useState({});
+  const [debtError, setDebtError] = useState('');
   const sequence = useRef(0);
   const period = periods.find(p => p.id === selectedId) || data?.detail?.period;
   const ready = data && !loading && !error;
@@ -54,7 +56,7 @@ export default function PeriodAccountingPage({ initialPeriodId, onBack }) {
   function openEdit(row = null) {
     const today = getRomeISODate();
     setFormError('');
-    setEdit({ row, amount: row ? String(row.amount).replace('.', ',') : '', destination: row?.destination || row?.description || '', note: row?.note || '',
+    setEdit({ row, amount: row ? String(row.originalAmount ?? row.amount).replace('.', ',') : '', destination: row?.destination || row?.description || '', note: row?.note || '',
       date: row?.workDate || (today < period.date_from ? period.date_from : today > period.date_to ? period.date_to : today) });
   }
 
@@ -95,16 +97,29 @@ export default function PeriodAccountingPage({ initialPeriodId, onBack }) {
     finally { setSaving(false); }
   }
 
-  async function toggleDebt(row) {
+  function openDebts() {
+    setDebtError(''); setDebtSearch('');
+    setDebtDraft(Object.fromEntries(data.rows.filter(r => Number(r.debito) > 0).map(r => [String(r.id), {
+      selected: data.selectedIds.includes(String(r.id)), amount: String(data.debtAmounts[String(r.id)] ?? Math.trunc(Number(r.debito))).replace('.', ',')
+    }]))); setDebtsOpen(true);
+  }
+  const draftTotal = Object.values(debtDraft).reduce((sum, d) => sum + (d.selected ? parseEuroInput(d.amount) ?? 0 : 0), 0);
+  async function saveDebts() {
     if (saving) return;
-    setSaving(true);
+    const selected = [];
+    for (const row of data.rows) {
+      const draft = debtDraft[String(row.id)];
+      if (!draft?.selected) continue;
+      const amount = parseEuroInput(draft.amount);
+      if (amount === null || amount < 0) return setDebtError('Inserisci importi validi e non negativi per i debiti selezionati.');
+      selected.push({ conteggio_id: row.id, amount_override: amount === Math.trunc(Number(row.debito)) ? null : amount });
+    }
+    setSaving(true); setDebtError('');
     try {
-      const selected = data.selectedIds.includes(String(row.id));
-      const result = selected ? await supabase.from('contabilita_conteggi_debiti_selezionati').delete().eq('period_id', selectedId).eq('conteggio_id', row.id)
-        : await supabase.from('contabilita_conteggi_debiti_selezionati').insert({ period_id: selectedId, conteggio_id: row.id });
+      const result = await supabase.rpc('admin_v18_save_accounting_debts', { p_period_id: selectedId, p_rows: selected });
       if (result.error) throw result.error;
-      notifyAccountingChanged(); await refresh();
-    } catch (e) { toast.error(e.message); }
+      notifyAccountingChanged(); setDebtsOpen(false); await refresh(); toast.success('Selezione e importi salvati');
+    } catch (e) { setDebtError(e.message); }
     finally { setSaving(false); }
   }
 
@@ -131,6 +146,24 @@ export default function PeriodAccountingPage({ initialPeriodId, onBack }) {
         doc.text(String(row.destination || '').slice(0, 48), M + 30, y); doc.text(String(row.note || '').slice(0, 55), M + 120, y);
         doc.setFont('helvetica', 'bold'); doc.text(euro(row.amount), W - M, y, { align: 'right' }); y += 7;
       }
+      const debts = data.rows.filter(r => data.selectedIds.includes(String(r.id)) && Number(r.debito) > 0);
+      if (debts.length) {
+        doc.addPage(); y = 18;
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.text('RECUPERI ACCONTO AGGIO · DEBITI SELEZIONATI', M, y); y += 8;
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.text('Importi applicati solo a questa contabilità. Debiti originali invariati.', M, y); y += 10;
+        const debtHeading = () => { doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.text('LOCALE / OPERATORE', M, y); doc.text('ORIGINALE', W - M - 65, y, { align: 'right' }); doc.text('IN CONTABILITA', W - M, y, { align: 'right' }); y += 8; };
+        debtHeading();
+        for (const row of debts) {
+          if (y > H - 35) { doc.addPage(); y = 18; debtHeading(); }
+          const applied = data.debtAmounts[String(row.id)] ?? Math.trunc(Number(row.debito));
+          doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+          const label = `${venues[String(row.venue_id)] || row.venue_id} · ${row.operator_name || row.executor_name_snapshot || '—'} · ${fmtDate(row.conteggio_date)}`;
+          doc.text(label.slice(0, 85), M, y); doc.text(euro(row.debito), W - M - 65, y, { align: 'right' });
+          doc.setFont('helvetica', 'bold'); doc.text(euro(applied), W - M, y, { align: 'right' }); y += 8;
+        }
+        if (y > H - 35) { doc.addPage(); y = 18; }
+        doc.text(`TOTALE RECUPERI: ${euro(totals.recuperi)}`, W - M, y + 3, { align: 'right' }); y += 12;
+      }
       if (y > H - 40) { doc.addPage(); y = 20; }
       y = Math.max(y + 10, H - 25); doc.setDrawColor(184, 137, 34); doc.line(M, y - 5, W - M, y - 5);
       doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.text('SALDO AZIENDA', M, y + 3); doc.setFontSize(20); doc.text(euro(totals.saldo), W - M, y + 3, { align: 'right' });
@@ -145,17 +178,34 @@ export default function PeriodAccountingPage({ initialPeriodId, onBack }) {
     {error && <LoadError message={error} onRetry={refresh}/>}
     <section className="office-ledger-summary" aria-busy={loading}>
       <div><span className="office-eyebrow">Esattore Conteggi</span><strong>{metric('esattore')}</strong><p>Rettifiche dei giri incluse.</p></div>
-      <div><span className="office-eyebrow">Recuperi acconto aggio</span><strong>{metric('recuperi')}</strong><button className="office-text-link" disabled={!ready} onClick={() => setDebtsOpen(true)}>Seleziona debiti <Pencil size={12}/></button></div>
+      <div><span className="office-eyebrow">Recuperi acconto aggio</span><strong>{metric('recuperi')}</strong><button className="office-text-link" disabled={!ready} onClick={openDebts}>Seleziona debiti <Pencil size={12}/></button></div>
       <div><span className="office-eyebrow">Totale globale</span><strong>{metric('globale')}</strong></div>
     </section>
     <section className="office-panel"><div className="office-panel-header"><div><h2>Movimenti del periodo</h2></div><button className="office-button primary" disabled={!ready} onClick={() => openEdit()}><Plus size={15}/> Aggiungi movimento</button></div>
-      {loading ? <div className="office-empty">Caricamento contabilità…</div> : !data?.movements.length ? <div className="office-empty"><ReceiptText size={28}/>{error ? 'Dati non disponibili.' : 'Nessun movimento registrato.'}</div> : data.movements.map(row => <div className="office-row" key={`${row.source}-${row.id}`}><time>{fmtDate(row.workDate)}</time><div><h3>{row.destination || row.description}</h3>{row.note && <p>{row.note}</p>}</div><strong>{euro(row.amount)}</strong><div className="office-actions"><button className="office-icon" aria-label={`Modifica ${row.destination}`} onClick={() => openEdit(row)}><Pencil size={14}/></button><button className="office-icon danger" aria-label={`Elimina ${row.destination}`} onClick={() => { setFormError(''); setDeleteRow(row); }}><Trash2 size={14}/></button></div></div>)}
+      {loading ? <div className="office-empty">Caricamento contabilità…</div> : !data?.movements.length ? <div className="office-empty"><ReceiptText size={28}/>{error ? 'Dati non disponibili.' : 'Nessun movimento registrato.'}</div> : data.movements.map(row => <div className="office-row" key={`${row.source}-${row.id}`}><time>{fmtDate(row.workDate)}</time><div><h3>{row.destination || row.description}</h3>{row.note && <p>{row.note}</p>}</div><strong>{euro(row.amount)}</strong><div className="office-actions">{row.source === 'automatic' ? <span className="office-period-badge">Automatico</span> : <><button className="office-icon" aria-label={`Modifica ${row.destination}`} onClick={() => openEdit(row)}><Pencil size={14}/></button><button className="office-icon danger" aria-label={`Elimina ${row.destination}`} onClick={() => { setFormError(''); setDeleteRow(row); }}><Trash2 size={14}/></button></>}</div></div>)}
       <p className="office-note">Totale movimenti: <strong>{metric('movimenti')}</strong></p>
     </section>
     <section className="office-total office-ledger-total"><div><h2>SALDO AZIENDA</h2></div><strong>{metric('saldo')}</strong></section>
   </div></PageBody>
     {edit && <AccountingModal title={edit.row ? 'Modifica movimento' : 'Nuovo movimento'} subtitle={periodLabel(period)} busy={saving} onClose={() => setEdit(null)}><form onSubmit={saveMovement}><Field label="Importo (€)" hint={edit.row?.source === 'cassa' ? 'Trasferimento Cassa: importo maggiore di zero.' : 'Positivo: riduce il saldo. Negativo: aumenta il saldo.'}><input className="money" autoFocus required inputMode="decimal" value={edit.amount} onChange={e => setEdit({ ...edit, amount: e.target.value })}/></Field><Field label="Descrizione"><input required value={edit.destination} onChange={e => setEdit({ ...edit, destination: e.target.value })}/></Field><Field label="Data"><input required type="date" min={period.date_from} max={period.date_to} value={edit.date} onChange={e => setEdit({ ...edit, date: e.target.value })}/></Field><Field label="Nota facoltativa"><textarea rows={2} value={edit.note} onChange={e => setEdit({ ...edit, note: e.target.value })}/></Field>{formError && <p role="alert" className="office-error">{formError}</p>}<div className="office-modal-footer"><button className="office-button" type="button" disabled={saving} onClick={() => setEdit(null)}>Annulla</button><button className="office-button primary" disabled={saving}>{saving ? 'Salvataggio…' : 'Salva movimento'}</button></div></form></AccountingModal>}
     {deleteRow && <AccountingModal title="Elimina movimento" subtitle={deleteRow.destination} busy={saving} onClose={() => setDeleteRow(null)}><p className="office-modal-message">Il movimento verrà eliminato e il saldo ricalcolato.{deleteRow.source === 'cassa' && ' Essendo un trasferimento, la rimozione aggiorna anche la Cassa del periodo.'}</p><p className="office-modal-amount">{euro(deleteRow.amount)}</p>{formError && <p role="alert" className="office-error">{formError}</p>}<div className="office-modal-footer"><button className="office-button" disabled={saving} onClick={() => setDeleteRow(null)}>Annulla</button><button className="office-button danger" disabled={saving} onClick={removeMovement}>{saving ? 'Eliminazione…' : 'Elimina movimento'}</button></div></AccountingModal>}
-    {debtsOpen && <AccountingModal title="Recuperi acconto aggio" subtitle="Seleziona i debiti da includere nella contabilità." busy={saving} onClose={() => setDebtsOpen(false)}><input className="office-search" aria-label="Cerca debito" placeholder="Cerca locale o dipendente…" value={debtSearch} onChange={e => setDebtSearch(e.target.value)}/>{data?.archivedOnly && <p className="office-modal-message">Le righe di questo archivio sono conservate nello storico. I movimenti contabili restano modificabili; i debiti senza conteggio originale non possono essere selezionati.</p>}<div className="office-history-scroll">{data?.rows.filter(r => Number(r.debito) > 0 && `${venues[String(r.venue_id)] || ''} ${r.venue_id} ${r.operator_name || r.executor_name_snapshot || ''}`.toLowerCase().includes(debtSearch.toLowerCase())).map(row => <label className="office-debt-choice" key={row.id}><input type="checkbox" disabled={saving || loading || data.archivedOnly} checked={data.selectedIds.includes(String(row.id))} onChange={() => toggleDebt(row)}/><span>{venues[String(row.venue_id)] || row.venue_id}<small>{fmtDate(row.conteggio_date)} · {row.operator_name || row.executor_name_snapshot || '—'}</small></span><strong>{euro(row.debito)}</strong></label>)}</div><div className="office-modal-footer"><button className="office-button primary" disabled={saving} onClick={() => setDebtsOpen(false)}>Fatto</button></div></AccountingModal>}
+    {debtsOpen && <AccountingModal title="Recuperi acconto aggio" subtitle="Seleziona i debiti e modifica l’importo da usare in questa contabilità." busy={saving} onClose={() => setDebtsOpen(false)}>
+      <p className="office-modal-message">Gli importi originali restano invariati nelle altre sezioni. Premi Fatto per salvare.</p>
+      <input className="office-search" aria-label="Cerca debito" placeholder="Cerca locale o dipendente…" value={debtSearch} onChange={e => setDebtSearch(e.target.value)}/>
+      {data?.archivedOnly && <p className="office-modal-message">Archivio storico: i debiti senza conteggio originale non possono essere modificati.</p>}
+      <div className="office-history-scroll">{data?.rows.filter(r => Number(r.debito) > 0 && `${venues[String(r.venue_id)] || ''} ${r.venue_id} ${r.operator_name || r.executor_name_snapshot || ''}`.toLowerCase().includes(debtSearch.toLowerCase())).map(row => {
+        const id = String(row.id), draft = debtDraft[id];
+        const name = venues[String(row.venue_id)] || row.venue_id;
+        const changed = parseEuroInput(draft?.amount) !== Math.trunc(Number(row.debito));
+        return <div className="office-debt-choice office-debt-edit" key={id}>
+          <label className="office-debt-identity"><input type="checkbox" disabled={saving || data.archivedOnly} checked={!!draft?.selected} onChange={e => setDebtDraft(current => ({ ...current, [id]: { ...current[id], selected: e.target.checked } }))}/><span>{name}<small>{fmtDate(row.conteggio_date)} · {row.operator_name || row.executor_name_snapshot || '—'}</small><small>Originale: {euro(row.debito)}</small></span></label>
+          <div className="office-debt-amount"><label><small>Importo contabilità (€)</small><input aria-label={`Importo contabilità ${name}`} inputMode="decimal" disabled={saving || data.archivedOnly || !draft?.selected} value={draft?.amount ?? ''} onChange={e => setDebtDraft(current => ({ ...current, [id]: { ...current[id], amount: e.target.value } }))}/></label><button className="office-text-link" disabled={saving || data.archivedOnly || !changed} onClick={() => setDebtDraft(current => ({ ...current, [id]: { ...current[id], amount: String(Math.trunc(Number(row.debito))) } }))}>Ripristina</button></div>
+        </div>;
+      })}</div>
+      <p className="office-note">Totale selezionato: <strong>{euro(draftTotal)}</strong></p>
+      {debtError && <p className="office-error" role="alert">{debtError}</p>}
+      <div className="office-modal-footer"><button className="office-button" disabled={saving} onClick={() => setDebtsOpen(false)}>Annulla</button><button className="office-button primary" disabled={saving} onClick={data?.archivedOnly ? () => setDebtsOpen(false) : saveDebts}>{saving ? 'Salvataggio…' : 'Fatto'}</button></div>
+    </AccountingModal>}
+
   </PageLayout>;
 }

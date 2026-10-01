@@ -1,3 +1,5 @@
+import { getPeriodFinale, withAutomaticShortage } from './conteggiAccounting.js';
+import { DIPENDENTI_SAFE_FIELDS } from './dipendentiFields.js';
 import { supabase } from './supabase';
 import { fetchAllRows } from './fetchAllRows.js';
 import { accountingTotals, latestClosedPeriod, officeCashTotals } from './officeCash.js';
@@ -8,19 +10,24 @@ export async function loadPeriods() {
 }
 
 export async function loadAccounting(periodId) {
-  const [detail, liveRows, overrides, selected, manual, giri] = await Promise.all([
+  const [detail, liveRows, overrides, selected, manual, giri, employees, adminRows] = await Promise.all([
     supabase.rpc('get_contabilita_cassa_periodo', { p_period_id: periodId }).then(checked),
     fetchAllRows(() => supabase.from('conteggi_tool').select('id,period_id,venue_id,conteggio_date,esattore,debito,operator_name,executor_name_snapshot,giro_id,giro_name_snapshot,created_at').eq('period_id', periodId).order('id')),
     fetchAllRows(() => supabase.from('conteggi_admin_overrides').select('id,operator_name,esattore_override').eq('period_id', periodId).order('id')),
-    fetchAllRows(() => supabase.from('contabilita_conteggi_debiti_selezionati').select('conteggio_id').eq('period_id', periodId).order('conteggio_id')),
+    fetchAllRows(() => supabase.from('contabilita_conteggi_debiti_selezionati').select('conteggio_id,amount_override').eq('period_id', periodId).order('conteggio_id')),
     fetchAllRows(() => supabase.from('contabilita_conteggi_righe').select('*').eq('period_id', periodId).order('work_date').order('id')),
-    fetchAllRows(() => supabase.from('giri').select('id,name').order('id')),
+    fetchAllRows(() => supabase.from('giri').select('id,name,code,default_employee_id').order('id')),
+    fetchAllRows(() => supabase.from('dipendenti').select(DIPENDENTI_SAFE_FIELDS).order('id')),
+    fetchAllRows(() => supabase.from('conteggi_admin_rows').select('*').eq('period_id', periodId).order('id')),
   ]);
-  let rows = liveRows;
+  const toolsById = new Map(liveRows.map(r => [String(r.id), r]));
+  let rows = adminRows.map(r => ({ ...toolsById.get(String(r.id)), ...r, giro_id: r.giro_id || toolsById.get(String(r.id))?.giro_id, giro_name_snapshot: r.giro_name_snapshot || toolsById.get(String(r.id))?.giro_name_snapshot }));
+  let deposits = [];
+  if (detail?.period?.date_from && liveRows.length) deposits = await fetchAllRows(() => supabase.from('movements_cassa').select('id,venue_id,acconto').in('venue_id', ['D01','D02','D03','D04','D05']).is('deleted_at', null).gte('work_date', detail.period.date_from).lte('work_date', detail.period.date_to).order('id'));
   let appliedOverrides = overrides;
   let archivedOnly = false;
   if (!liveRows.length && detail?.period?.status === 'closed') {
-    const snapshot = checked(await supabase.from('conteggi_archive_snapshots').select('conteggi_data,overrides_data').eq('period_id', periodId).maybeSingle());
+    const snapshot = checked(await supabase.from('conteggi_archive_snapshots').select('conteggi_data,overrides_data,movimenti_cassa_data').eq('period_id', periodId).maybeSingle());
     if (snapshot) {
       archivedOnly = true;
       const tools = snapshot.conteggi_data?.conteggi_tool || [];
@@ -30,14 +37,16 @@ export async function loadAccounting(periodId) {
         giro_id: row.giro_id || byId.get(String(row.id))?.giro_id,
         giro_name_snapshot: row.giro_name_snapshot || byId.get(String(row.id))?.giro_name_snapshot }));
       appliedOverrides = snapshot.overrides_data || [];
+      deposits = snapshot.movimenti_cassa_data || [];
     }
   }
   const transfers = (detail?.transfers || []).map(row => ({ ...row, source: 'cassa', workDate: row.transfer_date, description: row.destination }));
-  const movements = [...transfers, ...manual.map(row => ({ ...row, source: 'manual', workDate: row.work_date, destination: row.description }))]
-    .sort((a, b) => a.workDate.localeCompare(b.workDate) || String(a.created_at).localeCompare(String(b.created_at)) || a.id.localeCompare(b.id));
+  const finale = getPeriodFinale(rows, appliedOverrides, giri, employees, deposits);
+  const movements = withAutomaticShortage(manual, transfers, finale, detail.period);
   const selectedIds = selected.map(row => String(row.conteggio_id));
-  return { detail, rows, overrides: appliedOverrides, selectedIds, manual, giri, movements, archivedOnly,
-    totals: accountingTotals(rows, appliedOverrides, selectedIds, movements, giri) };
+  const debtAmounts = Object.fromEntries(selected.filter(r => r.amount_override != null).map(r => [String(r.conteggio_id), Number(r.amount_override)]));
+  return { detail, debtAmounts, finale, rows, overrides: appliedOverrides, selectedIds, manual, giri, movements, archivedOnly,
+    totals: accountingTotals(rows, appliedOverrides, selectedIds, movements, giri, debtAmounts) };
 }
 
 export async function loadOfficeCash() {
