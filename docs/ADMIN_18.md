@@ -31,7 +31,7 @@ Il riquadro Recuperi acconto aggio usa esclusivamente i debiti selezionati con g
 
 ## PDF
 
-Apri PDF continua ad aprire l’anteprima online, senza download automatico. Riporta movimento automatico, riepiloghi e saldo azienda. Una pagina dedicata elenca solo i debiti selezionati, confrontando importo originale e importo applicato alla contabilità.
+Apri PDF continua ad aprire l’anteprima online, senza download automatico. Riporta movimento automatico, riepiloghi e saldo azienda. Dalla versione 18.1 una pagina dedicata elenca solo i debiti selezionati, con una sola colonna CIFRA che riporta l’importo applicato. Il PDF usa il nuovo formato A4 verticale.
 
 ## Verifiche
 

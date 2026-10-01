@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, FileText, Plus, Pencil, Trash2, RefreshCw, ReceiptText, Check } from 'lucide-react';
-import { jsPDF } from 'jspdf';
+import { generatePeriodAccountingPdf, accountingText } from '../lib/generatePeriodAccountingPdf.js';
 import { supabase } from '../lib/supabase';
 import { getRomeISODate } from '../lib/dates.js';
 import { fetchAllRows } from '../lib/fetchAllRows.js';
@@ -128,45 +128,7 @@ export default function PeriodAccountingPage({ initialPeriodId, onBack }) {
     let preview;
     try {
       preview = createPdfPreviewWindow();
-      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-      const W = 297, H = 210, M = 14;
-      doc.setTextColor(55, 39, 13); doc.setFont('helvetica', 'bold'); doc.setFontSize(18);
-      doc.text('PLAY MONEY · CONTABILITA CONTEGGI', M, 18);
-      doc.setFontSize(9); doc.setFont('helvetica', 'normal'); doc.text(`Periodo ${fmtDate(period.date_from)} - ${fmtDate(period.date_to)}`, M, 25);
-      [['TOTALE ESATTORE CONTEGGI', totals.esattore], ['TOTALE RECUPERI ACCONTO AGGIO', totals.recuperi], ['TOTALE GLOBALE', totals.globale]].forEach(([label, value], i) => {
-        const x = M + i * 91; doc.setDrawColor(205, 166, 64); doc.roundedRect(x, 34, 84, 22, 3, 3);
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(7); doc.text(label, x + 4, 41); doc.setFontSize(15); doc.text(euro(value), x + 80, 50, { align: 'right' });
-      });
-      let y = 69;
-      const headings = () => { doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.text('DATA', M, y); doc.text('DESCRIZIONE', M + 30, y); doc.text('NOTA', M + 120, y); doc.text('IMPORTO', W - M, y, { align: 'right' }); y += 7; };
-      headings();
-      for (const row of data.movements) {
-        if (y > H - 28) { doc.addPage(); y = 18; headings(); }
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.text(fmtDate(row.workDate), M, y);
-        doc.text(String(row.destination || '').slice(0, 48), M + 30, y); doc.text(String(row.note || '').slice(0, 55), M + 120, y);
-        doc.setFont('helvetica', 'bold'); doc.text(euro(row.amount), W - M, y, { align: 'right' }); y += 7;
-      }
-      const debts = data.rows.filter(r => data.selectedIds.includes(String(r.id)) && Number(r.debito) > 0);
-      if (debts.length) {
-        doc.addPage(); y = 18;
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.text('RECUPERI ACCONTO AGGIO · DEBITI SELEZIONATI', M, y); y += 8;
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.text('Importi applicati solo a questa contabilità. Debiti originali invariati.', M, y); y += 10;
-        const debtHeading = () => { doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.text('LOCALE / OPERATORE', M, y); doc.text('ORIGINALE', W - M - 65, y, { align: 'right' }); doc.text('IN CONTABILITA', W - M, y, { align: 'right' }); y += 8; };
-        debtHeading();
-        for (const row of debts) {
-          if (y > H - 35) { doc.addPage(); y = 18; debtHeading(); }
-          const applied = data.debtAmounts[String(row.id)] ?? Math.trunc(Number(row.debito));
-          doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
-          const label = `${venues[String(row.venue_id)] || row.venue_id} · ${row.operator_name || row.executor_name_snapshot || '—'} · ${fmtDate(row.conteggio_date)}`;
-          doc.text(label.slice(0, 85), M, y); doc.text(euro(row.debito), W - M - 65, y, { align: 'right' });
-          doc.setFont('helvetica', 'bold'); doc.text(euro(applied), W - M, y, { align: 'right' }); y += 8;
-        }
-        if (y > H - 35) { doc.addPage(); y = 18; }
-        doc.text(`TOTALE RECUPERI: ${euro(totals.recuperi)}`, W - M, y + 3, { align: 'right' }); y += 12;
-      }
-      if (y > H - 40) { doc.addPage(); y = 20; }
-      y = Math.max(y + 10, H - 25); doc.setDrawColor(184, 137, 34); doc.line(M, y - 5, W - M, y - 5);
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.text('SALDO AZIENDA', M, y + 3); doc.setFontSize(20); doc.text(euro(totals.saldo), W - M, y + 3, { align: 'right' });
+      const doc = generatePeriodAccountingPdf(data, period, venues);
       openPdfPreview(doc, preview);
     } catch (e) { closePdfPreviewWindow(preview); toast.error(`PDF: ${e.message}`); }
   }
@@ -182,7 +144,7 @@ export default function PeriodAccountingPage({ initialPeriodId, onBack }) {
       <div><span className="office-eyebrow">Totale globale</span><strong>{metric('globale')}</strong></div>
     </section>
     <section className="office-panel"><div className="office-panel-header"><div><h2>Movimenti del periodo</h2></div><button className="office-button primary" disabled={!ready} onClick={() => openEdit()}><Plus size={15}/> Aggiungi movimento</button></div>
-      {loading ? <div className="office-empty">Caricamento contabilità…</div> : !data?.movements.length ? <div className="office-empty"><ReceiptText size={28}/>{error ? 'Dati non disponibili.' : 'Nessun movimento registrato.'}</div> : data.movements.map(row => <div className="office-row" key={`${row.source}-${row.id}`}><time>{fmtDate(row.workDate)}</time><div><h3>{row.destination || row.description}</h3>{row.note && <p>{row.note}</p>}</div><strong>{euro(row.amount)}</strong><div className="office-actions">{row.source === 'automatic' ? <span className="office-period-badge">Automatico</span> : <><button className="office-icon" aria-label={`Modifica ${row.destination}`} onClick={() => openEdit(row)}><Pencil size={14}/></button><button className="office-icon danger" aria-label={`Elimina ${row.destination}`} onClick={() => { setFormError(''); setDeleteRow(row); }}><Trash2 size={14}/></button></>}</div></div>)}
+      {loading ? <div className="office-empty">Caricamento contabilità…</div> : !data?.movements.length ? <div className="office-empty"><ReceiptText size={28}/>{error ? 'Dati non disponibili.' : 'Nessun movimento registrato.'}</div> : data.movements.map(row => <div className="office-row" key={`${row.source}-${row.id}`}><time>{fmtDate(row.workDate)}</time><div><h3>{accountingText(row.destination || row.description)}</h3>{row.source !== 'automatic' && row.note && <p>{accountingText(row.note)}</p>}</div><strong>{euro(row.amount)}</strong><div className="office-actions">{row.source === 'automatic' ? <span className="office-period-badge">Automatico</span> : <><button className="office-icon" aria-label={`Modifica ${row.destination}`} onClick={() => openEdit(row)}><Pencil size={14}/></button><button className="office-icon danger" aria-label={`Elimina ${row.destination}`} onClick={() => { setFormError(''); setDeleteRow(row); }}><Trash2 size={14}/></button></>}</div></div>)}
       <p className="office-note">Totale movimenti: <strong>{metric('movimenti')}</strong></p>
     </section>
     <section className="office-total office-ledger-total"><div><h2>SALDO AZIENDA</h2></div><strong>{metric('saldo')}</strong></section>

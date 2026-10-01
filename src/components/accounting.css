@@ -50,3 +50,6 @@
 .conteggi-esattore-field input{font-size:clamp(15px,2vw,19px)}
 
 .office-debt-edit{align-items:flex-start;gap:16px}.office-debt-identity{display:flex;gap:12px;align-items:center;flex:1;min-width:0}.office-debt-amount{width:145px;flex-shrink:0;text-align:right}.office-debt-amount input{width:100%;height:36px;border:1px solid #deceb5;border-radius:8px;background:#fffdfa;padding:8px;text-align:right;color:#5f492d;font-size:14px}.office-debt-amount small{margin:0 0 5px}.office-debt-amount .office-text-link{margin-top:6px}.office-debt-identity span{overflow-wrap:anywhere}@media(max-width:480px){.office-debt-edit{gap:10px}.office-debt-amount{width:115px}}
+
+/* Movement labels and notes use one consistent readable style. */
+.office-row h3,.office-row p{font-size:13px;font-weight:600;line-height:1.5;color:#453722}

@@ -68,6 +68,6 @@ export function withAutomaticShortage(manual, transfers, finale, period) {
       note: legacy ? `Sostituito dal movimento automatico. Importo originale: ${row.amount} €` : row.note };
   })];
   movements.push({ id: 'automatic-shortage', source: 'automatic', workDate: period.date_to, destination: 'AMMANCO CONTEGGI', amount,
-    note: 'Automatico · saldo finale dei conteggi del periodo, con rettifiche e depositi reali.', created_at: '' });
+    note: '', created_at: '' });
   return movements.sort((a, b) => String(a.workDate).localeCompare(String(b.workDate)) || String(a.created_at).localeCompare(String(b.created_at)) || String(a.id).localeCompare(String(b.id)));
 }
