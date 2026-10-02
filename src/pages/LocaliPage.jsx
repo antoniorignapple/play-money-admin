@@ -278,8 +278,9 @@ function PremiumFormModal({
 }
 
 
-function SlotManagementModal({ open, onClose, slots = [], onSave }) {
+export function SlotManagementModal({ open, onClose, slots = [], note = "", onSave }) {
   const [quantities, setQuantities] = useState({});
+  const [noteDraft, setNoteDraft] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -293,8 +294,9 @@ function SlotManagementModal({ open, onClose, slots = [], onSave }) {
       }
     }
     setQuantities(next);
+    setNoteDraft(note);
     setError("");
-  }, [open, slots]);
+  }, [open, slots, note]);
 
   if (!open) return null;
 
@@ -307,11 +309,15 @@ function SlotManagementModal({ open, onClose, slots = [], onSave }) {
     setError("");
     try {
       setSaving(true);
+      if (Object.values(quantities).some(value => !Number.isInteger(value))) {
+        throw new Error("Le quantità devono essere numeri interi da 0 a 999.");
+      }
       await onSave(
         SLOT_MODELS.map((model) => ({
           model,
           quantity: Number(quantities[model] || 0),
         })).filter((row) => row.quantity > 0),
+        noteDraft.trim(),
       );
     } catch (e) {
       setError(e?.message || "Impossibile salvare le Slot");
@@ -322,8 +328,8 @@ function SlotManagementModal({ open, onClose, slots = [], onSave }) {
 
   return (
     <div className="fixed inset-0 z-[10002] flex items-center justify-center bg-[#120d05]/75 p-3 backdrop-blur-md">
-      <div className="max-h-[94vh] w-full max-w-[620px] overflow-hidden rounded-[30px] border border-[#d5b66c] bg-[#fffdf9] shadow-[0_40px_100px_-30px_rgba(0,0,0,.9)]">
-        <div className="relative overflow-hidden bg-[linear-gradient(135deg,#3f2908_0%,#895912_58%,#c89532_100%)] px-5 py-6 text-white">
+      <div className="flex max-h-[94vh] w-full max-w-[620px] flex-col overflow-hidden rounded-[30px] border border-[#d5b66c] bg-[#fffdf9] shadow-[0_40px_100px_-30px_rgba(0,0,0,.9)]">
+        <div className="relative shrink-0 overflow-hidden bg-[linear-gradient(135deg,#3f2908_0%,#895912_58%,#c89532_100%)] px-5 py-6 text-white">
           <div className="pointer-events-none absolute -right-12 -top-16 h-48 w-48 rounded-full bg-amber-200/20 blur-3xl" />
           <button
             type="button"
@@ -349,7 +355,7 @@ function SlotManagementModal({ open, onClose, slots = [], onSave }) {
           </div>
         </div>
 
-        <div className="max-h-[calc(94vh-190px)] overflow-y-auto p-5">
+        <div className="min-h-0 overflow-y-auto p-5">
           <div className="mb-4 rounded-[18px] border border-amber-200 bg-[linear-gradient(135deg,#fff9e9,#f7e5b7)] p-3 text-[10px] font-bold leading-relaxed text-[#795116]">
             Imposta la quantità presente per ogni modello. Lascia <strong>0</strong> per i mobili non installati.
           </div>
@@ -415,6 +421,26 @@ function SlotManagementModal({ open, onClose, slots = [], onSave }) {
             })}
           </div>
 
+          <div className="mt-5 rounded-[18px] border border-[#e5d8bd] bg-[#fff9ee] p-4">
+            <label htmlFor="slot-note" className="text-[11px] font-black tracking-[.08em] text-[#805718]">
+              NOTE PARCO SLOT
+            </label>
+            <p id="slot-note-help" className="mt-1 text-[11px] leading-relaxed text-[#79694c]">
+              Annota il fondo cassa delle slot o altre informazioni utili per questo locale.
+            </p>
+            <textarea
+              id="slot-note"
+              aria-describedby="slot-note-help"
+              value={noteDraft}
+              onChange={(event) => setNoteDraft(event.target.value)}
+              disabled={saving}
+              maxLength={2000}
+              rows={3}
+              placeholder="Es. In questo locale il fondo cassa delle slot è di 500 € ciascuna."
+              className="mt-3 w-full resize-y rounded-[13px] border border-[#d8c08b] bg-white p-3 text-[13px] leading-relaxed text-[#3d2a0b] outline-none focus:border-[#a87318] focus:ring-2 focus:ring-amber-200 disabled:opacity-45"
+            />
+          </div>
+
           {error && (
             <div className="mt-4 rounded-[14px] border border-red-200 bg-red-50 p-3 text-center text-[11px] font-black text-red-700">
               {error}
@@ -422,14 +448,14 @@ function SlotManagementModal({ open, onClose, slots = [], onSave }) {
           )}
         </div>
 
-        <div className="border-t border-[#e5d7bb] bg-[#faf2e2] p-3">
+        <div className="shrink-0 border-t border-[#e5d7bb] bg-[#faf2e2] p-3">
           <button
             type="button"
             disabled={saving}
             onClick={save}
             className="h-12 w-full rounded-[14px] bg-[linear-gradient(135deg,#aa741b,#68420a)] text-[11px] font-black tracking-[.1em] text-white shadow-[0_14px_25px_-16px_rgba(75,45,3,.9)] disabled:opacity-45"
           >
-            {saving ? "SALVATAGGIO…" : "SALVA SLOT INSTALLATE"}
+            {saving ? "SALVATAGGIO…" : "SALVA SLOT E NOTE"}
           </button>
         </div>
       </div>
@@ -517,7 +543,7 @@ export default function LocaliPage() {
   }
 
   async function selectVenue(venue) {
-    const [machineResult, slotResult] = await Promise.all([
+    const [machineResult, slotResult, noteResult] = await Promise.all([
       supabase
         .from("machines")
         .select("*")
@@ -528,9 +554,11 @@ export default function LocaliPage() {
         .select("venue_id,model,quantity,updated_at,updated_by")
         .eq("venue_id", venue.id)
         .order("model"),
+      supabase.from("venue_slot_notes").select("note").eq("venue_id", venue.id).maybeSingle(),
     ]);
     if (machineResult.error) toast.error(machineResult.error.message);
     if (slotResult.error) toast.error(`Slot: ${slotResult.error.message}`);
+    if (noteResult.error) toast.error(`Note Slot: ${noteResult.error.message}`);
     const machines = machineResult.data || [];
     const slots = normalizeSlotRows(slotResult.data || []);
     let reports = [];
@@ -556,7 +584,7 @@ export default function LocaliPage() {
         return true;
       });
     }
-    setSelectedVenue({ ...venue, machines, slots });
+    setSelectedVenue({ ...venue, machines, slots, slot_note: noteResult.data?.note || "", slot_load_error: Boolean(slotResult.error || noteResult.error) });
     setHistory(reports);
     setHistoryOpen({});
     setEditMachineTarget(null);
@@ -655,15 +683,17 @@ export default function LocaliPage() {
     toast.success("Change rimosso dalla visualizzazione");
   }
 
-  async function saveVenueSlots(rows) {
-    const { error } = await supabase.rpc("set_venue_slots", {
+  async function saveVenueSlots(rows, note) {
+    if (selectedVenue.slot_load_error) throw new Error("Ricarica il locale prima di modificare il parco slot.");
+    const { data, error } = await supabase.rpc("set_venue_slot_configuration", {
       p_venue_id: selectedVenue.id,
       p_slots: rows,
+      p_note: note,
     });
     if (error) throw new Error(error.message);
+    setSelectedVenue(current => ({ ...current, slots: normalizeSlotRows(data.slots), slot_note: data.note }));
     setSlotModalOpen(false);
-    await selectVenue(selectedVenue);
-    toast.success("Slot installate aggiornate");
+    toast.success("Slot e note aggiornate");
   }
 
   async function deleteReport(report) {
@@ -1149,8 +1179,9 @@ export default function LocaliPage() {
                     </div>
                     <button
                       type="button"
+                      disabled={selectedVenue.slot_load_error}
                       onClick={() => setSlotModalOpen(true)}
-                      className="flex h-11 items-center justify-center gap-2 rounded-[14px] bg-[linear-gradient(135deg,#a97218,#70490d)] px-5 text-[10px] font-black tracking-[.08em] text-white shadow-lg"
+                      className="flex h-11 items-center justify-center gap-2 rounded-[14px] bg-[linear-gradient(135deg,#a97218,#70490d)] px-5 text-[10px] font-black tracking-[.08em] text-white shadow-lg disabled:opacity-45"
                     >
                       {sortedSlots.length ? <Pencil size={14} /> : <Plus size={14} />}
                       {sortedSlots.length ? "GESTISCI SLOT" : "AGGIUNGI SLOT"}
@@ -1166,6 +1197,7 @@ export default function LocaliPage() {
                         action={
                           <button
                             type="button"
+                            disabled={selectedVenue.slot_load_error}
                             onClick={() => setSlotModalOpen(true)}
                             className="flex h-10 items-center gap-2 rounded-[13px] border border-[#c99b42] bg-[#fff8e8] px-4 text-[10px] font-black text-[#805718]"
                           >
@@ -1206,6 +1238,17 @@ export default function LocaliPage() {
                           </article>
                         );
                       })}
+                    </div>
+                  )}
+                  {selectedVenue.slot_load_error && (
+                    <p role="alert" className="border-t border-red-200 bg-red-50 p-4 text-[12px] font-bold text-red-700">
+                      Impossibile caricare il parco slot completo. Riapri il locale per riprovare.
+                    </p>
+                  )}
+                  {selectedVenue.slot_note && (
+                    <div className="border-t border-[#e8dcc3] bg-[#fff9ee] px-5 py-4">
+                      <p className="text-[10px] font-black tracking-[.1em] text-[#805718]">NOTE PARCO SLOT</p>
+                      <p className="mt-2 whitespace-pre-wrap break-words text-[13px] leading-relaxed text-[#3d2a0b]">{selectedVenue.slot_note}</p>
                     </div>
                   )}
                 </section>
@@ -1359,6 +1402,7 @@ export default function LocaliPage() {
         open={slotModalOpen}
         onClose={() => setSlotModalOpen(false)}
         slots={selectedVenue?.slots || []}
+        note={selectedVenue?.slot_note || ""}
         onSave={saveVenueSlots}
       />
       <ConfirmDialog
