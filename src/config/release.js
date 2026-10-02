@@ -1,7 +1,8 @@
 export const RELEASE = Object.freeze({
-  VERSION: "18.1",
-  TITLE: "Admin 18.1",
+  VERSION: "18.2",
+  TITLE: "Admin 18.2",
   ITEMS: [
+    "PDF mezzi: selezione automezzi con targhe e ultimi km registrati",
     "PDF Contabilità rinnovato, leggibile e con una sola cifra per debito",
     "Movimenti in maiuscolo e ammanco senza descrizione aggiuntiva",
     "Importi dei debiti personalizzabili solo in Contabilità Conteggi",

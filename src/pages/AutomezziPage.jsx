@@ -1,4 +1,6 @@
 import { buildAutomezzoPdf } from '../lib/generateAutomezzoPdf.js';
+import { buildFleetReport, recordMatchesVehicle } from '../lib/fleetReport.js';
+import { generateFleetPdf } from '../lib/generateFleetPdf.js';
 import { createPdfPreviewWindow, openPdfPreview, closePdfPreviewWindow } from '../lib/pdfPreview.js';
 import { getRomeISODate } from '../lib/dates.js';
 import { currentMonthRange, inDateRange, vehicleDistance, odometer, latestVehicleReading } from '../lib/vehiclePeriod.js';
@@ -62,6 +64,10 @@ export default function AutomezziPage() {
   const [editingUsage, setEditingUsage] = useState(null);
   const [editUsageForm, setEditUsageForm] = useState({ vehicle_id: '', km: '', rifornimento: '' });
   const [removeUsageTarget, setRemoveUsageTarget] = useState(null);
+  const [fleetPdfOpen, setFleetPdfOpen] = useState(false);
+  const [fleetPdfIds, setFleetPdfIds] = useState([]);
+  const [fleetPdfSearch, setFleetPdfSearch] = useState('');
+  const [fleetPdfBusy, setFleetPdfBusy] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -80,6 +86,7 @@ export default function AutomezziPage() {
       ]);
       setVehicles(vehicleList); setRecords(allRecords); setEmployees(employeesList);
       setSelectedVehicleId(current => current && vehicleList.some(v => String(v.id) === String(current)) ? current : vehicleList.find(v => v.active !== false)?.id || vehicleList[0]?.id || '');
+      return { vehicles: vehicleList, records: allRecords };
     } catch (error) { setLoadError(error.message); toast.error(error.message); }
     finally { setLoading(false); }
   }
@@ -95,15 +102,29 @@ export default function AutomezziPage() {
   }
 
   function matchesVehicle(record, vehicle) {
-    if (!record || !vehicle) return false;
-    if (record.vehicle_id) return String(record.vehicle_id) === String(vehicle.id);
-    const vehiclePlate = normalizePlate(vehicle.plate);
-    const snapshotPlate = normalizePlate(record.vehicle_plate_snapshot);
-    if (vehiclePlate && snapshotPlate === vehiclePlate) return true;
-    const mezzo = String(record.mezzo || "").toUpperCase();
-    return Boolean(
-      vehiclePlate && normalizePlate(mezzo).includes(vehiclePlate),
-    );
+    return recordMatchesVehicle(record, vehicle);
+  }
+
+  function openFleetPdf() {
+    setFleetPdfIds(vehicles.filter(v => v.active !== false).map(v => String(v.id)));
+    setFleetPdfSearch(''); setFleetPdfOpen(true);
+  }
+
+  async function exportFleetPdf() {
+    if (fleetPdfBusy || !fleetPdfIds.length) return;
+    let target;
+    setFleetPdfBusy(true);
+    try {
+      target = createPdfPreviewWindow();
+      const fresh = await loadData();
+      if (!fresh) throw new Error('Dati non aggiornati: impossibile generare il PDF. Riprova.');
+      const today = todayISO();
+      const rows = buildFleetReport(fresh.vehicles, fresh.records, fleetPdfIds, today);
+      if (rows.length !== fleetPdfIds.length) throw new Error('La disponibilità dei mezzi è cambiata. Riapri PDF mezzi e verifica la selezione.');
+      openPdfPreview(generateFleetPdf(rows, today), target);
+      setFleetPdfOpen(false);
+    } catch (error) { closePdfPreviewWindow(target); toast.error(error.message); }
+    finally { setFleetPdfBusy(false); }
   }
 
   const activeVehicles = useMemo(
@@ -283,7 +304,7 @@ export default function AutomezziPage() {
                     AUTOMEZZI
                   </h1>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
                     onClick={loadData}
@@ -301,6 +322,7 @@ export default function AutomezziPage() {
                   >
                     <Plus size={15} /> NUOVO AUTOMEZZO
                   </button>
+                  <button type="button" onClick={openFleetPdf} disabled={loading || !!loadError || !activeVehicles.length || fleetPdfBusy} className="flex h-12 items-center gap-2 rounded-[16px] border border-[#d6b56b] bg-white/80 px-4 text-[11px] font-bold text-[#785116] disabled:opacity-50"><FileText size={16}/> PDF MEZZI</button>
                 </div>
               </div>
             </section>
@@ -571,6 +593,17 @@ export default function AutomezziPage() {
           </div>
         </div>
       </PageBody>
+
+      <Modal open={fleetPdfOpen} onClose={() => !fleetPdfBusy && setFleetPdfOpen(false)} title="PDF mezzi" width="lg" footer={<><Button variant="ghost" onClick={() => setFleetPdfOpen(false)} disabled={fleetPdfBusy}>Annulla</Button><Button variant="primary" onClick={exportFleetPdf} disabled={fleetPdfBusy || !fleetPdfIds.length}>{fleetPdfBusy ? 'GENERAZIONE…' : 'APRI PDF'}</Button></>}>
+        <p className="mb-4 text-sm text-[#78613c]">Seleziona i mezzi da includere. Il PDF riporta mezzo, targa e ultima lettura valida dei km, indipendentemente dal periodo visualizzato.</p>
+        <Input leftIcon={Search} placeholder="Cerca mezzo o targa…" value={fleetPdfSearch} disabled={fleetPdfBusy} onChange={e => setFleetPdfSearch(e.target.value)}/>
+        <div className="my-4 flex flex-wrap items-center gap-3"><Button variant="ghost" disabled={fleetPdfBusy} onClick={() => setFleetPdfIds(activeVehicles.map(v => String(v.id)))}>Seleziona tutti</Button><Button variant="ghost" disabled={fleetPdfBusy} onClick={() => setFleetPdfIds([])}>Deseleziona tutti</Button><span className="ml-auto text-sm font-semibold text-[#78613c]">{fleetPdfIds.length} selezionati</span></div>
+        <div className="space-y-2">{activeVehicles.filter(v => `${v.name} ${v.plate}`.toLowerCase().includes(fleetPdfSearch.toLowerCase())).map(vehicle => {
+          const id = String(vehicle.id);
+          const reading = latestVehicleReading(records.filter(r => !r.deleted_at && recordMatchesVehicle(r, vehicle)));
+          return <label key={id} className="flex cursor-pointer items-center gap-3 rounded-xl border border-[#e2d6bc] p-4"><input type="checkbox" className="h-4 w-4 accent-[#956d28]" disabled={fleetPdfBusy} checked={fleetPdfIds.includes(id)} onChange={e => setFleetPdfIds(ids => e.target.checked ? [...ids, id] : ids.filter(item => item !== id))}/><span className="min-w-0 flex-1"><span className="block text-sm font-bold uppercase text-[#453722]">{vehicle.name}</span><span className="mt-1 block text-xs uppercase text-[#78613c]">{vehicle.plate}</span></span><span className="text-right text-sm font-semibold text-[#453722]">{reading ? `${reading.km.toLocaleString('it-IT', { useGrouping: 'always' })} km` : 'Non disponibili'}{reading && <small className="mt-1 block text-xs font-normal text-[#8b7959]">{formatDate(reading.date)}</small>}</span></label>;
+        })}</div>
+      </Modal>
 
       <Modal open={!!editingUsage} onClose={() => !saving && setEditingUsage(null)} title={`Modifica utilizzo · ${formatDate(editingUsage?.work_date)}`} width="md" footer={<><Button variant="ghost" onClick={() => setEditingUsage(null)} disabled={saving}>Annulla</Button><Button variant="primary" onClick={saveEditedUsage} disabled={saving}>{saving ? 'SALVATAGGIO…' : 'SALVA MODIFICHE'}</Button></>}>
         <p className="mb-4 text-sm text-[#78613c]">{editingUsage ? employeeName(editingUsage.created_by) : ''} · Modifica anche le registrazioni dei periodi precedenti.</p>
