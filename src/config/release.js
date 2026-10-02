@@ -1,7 +1,8 @@
 export const RELEASE = Object.freeze({
-  VERSION: "18.3",
-  TITLE: "Admin 18.3",
+  VERSION: "18.4",
+  TITLE: "Admin 18.4",
   ITEMS: [
+    "PDF locali: parco slot sotto i Change, con modelli, quantità e totale",
     "PDF mezzi: mezzo, targa e ultimi km registrati senza data sotto la cifra",
     "PDF Contabilità rinnovato, leggibile e con una sola cifra per debito",
     "Movimenti in maiuscolo e ammanco senza descrizione aggiuntiva",

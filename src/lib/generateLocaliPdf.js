@@ -1,5 +1,7 @@
 import { jsPDF } from 'jspdf';
 import { getChangeImage } from './changeImages.js';
+import { regular, bold } from './accountingPdfFonts.js';
+import { normalizeReportSlots } from './localiReportData.js';
 
 const euro = value => Number(value ?? 0).toLocaleString('it-IT', { maximumFractionDigits: 2, useGrouping: 'always' }) + ' €';
 const date = value => {
@@ -34,17 +36,21 @@ export async function generateLocaliPdf(venues, { generatedAt = new Date(), load
   const paths = [...new Set(machines.map(machine => getChangeImage(machine.name)))];
   const images = new Map(await Promise.all(paths.map(async path => [path, await loadImage(path)])));
   const doc = new jsPDF({ unit: 'pt', format: 'a4', compress: true });
-  doc.setProperties({ title: 'Play Money - Locali e Change', subject: 'Livelli attuali e fondi cassa', author: 'Play Money Admin' });
+  doc.addFileToVFS('Manrope-Regular.ttf', regular);
+  doc.addFont('Manrope-Regular.ttf', 'Manrope', 'normal');
+  doc.addFileToVFS('Manrope-Bold.ttf', bold);
+  doc.addFont('Manrope-Bold.ttf', 'Manrope', 'bold');
+  doc.setProperties({ title: 'Play Money - Locali e Change', subject: 'Livelli attuali, fondi cassa e parco slot', author: 'Play Money Admin' });
   const width = doc.internal.pageSize.getWidth();
   const height = doc.internal.pageSize.getHeight();
   const margin = 32, inner = width - margin * 2, bottom = height - 32;
   let y;
   const text = (value, x, top, size = 10, bold = false, color = '#302817') => {
-    doc.setFont('helvetica', bold ? 'bold' : 'normal');
+    doc.setFont('Manrope', bold ? 'bold' : 'normal');
     doc.setFontSize(size); doc.setTextColor(color); doc.text(Array.isArray(value) ? value : String(value), x, top);
   };
   const wrap = (value, maxWidth, size = 10, bold = false) => {
-    doc.setFont('helvetica', bold ? 'bold' : 'normal'); doc.setFontSize(size);
+    doc.setFont('Manrope', bold ? 'bold' : 'normal'); doc.setFontSize(size);
     return doc.splitTextToSize(String(value), maxWidth);
   };
   const page = (first = false) => {
@@ -64,11 +70,19 @@ export async function generateLocaliPdf(venues, { generatedAt = new Date(), load
     text('Attenzione: gli importi non disponibili sono esclusi dai totali.', margin, y, 9, true, '#b42318'); y += 20;
   }
   const metric = (value, x, top, color) => {
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(11);
+    doc.setFont('Manrope', 'bold'); doc.setFontSize(11);
     const size = Math.min(11, 11 * 205 / Math.max(205, doc.getTextWidth(value)));
     text(value, x, top, size, true, color);
   };
   for (const venue of venues) {
+    const slots = normalizeReportSlots(venue.slots || []);
+    const slotTotal = slots.reduce((sum, slot) => sum + slot.quantity, 0);
+    const slotText = slots.length ? slots.map(slot => `${slot.model} × ${slot.quantity}`).join('  ·  ') : 'Parco slot non compilato';
+    const totalLabel = slots.length ? `${slotTotal} SLOT` : '';
+    doc.setFont('Manrope', 'bold'); doc.setFontSize(9);
+    const totalWidth = Math.max(57, doc.getTextWidth(totalLabel));
+    const slotLines = wrap(slotText, inner - 118 - totalWidth, 9);
+    const slotHeight = Math.max(35, 19 + slotLines.length * 12);
     const title = wrap(`${venue.id} - ${venue.name}`, inner - 20, 12, true);
     const city = wrap(venue.city || 'Città non disponibile', inner - 20, 9);
     const headingHeight = 32 + title.length * 14 + city.length * 11;
@@ -77,15 +91,16 @@ export async function generateLocaliPdf(venues, { generatedAt = new Date(), load
       doc.setFillColor('#f2e5c9'); doc.roundedRect(margin, y, inner, headingHeight, 5, 5, 'F');
       text(title, margin + 10, y + 17, 12, true);
       text(city, margin + 10, y + 19 + title.length * 14, 9);
-      text(continued ? 'Change - continuazione' : `${venue.machines.length} Change | Livello: ${euro(venue.machines.reduce((s,m)=>s+Number(m.level ?? 0),0))} | Fondo: ${euro(venue.machines.reduce((s,m)=>s+Number(m.fondo ?? 0),0))}`, margin + 10, y + headingHeight - 9, 9, true);
+      text(continued ? 'Locale - continuazione' : `${venue.machines.length} Change | Livello: ${euro(venue.machines.reduce((s,m)=>s+Number(m.level ?? 0),0))} | Fondo: ${euro(venue.machines.reduce((s,m)=>s+Number(m.fondo ?? 0),0))}`, margin + 10, y + headingHeight - 9, 9, true);
       y += headingHeight + 6;
     };
     if (y + headingHeight + 104 > bottom) page();
     heading();
-    for (const machine of venue.machines) {
+    for (const [index, machine] of venue.machines.entries()) {
       const name = wrap(machine.name || 'Change senza nome', inner - 94, 11, true);
       const rowHeight = Math.max(94, 61 + name.length * 13);
-      if (y + rowHeight > bottom) { page(); heading(true); }
+      const reserve = index === venue.machines.length - 1 && headingHeight + 6 + rowHeight + slotHeight <= bottom - 82 ? slotHeight : 0;
+      if (y + rowHeight + reserve > bottom) { page(); heading(true); }
       if (y + rowHeight > bottom) throw new Error('Nome Change troppo lungo per il PDF.');
       doc.setDrawColor('#e2d7c2'); doc.setFillColor('#fffdf8');
       doc.roundedRect(margin, y, inner, rowHeight - 4, 4, 4, 'FD');
@@ -101,7 +116,14 @@ export async function generateLocaliPdf(venues, { generatedAt = new Date(), load
       text(`Ultimo aggiornamento: ${date(machine.last_update)}`, x, base + 20, 9, false, '#60594b');
       y += rowHeight;
     }
-    y += 12;
+    if (y + slotHeight > bottom) { page(); heading(true); }
+    if (y + slotHeight > bottom) throw new Error('Parco slot troppo lungo per il PDF.');
+    doc.setFillColor('#f4eddd'); doc.setDrawColor('#dac8a5');
+    doc.roundedRect(margin, y, inner, slotHeight, 4, 4, 'FD');
+    text('PARCO SLOT', margin + 10, y + 21, 9, true, '#80530d');
+    text(slotLines, margin + 98, y + 21, 9);
+    text(totalLabel, width - margin - 10 - totalWidth, y + 21, 9, true, '#80530d');
+    y += slotHeight + 12;
   }
   return doc;
 }
