@@ -48,7 +48,6 @@ export function generateFleetPdf(rows, today) {
         text(plateLines, M + 230, y + 29, 11, true);
         const km = row.reading ? row.reading.km.toLocaleString('it-IT', { useGrouping: 'always' }) : 'NON DISPONIBILI';
         text(km, right - 12, y + 29, row.reading ? 15 : 9, true, ink, { align: 'right' });
-        if (row.reading) text(fmtDate(row.reading.date), right - 12, y + 48, 9, false, muted, { align: 'right' });
       }
       y += height; doc.setDrawColor('#E4E8EE'); doc.line(M, y, right, y);
       offset += block.length;
