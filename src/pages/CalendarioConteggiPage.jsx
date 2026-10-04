@@ -92,6 +92,7 @@ export default function CalendarioConteggiPage() {
     new Date(today.getFullYear(), today.getMonth(), 1),
   );
   const [selected, setSelected] = useState(new Set());
+  const [mobileView, setMobileView] = useState('agenda');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -333,6 +334,11 @@ export default function CalendarioConteggiPage() {
                     </button>
                   </div>
 
+                  <div className="pm-calendar-switch md:hidden" role="group" aria-label="Vista calendario">
+                    <button type="button" aria-pressed={mobileView === 'agenda'} onClick={() => setMobileView('agenda')}>Agenda</button>
+                    <button type="button" aria-pressed={mobileView === 'month'} onClick={() => setMobileView('month')}>Mese</button>
+                  </div>
+                  <div className={mobileView === 'month' ? '' : 'hidden md:block'}>
                   <div className="grid grid-cols-7 border-b border-amber-100 bg-slate-950/[0.025]">
                     {DAYS.map((day) => (
                       <div
@@ -418,6 +424,20 @@ export default function CalendarioConteggiPage() {
                           )}
                         </button>
                       );
+                    })}
+                  </div>
+                  </div>
+                  <div className={`pm-calendar-agenda ${mobileView === 'agenda' ? 'md:hidden' : 'hidden'}`}>
+                    {Array.from({ length: new Date(year, month + 1, 0).getDate() }, (_, index) => index + 1).map(day => {
+                      const dateKey = keyOf(year, month, day);
+                      const date = new Date(year, month, day);
+                      const active = selected.has(dateKey);
+                      const blocked = isBlockedDay(year, month, day);
+                      return <button type="button" key={dateKey} disabled={blocked || loading || saving} aria-pressed={active} onClick={() => toggle(day)}>
+                        <span className="pm-calendar-day">{day}</span>
+                        <span><strong>{date.toLocaleDateString('it-IT', { weekday: 'long' })}</strong><small>{italianHolidayName(year, month, day) || (blocked ? 'Domenica' : active ? 'Conteggio programmato' : 'Nessun conteggio')}</small></span>
+                        <span className="pm-calendar-day-status">{blocked ? '—' : active ? '✓' : '+'}</span>
+                      </button>;
                     })}
                   </div>
                 </div>

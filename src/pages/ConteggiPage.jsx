@@ -1428,7 +1428,7 @@ export default function ConteggiPage({ initialPeriodId = '', onOpenAccounting })
               <div className="pointer-events-none absolute -left-16 -top-24 h-60 w-60 rounded-full bg-white/75 blur-3xl" />
               <div className="pointer-events-none absolute -right-12 -top-20 h-64 w-64 rounded-full bg-amber-400/20 blur-3xl" />
 
-              <div className="relative min-h-[92px]">
+              <div className="pm-conteggi-heading relative min-h-[92px]">
                 <div className="office-conteggi-entry"><button className="office-button primary" disabled={!selectedPeriodId || loading} onClick={() => onOpenAccounting(selectedPeriodId)}><Calculator size={16}/> CONTABILITÀ CONTEGGI</button></div>
                 <div className="office-conteggi-title mx-auto flex max-w-[900px] flex-col items-center justify-center px-14 text-center">
                   <h1 className="text-[29px] font-black tracking-[0.13em] text-[#3d2a0b] md:text-[35px]">
@@ -1471,9 +1471,10 @@ export default function ConteggiPage({ initialPeriodId = '', onOpenAccounting })
                   </div>
                 </div>
 
-                <div className="absolute right-0 top-0 z-40 flex items-start gap-2">
+                <div className="pm-conteggi-actions absolute right-0 top-0 z-40 flex items-start gap-2">
                   <button
                     type="button"
+                    aria-label="Aggiorna conteggi"
                     onClick={() => loadDashboard()}
                     disabled={!selectedPeriodId || loading}
                     className="flex h-12 items-center justify-center gap-2 rounded-[16px] border border-[#d8b86c] bg-white px-4 text-[10px] font-black tracking-[0.08em] text-[#755019] shadow-[0_13px_24px_-17px_rgba(116,79,17,.48)] transition hover:-translate-y-0.5 active:scale-95 disabled:opacity-45"
@@ -1572,7 +1573,7 @@ export default function ConteggiPage({ initialPeriodId = '', onOpenAccounting })
             </section>
 
             <section className="overflow-hidden rounded-[28px] border border-[#dfcfaa] bg-[#fffdf9] shadow-[0_24px_55px_-38px_rgba(65,43,8,.68)]">
-              <div className="relative border-b border-[#eadfca] px-4 py-4 text-center">
+              <div className="pm-conteggi-summary-heading relative border-b border-[#eadfca] px-4 py-4 text-center">
                 <h2 className="text-[21px] font-black tracking-[0.18em] text-[#946318] md:text-[26px]">
                   RIEPILOGO GENERALE
                 </h2>
@@ -1593,7 +1594,7 @@ export default function ConteggiPage({ initialPeriodId = '', onOpenAccounting })
                   </span>
                 </div>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
+              <div className="pm-conteggi-summary grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
                 {[
                   ["ESATTORE", totalSummary.esattore],
                   ["ACCONTI", totalSummary.acconti],
@@ -1871,7 +1872,7 @@ export default function ConteggiPage({ initialPeriodId = '', onOpenAccounting })
               ) : (
                 <div className="overflow-x-auto p-3 md:p-4">
                   <div
-                    className="min-w-[980px] items-center gap-3 border-b border-[#d8c7a8] px-4 pb-3"
+                    className="pm-missing-header min-w-[980px] items-center gap-3 border-b border-[#d8c7a8] px-4 pb-3"
                     style={{
                       display: "grid",
                       gridTemplateColumns:
@@ -1911,7 +1912,7 @@ export default function ConteggiPage({ initialPeriodId = '', onOpenAccounting })
                       return (
                         <div
                           key={v.id}
-                          className={`min-h-[62px] min-w-[980px] items-center gap-3 rounded-[16px] border border-[#ddcdb0] px-4 py-2.5 transition hover:-translate-y-[1px] hover:border-[#cfb981] hover:shadow-[0_12px_24px_-20px_rgba(72,45,7,.45)] ${index % 2 === 0 ? "bg-[#fffaf1]" : "bg-[#f9f0df]"} ${rowGlow}`}
+                          className={`pm-missing-row min-h-[62px] min-w-[980px] items-center gap-3 rounded-[16px] border border-[#ddcdb0] px-4 py-2.5 transition hover:-translate-y-[1px] hover:border-[#cfb981] hover:shadow-[0_12px_24px_-20px_rgba(72,45,7,.45)] ${index % 2 === 0 ? "bg-[#fffaf1]" : "bg-[#f9f0df]"} ${rowGlow}`}
                           style={{
                             display: "grid",
                             gridTemplateColumns:
@@ -1958,6 +1959,7 @@ export default function ConteggiPage({ initialPeriodId = '', onOpenAccounting })
                             ) : (
                               <CircleX size={17} />
                             )}
+                            <span className="pm-missing-status-label hidden">{v.status === 'ok' ? 'Regolare · Dettagli' : v.status === 'warning' ? 'Da verificare · Dettagli' : 'Anomalia · Dettagli'}</span>
                             <ChevronRight
                               size={15}
                               className="transition-transform group-hover:translate-x-0.5"

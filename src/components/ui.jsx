@@ -1,4 +1,4 @@
-import { useEffect, useRef, forwardRef } from 'react'
+import { useEffect, useRef, forwardRef, useId } from 'react'
 import { X } from 'lucide-react'
 import { EmptyIllustration } from './Skeleton'
 
@@ -55,7 +55,7 @@ export function IconButton({
   const iconSize = size === 'sm' ? 13 : 14
   return (
     <button
-      type="button" onClick={onClick} disabled={disabled} title={title}
+      type="button" onClick={onClick} disabled={disabled} title={title} aria-label={title}
       className={`inline-flex shrink-0 items-center justify-center rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${sizes[size]} ${variants[variant]} ${className}`}
     >
       <Icon size={iconSize} strokeWidth={2} />
@@ -270,21 +270,34 @@ export function Segmented({ value, onChange, options = [], size = 'md' }) {
 /* ============ MODAL (fullscreen mobile) ============ */
 export function Modal({ open, onClose, title, children, footer, width = 'md', closeOnBackdrop = true, closeOnEscape = true }) {
   const inputRef = useRef(null)
+  const dialogRef = useRef(null)
+  const titleId = useId()
 
   // Focus automatico SOLO all'apertura (dipende solo da `open`).
   useEffect(() => {
     if (!open) return
-    setTimeout(() => inputRef.current?.focus?.(), 50)
+    const previous = document.activeElement
+    const timer = setTimeout(() => inputRef.current?.focus?.(), 50)
     document.body.style.overflow = 'hidden'
     return () => {
+      clearTimeout(timer)
       document.body.style.overflow = ''
+      previous?.focus?.()
     }
   }, [open])
 
   // Listener Escape separato (può dipendere da onClose senza refocus).
   useEffect(() => {
     if (!open) return
-    const onKey = (e) => { if (e.key === 'Escape' && closeOnEscape) onClose() }
+    const onKey = (e) => {
+      if (e.key === 'Escape' && closeOnEscape) onClose()
+      if (e.key !== 'Tab') return
+      const nodes = [...(dialogRef.current?.querySelectorAll('button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),a[href],[tabindex="0"]') || [])].filter(node => node.getClientRects().length)
+      const first = nodes[0], last = nodes[nodes.length - 1]
+      if (!first) { e.preventDefault(); return }
+      if (e.shiftKey && (document.activeElement === first || document.activeElement === inputRef.current)) { e.preventDefault(); last.focus() }
+      else if (!e.shiftKey && (document.activeElement === last || document.activeElement === inputRef.current)) { e.preventDefault(); first.focus() }
+    }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [open, onClose, closeOnEscape])
@@ -297,16 +310,16 @@ export function Modal({ open, onClose, title, children, footer, width = 'md', cl
       className="fixed inset-0 z-50 flex items-stretch justify-center bg-black/30 backdrop-blur-sm md:items-center md:px-4"
       onClick={(e) => closeOnBackdrop && e.target === e.currentTarget && onClose()}
     >
-      <div className={`flex w-full ${widths[width]} flex-col overflow-hidden border-[var(--color-border)] bg-white shadow-xl md:max-h-[88vh] md:rounded-xl md:border`}>
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby={titleId} className={`pm-shared-modal flex w-full ${widths[width]} flex-col overflow-hidden border-[var(--color-border)] bg-white shadow-xl md:max-h-[88vh] md:rounded-xl md:border`}>
         <header className="flex items-center justify-between border-b border-[var(--color-border)] px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))] md:pt-3">
-          <h3 className="text-[14px] font-semibold text-[var(--color-text)]">{title}</h3>
+          <h3 id={titleId} className="text-[14px] font-semibold text-[var(--color-text)]">{title}</h3>
           <IconButton icon={X} onClick={onClose} title="Chiudi" size="sm" />
         </header>
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="pm-shared-modal-body flex-1 overflow-y-auto p-4">
           <div ref={inputRef} tabIndex={-1} className="outline-none">{children}</div>
         </div>
         {footer && (
-          <footer className="flex items-center justify-end gap-2 border-t border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 pb-safe">
+          <footer className="pm-shared-modal-footer flex items-center justify-end gap-2 border-t border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 pb-safe">
             {footer}
           </footer>
         )}

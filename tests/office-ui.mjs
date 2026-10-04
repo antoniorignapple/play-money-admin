@@ -37,7 +37,7 @@ function savePreview(name) {
 }
 try {
   await act(async () => root.render(React.createElement(App)));
-  await settle(1200);
+  await settle(2000);
   await click(document.querySelector('.office-sidebar-link'));
   assert.equal(document.querySelector('.office-error')?.textContent, undefined);
   assert.match(document.querySelector('.office-total').textContent, /11\.500/);
