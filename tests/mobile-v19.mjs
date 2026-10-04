@@ -60,6 +60,11 @@ try{
 
  for(const width of [430,375]) { await page.setViewportSize({width,height:932});await audit(`analisi-${width}`); }
  await page.setViewportSize({width:440,height:956});
+ await page.locator('.pm-admin-shell').evaluate(el=>el.style.setProperty('--pm-safe-bottom','34px'));
+ await audit('analisi-safe-area-34');
+ const frame=await page.evaluate(()=>({main:document.querySelector('main').getBoundingClientRect().bottom,bar:document.querySelector('.pm-mobile-tabbar').getBoundingClientRect().top}));
+ assert.ok(Math.abs(frame.main-frame.bar)<2,'Page must end exactly where the tab bar begins');
+ await page.locator('.pm-admin-shell').evaluate(el=>el.style.removeProperty('--pm-safe-bottom'));
  await page.getByRole('button',{name:'Aggiorna analisi',exact:true}).click();await page.waitForTimeout(200);
  const movements=page.getByRole('button',{name:'Movimenti',exact:true});if(await movements.count()){await movements.first().click();await shot('analisi-movimenti');await audit('analisi-movimenti');}
  await page.getByRole('navigation',{name:'Navigazione principale'}).getByRole('button',{name:'CASSA',exact:true}).click();await page.waitForTimeout(250);await shot('cassa');await audit('cassa');for(const width of [430,375]){await page.setViewportSize({width,height:932});await audit(`cassa-${width}`);}await page.setViewportSize({width:440,height:956});

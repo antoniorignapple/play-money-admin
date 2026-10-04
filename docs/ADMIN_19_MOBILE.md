@@ -42,3 +42,7 @@ Palette decorativa bianco e azzurro in tutte le sezioni, login, splash e report.
 ## Aggiornamento 19.2
 
 Barra inferiore con contenitore fisso al bordo, compositing iOS e safe area nel contenuto, come Dipendenti. Menu con scorrimento verticale touch e apertura/chiusura orizzontale dal bordo. Comandi del riepilogo Conteggi in flusso normale su mobile. Rimosso lo sfumato superiore; login con password sempre visibile e senza placeholder delle quattro cifre. Verifiche browser per posizione della barra, gesti touch e login; prova fisica Safari/PWA ancora necessaria.
+
+## Aggiornamento 19.3
+
+La barra mobile ora è un elemento in flusso del contenitore app fissato ai quattro bordi, anziché un elemento fixed separato dal layout. Contenuto e barra condividono lo stesso spazio disponibile; safe area interna e sfondo della zona di sistema coerente. Test con safe area inferiore simulata di 34 px e verifica del confine fra contenuto e barra.

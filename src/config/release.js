@@ -1,7 +1,8 @@
 export const RELEASE = Object.freeze({
-  VERSION: "19.2",
-  TITLE: "Admin 19.2 · Mobile iOS",
+  VERSION: "19.3",
+  TITLE: "Admin 19.3 · Barra mobile",
   ITEMS: [
+    "Barra mobile ancorata al contenitore dell’app, senza fascia vuota inferiore",
     "Tab bar aderente al bordo inferiore e menu con scorrimento e gesto touch",
     "Riepilogo Conteggi senza sovrapposizioni e sfondo mobile uniforme",
     "Login: password sempre visibile e nessun suggerimento di quattro cifre",

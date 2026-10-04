@@ -218,3 +218,12 @@
  .pm-mobile-drawer-panel { min-height:0; overflow:hidden; }
  .pm-mobile-menu-list { touch-action:pan-y; -webkit-overflow-scrolling:touch; }
 }
+
+/* Anchor mobile navigation to the app frame, avoiding iOS fixed/dvh offsets. */
+@media (max-width:767px) {
+ html:has(.pm-admin-shell),html:has(.pm-admin-shell) body { background:#f5faff; }
+ .pm-admin-shell { position:fixed; inset:0; height:auto; flex-direction:column; --mobile-bottom:calc(58px + var(--pm-safe-bottom,env(safe-area-inset-bottom))); }
+ .pm-admin-main { order:1; width:100%; padding-bottom:0; }
+ .pm-mobile-tabbar { position:relative; inset:auto; order:2; flex:0 0 auto; width:100%; transform:none; -webkit-transform:none; }
+ .pm-mobile-tabs { height:var(--mobile-bottom); padding-bottom:var(--pm-safe-bottom,env(safe-area-inset-bottom)); }
+}
