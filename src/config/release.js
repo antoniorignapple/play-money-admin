@@ -1,7 +1,10 @@
 export const RELEASE = Object.freeze({
-  VERSION: "19.1",
-  TITLE: "Admin 19.1 · Azzurro",
+  VERSION: "19.2",
+  TITLE: "Admin 19.2 · Mobile iOS",
   ITEMS: [
+    "Tab bar aderente al bordo inferiore e menu con scorrimento e gesto touch",
+    "Riepilogo Conteggi senza sovrapposizioni e sfondo mobile uniforme",
+    "Login: password sempre visibile e nessun suggerimento di quattro cifre",
     "Nuova palette bianco e azzurro Admin in tutta l’app",
     "Titoli maiuscoli, menu compatto e aggiornamento nella barra superiore",
     "Corretto il riepilogo Conteggi su mobile",

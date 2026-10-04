@@ -1583,7 +1583,7 @@ export default function ConteggiPage({ initialPeriodId = '', onOpenAccounting })
                 <h2 className="text-[21px] font-black tracking-[0.18em] text-[#186494] md:text-[26px]">
                   RIEPILOGO GENERALE
                 </h2>
-                <div className="absolute right-4 top-1/2 flex -translate-y-1/2 items-center gap-2">
+                <div className="pm-conteggi-summary-actions flex items-center justify-center gap-2 md:absolute md:right-4 md:top-1/2 md:-translate-y-1/2">
                   <button
                     type="button"
                     onClick={() =>

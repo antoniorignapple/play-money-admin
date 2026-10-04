@@ -20,6 +20,7 @@ async function audit(name){
    return {
      page:document.querySelector('main')?.dataset.page,
      duplicateTitles:[...document.querySelectorAll('.pm-cassa-page-heading,.pm-page-section-title,.pm-page-refresh,.pm-conteggi-actions [data-page-refresh]')].filter(visible).length,
+     tabBottom:document.querySelector('.pm-mobile-tabbar')?.getBoundingClientRect().bottom,
      summaryOverlap:(() => { const heading=document.querySelector('.pm-conteggi-summary-heading'); if(!heading) return false; const title=heading.querySelector('h2').getBoundingClientRect(); const actions=heading.querySelector('div').getBoundingClientRect(); return actions.top < title.bottom; })(),
      overflow:controls.filter(el => { const r=el.getBoundingClientRect();return r.right>width+2 || r.left < -2; }).map(el=>el.getAttribute('aria-label') || el.textContent.slice(0,50)),
      smallFonts:[...document.querySelectorAll('main input:not([type=checkbox]),main select,main textarea')].filter(visible).filter(el=>parseFloat(getComputedStyle(el).fontSize)<16).map(el=>el.className),
@@ -28,6 +29,7 @@ async function audit(name){
  assert.equal(result.overflow.length,0,`${name}: controls outside viewport: ${result.overflow}`);
  if ((await page.viewportSize()).width<768) {
   assert.equal(result.smallFonts.length,0,`${name}: input text must not zoom on iOS`);
+  assert.ok(Math.abs(result.tabBottom-(await page.viewportSize()).height)<2,`${name}: tab bar must meet viewport bottom`);
   assert.equal(result.duplicateTitles,0,`${name}: old title and refresh must be hidden`);
   assert.equal(result.summaryOverlap,false,`${name}: summary title overlaps actions`);
   if(['cassa','analisi','conteggi'].includes(result.page)) {
@@ -37,9 +39,25 @@ async function audit(name){
  console.log(`PASS layout: ${name}`);
 }
 
+async function swipe(x1,y1,x2,y2) {
+ const cdp=await page.context().newCDPSession(page);
+ await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:x1,y:y1}]});
+ for(let step=1;step<=6;step++) {await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:x1+(x2-x1)*step/6,y:y1+(y2-y1)*step/6}]});await page.waitForTimeout(20);}
+ await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await cdp.detach();await page.waitForTimeout(400);
+}
+
 try{
  await page.goto('http://127.0.0.1:5179');await page.waitForSelector('.pm-simple-splash');await shot('splash');await page.waitForSelector('.pm-mobile-tabbar');await page.waitForTimeout(250);await shot('analisi');await audit('analisi');
  assert.deepEqual(await page.getByRole('navigation',{name:'Navigazione principale'}).getByRole('button').allTextContents(),['CASSA','ANALISI','CONTEGGI']);
+ await page.getByRole('button',{name:'Apri menu',exact:true}).click();await page.waitForTimeout(400);
+ await swipe(180,750,180,350);
+ assert.ok(await page.locator('.pm-mobile-menu-list').evaluate(el=>el.scrollTop)>0,'Menu must scroll with vertical touch');
+ await swipe(250,400,30,400);
+ assert.equal(await page.locator('#admin-mobile-menu').evaluate(el=>el.open),false,'Left swipe closes drawer');
+ await swipe(2,400,280,400);
+ assert.equal(await page.locator('#admin-mobile-menu').evaluate(el=>el.open),true,'Edge swipe opens drawer');
+ await page.getByRole('button',{name:'Chiudi menu',exact:true}).click();
+
  for(const width of [430,375]) { await page.setViewportSize({width,height:932});await audit(`analisi-${width}`); }
  await page.setViewportSize({width:440,height:956});
  await page.getByRole('button',{name:'Aggiorna analisi',exact:true}).click();await page.waitForTimeout(200);
@@ -65,13 +83,13 @@ try{
  if(id==='locali'){await page.locator('.pm-locali-scroll button').first().click();await page.waitForTimeout(200);await shot('locale-dettaglio');await audit('locale-dettaglio');}
  }
  assert.deepEqual(errors,[],'No runtime errors in mobile pages');
- await page.setViewportSize({width:1440,height:900});assert.equal(await page.locator('.pm-mobile-tabbar').count(),0,'Desktop must keep its sidebar');assert.equal(await page.locator('.pm-admin-shell > aside').count(),1);await shot('desktop');
+ await page.setViewportSize({width:1440,height:900});await page.locator('.pm-mobile-tabbar').waitFor({state:'detached'});assert.equal(await page.locator('.pm-mobile-tabbar').count(),0,'Desktop must keep its sidebar');assert.equal(await page.locator('.pm-admin-shell > aside').count(),1);await shot('desktop');
  await page.setViewportSize({width:440,height:956});
  await page.getByRole('button',{name:'Apri menu',exact:true}).click();await page.getByRole('button',{name:'Esci dall’account'}).click();await page.waitForSelector('.pm-login-screen');await shot('login');
  await page.setViewportSize({width:1440,height:900});await shot('login-desktop');
  await page.setViewportSize({width:430,height:932});
  await page.locator('#pm-login-password').fill('invalid');await page.getByRole('button',{name:'Accedi',exact:true}).click();await page.getByRole('alert').waitFor();assert.match(await page.getByRole('alert').textContent(),/non corretta/);
- await page.getByRole('button',{name:'Mostra password'}).click();assert.equal(await page.locator('#pm-login-password').getAttribute('type'),'text');
+ assert.equal(await page.locator('#pm-login-password').getAttribute('type'),'text');assert.equal(await page.locator('#pm-login-password').getAttribute('placeholder'),null);
  await page.locator('#pm-login-password').fill('1234');await page.getByRole('button',{name:'Accedi',exact:true}).click();
  const calls=await page.evaluate(async()=>{const {mobileFixture}=await import('/tests/fixtures/mobileV19Supabase.js');return mobileFixture.calls.filter(call=>call.auth==='signIn');});assert.equal(calls.at(-1).credentials.email,'admin@playmoney.com');assert.equal(calls.at(-1).credentials.password,'pm1234','Legacy PIN must use Admin compatibility');
  await page.goto('http://127.0.0.1:5179/?auth=denied');await page.waitForSelector('.pm-login-screen');assert.match(await page.getByRole('alert').textContent(),/non è autorizzato/);

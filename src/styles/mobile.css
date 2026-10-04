@@ -201,3 +201,20 @@
  .pm-conteggi-heading .office-conteggi-title { margin-top:0; }
  .pm-mobile-menu-list strong { text-transform:uppercase; }
 }
+
+/* iOS: outer bar stays at bottom; the inner row owns safe-area padding. */
+@media (max-width:767px) {
+ .pm-admin-shell { --mobile-bottom:calc(58px + env(safe-area-inset-bottom)); --app-page-background:#e9f2f8; }
+ .pm-mobile-tabbar { inset:auto 0 0; height:auto; padding:0; transform:translateZ(0); -webkit-transform:translateZ(0); background:#f5faff; box-shadow:none; backdrop-filter:none; }
+ .pm-mobile-tabs { height:calc(58px + env(safe-area-inset-bottom)); padding:0 max(4px,env(safe-area-inset-right)) env(safe-area-inset-bottom) max(4px,env(safe-area-inset-left)); }
+ .pm-mobile-tabs button { height:58px; }
+ .pm-tabpill { height:50px; bottom:auto; }
+ .pm-mobile-header,.pm-mobile-header-panel { box-shadow:none; }
+ .pm-admin-main .app-page-body > div { background:#e9f2f8 !important; }
+ .pm-admin-main .app-page-body > div > div > section:first-child { background:#f5faff !important; box-shadow:none; }
+ .pm-admin-main .app-page-body > div > div > section:first-child > .pointer-events-none { display:none; }
+ .pm-conteggi-summary-actions { min-height:48px; margin-top:4px; }
+ .pm-mobile-drawer { height:100%; max-height:none; bottom:0; touch-action:pan-y; }
+ .pm-mobile-drawer-panel { min-height:0; overflow:hidden; }
+ .pm-mobile-menu-list { touch-action:pan-y; -webkit-overflow-scrolling:touch; }
+}

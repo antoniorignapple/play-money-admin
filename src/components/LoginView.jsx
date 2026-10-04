@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react';
-import { ChevronDown, Loader2, LogIn, Eye, EyeOff } from 'lucide-react';
+import { ChevronDown, Loader2, LogIn } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { APP_VERSION } from '../config/release';
 
 export function LoginView({ externalError = '', onAttempt }) {
   const [password, setPassword] = useState('');
-  const [visible, setVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const ready = password.length >= 4 && !loading;
@@ -57,8 +56,7 @@ export function LoginView({ externalError = '', onAttempt }) {
           <div>
             <label htmlFor="pm-login-password" className="mb-2 block text-[9px] font-black uppercase tracking-[.24em] text-[#5d9dc5]">Password personale</label>
             <div className="relative">
-              <input id="pm-login-password" type={visible ? 'text' : 'password'} autoComplete="current-password" value={password} onChange={event => { setPassword(event.target.value); setError(''); onAttempt?.(); }} className="h-[56px] w-full rounded-[18px] border border-white/[.09] bg-[#0c0c0b] px-4 pr-14 text-center text-[21px] font-black tracking-[.15em] text-[#eaf6fd] caret-[#50a1d3] outline-none transition placeholder:text-white/18 focus:border-[#3686b8]/60 focus:ring-2 focus:ring-[#3686b8]/10" placeholder="••••" required minLength={4} disabled={loading} aria-describedby={error || externalError ? 'pm-login-error' : undefined} />
-              <button type="button" onClick={() => setVisible(value => !value)} aria-label={visible ? 'Nascondi password' : 'Mostra password'} className="absolute right-1 top-1 grid h-12 w-12 place-items-center text-[#569cc7]">{visible ? <EyeOff size={20}/> : <Eye size={20}/>}</button>
+              <input id="pm-login-password" type="text" autoComplete="current-password" value={password} onChange={event => { setPassword(event.target.value); setError(''); onAttempt?.(); }} className="h-[56px] w-full rounded-[18px] border border-white/[.09] bg-[#0c0c0b] px-4 text-center text-[21px] font-black tracking-[.15em] text-[#eaf6fd] caret-[#50a1d3] outline-none transition placeholder:text-white/18 focus:border-[#3686b8]/60 focus:ring-2 focus:ring-[#3686b8]/10" required minLength={4} disabled={loading} aria-describedby={error || externalError ? 'pm-login-error' : undefined} />
             </div>
           </div>
           {(error || externalError) && <div id="pm-login-error" role="alert" className="rounded-[16px] border border-rose-400/20 bg-rose-500/[.09] px-3 py-2.5 text-center text-[12px] font-black text-rose-200">{error || externalError}</div>}

@@ -38,3 +38,7 @@ Le immagini in `docs/mobile-v19` sono schermate vere del codice aggiornato con d
 ## Aggiornamento 19.1
 
 Palette decorativa bianco e azzurro in tutte le sezioni, login, splash e report. Titoli maiuscoli; menu mobile senza sottotitoli. Aggiornamento per Cassa, Analisi e Conteggi nella barra superiore accanto alla ricerca; rimossi i titoli duplicati su mobile, mantenuta la navigazione delle date. Riepilogo Conteggi con titolo e comandi su righe distinte. Test browser aggiunti per titoli duplicati, posizione del riepilogo e pulsante aggiornamento.
+
+## Aggiornamento 19.2
+
+Barra inferiore con contenitore fisso al bordo, compositing iOS e safe area nel contenuto, come Dipendenti. Menu con scorrimento verticale touch e apertura/chiusura orizzontale dal bordo. Comandi del riepilogo Conteggi in flusso normale su mobile. Rimosso lo sfumato superiore; login con password sempre visibile e senza placeholder delle quattro cifre. Verifiche browser per posizione della barra, gesti touch e login; prova fisica Safari/PWA ancora necessaria.
