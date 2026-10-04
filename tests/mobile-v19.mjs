@@ -64,6 +64,9 @@ try{
  await audit('analisi-safe-area-34');
  const frame=await page.evaluate(()=>({main:document.querySelector('main').getBoundingClientRect().bottom,bar:document.querySelector('.pm-mobile-tabbar').getBoundingClientRect().top}));
  assert.ok(Math.abs(frame.main-frame.bar)<2,'Page must end exactly where the tab bar begins');
+ await page.locator('.pm-admin-shell').evaluate(el=>el.style.setProperty('--pm-safe-bottom','93px'));
+ await audit('analisi-safe-area-93');
+ assert.ok(await page.locator('.pm-mobile-tabbar').evaluate(el=>el.getBoundingClientRect().height)<=93,'Oversized iOS safe area must not create an empty navigation band');
  await page.locator('.pm-admin-shell').evaluate(el=>el.style.removeProperty('--pm-safe-bottom'));
  await page.getByRole('button',{name:'Aggiorna analisi',exact:true}).click();await page.waitForTimeout(200);
  const movements=page.getByRole('button',{name:'Movimenti',exact:true});if(await movements.count()){await movements.first().click();await shot('analisi-movimenti');await audit('analisi-movimenti');}

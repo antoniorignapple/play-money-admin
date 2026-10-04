@@ -46,3 +46,7 @@ Barra inferiore con contenitore fisso al bordo, compositing iOS e safe area nel 
 ## Aggiornamento 19.3
 
 La barra mobile ora è un elemento in flusso del contenitore app fissato ai quattro bordi, anziché un elemento fixed separato dal layout. Contenuto e barra condividono lo stesso spazio disponibile; safe area interna e sfondo della zona di sistema coerente. Test con safe area inferiore simulata di 34 px e verifica del confine fra contenuto e barra.
+
+## Aggiornamento 19.4
+
+Padding inferiore della navigazione limitato a 34 px, con riga comandi fissa a 58 px. Verifica browser con inset simulato di 93 px: la barra deve restare entro 93 px complessivi e aderire al bordo del viewport. Correzione basata sulla differenza di altezza visibile fra gli screenshot Admin e Dipendenti; comportamento da confermare sul dispositivo reale.
