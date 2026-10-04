@@ -260,9 +260,9 @@ export default function AgentiPage() {
   return (
     <PageLayout>
       <PageBody>
-        <div className="min-h-full bg-[#f5f1e9] px-3 py-3 md:px-6 md:py-5">
+        <div className="min-h-full bg-[#e9f0f5] px-3 py-3 md:px-6 md:py-5">
           <div className="mx-auto max-w-[1280px] space-y-4">
-            <header className="overflow-hidden rounded-[28px] border border-amber-300/70 bg-gradient-to-br from-[#fffaf0] via-white to-[#f1d99d] shadow-[0_16px_45px_rgba(120,83,12,.13)]">
+            <header className="overflow-hidden rounded-[28px] border border-amber-300/70 bg-gradient-to-br from-[#f1f9fe] via-white to-[#9dd1f1] shadow-[0_16px_45px_rgba(120,83,12,.13)]">
               <div className="flex flex-col gap-5 p-5 md:flex-row md:items-center md:justify-between md:p-7">
                 <div>
                   <p className="flex items-center gap-2 text-[10px] font-black tracking-[.24em] text-amber-700">
@@ -280,7 +280,7 @@ export default function AgentiPage() {
                   <button
                     type="button"
                     onClick={() => setCreateOpen(true)}
-                    className="flex h-11 items-center gap-2 rounded-2xl bg-gradient-to-r from-[#946000] to-[#d5a83a] px-4 text-xs font-black text-white shadow-lg"
+                    className="flex h-11 items-center gap-2 rounded-2xl bg-gradient-to-r from-[#0b5989] to-[#3a9ad5] px-4 text-xs font-black text-white shadow-lg"
                   >
                     <Plus size={17} /> NUOVO AGENTE
                   </button>
@@ -418,7 +418,7 @@ export default function AgentiPage() {
 
 function AdminIdentityCard({ admin, onPassword }) {
   return (
-    <article className="overflow-hidden rounded-[24px] border border-[#c89b3d] bg-[linear-gradient(145deg,#17130c,#2f210d)] text-white shadow-[0_16px_38px_-22px_rgba(72,43,3,.9)]">
+    <article className="overflow-hidden rounded-[24px] border border-[#3d93c8] bg-[linear-gradient(145deg,#0c1317,#0d222f)] text-white shadow-[0_16px_38px_-22px_rgba(72,43,3,.9)]">
       <div className="flex items-center gap-4 p-4 md:p-5">
         <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl border border-amber-300/35 bg-amber-300/10 text-amber-200">
           <ShieldCheck size={27} />
@@ -597,8 +597,8 @@ function PremiumModal({ open, onClose, title, subtitle, children, footer }) {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <section className="my-auto w-full max-w-lg overflow-hidden rounded-[26px] border border-amber-300 bg-[#f8f4ec] shadow-2xl">
-        <header className="flex items-center gap-3 bg-gradient-to-r from-[#fff9ed] via-[#eed59a] to-[#d5a539] p-4">
+      <section className="my-auto w-full max-w-lg overflow-hidden rounded-[26px] border border-amber-300 bg-[#ecf3f8] shadow-2xl">
+        <header className="flex items-center gap-3 bg-gradient-to-r from-[#eef8fe] via-[#9aceee] to-[#3999d5] p-4">
           <div className="min-w-0 flex-1">
             <h2 className="text-base font-black text-slate-950">{title}</h2>
             {subtitle && (

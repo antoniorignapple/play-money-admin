@@ -26,7 +26,7 @@ export default function UpdateNotice() {
     finally { release?.(); setBusy(false); }
   }
   if (!available) return null;
-  return <aside role="status" style={{position:'fixed',bottom:20,right:20,zIndex:10000,maxWidth:360,padding:16,borderRadius:16,background:'#fff8e7',color:'#3d2b10',boxShadow:'0 8px 30px #0004'}}>
+  return <aside role="status" style={{position:'fixed',bottom:20,right:20,zIndex:10000,maxWidth:360,padding:16,borderRadius:16,background:'#e9f5fd',color:'#102c3d',boxShadow:'0 8px 30px #0004'}}>
     <strong>Aggiornamento disponibile</strong>
     <p style={{fontSize:13,margin:'8px 0'}}>Termina e salva il lavoro prima di aggiornare.</p>
     {message && <p style={{fontSize:13}}>{message}</p>}
@@ -35,6 +35,6 @@ export default function UpdateNotice() {
       if (el?.matches('input,textarea,select,[contenteditable="true"]')) {
         wasEditing.current = true; e.preventDefault(); setMessage('Prima termina ciò che stai compilando.');
       }
-    }} onClick={apply} style={{padding:'8px 14px',borderRadius:10,background:'#805817',color:'white'}}>Aggiorna ora</button>
+    }} onClick={apply} style={{padding:'8px 14px',borderRadius:10,background:'#175880',color:'white'}}>Aggiorna ora</button>
   </aside>;
 }

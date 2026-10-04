@@ -8,7 +8,7 @@ export function createPdfPreviewWindow() {
 
   previewWindow.document.title = "Preparazione PDF...";
   previewWindow.document.body.innerHTML = `
-    <main style="min-height:100vh;display:grid;place-items:center;background:#f8f5ed;font-family:Arial,sans-serif;color:#3d2a0b">
+    <main style="min-height:100vh;display:grid;place-items:center;background:#edf4f8;font-family:Arial,sans-serif;color:#0b2a3d">
       <div style="text-align:center">
         <div style="font-size:13px;font-weight:800;letter-spacing:.14em">PLAY MONEY</div>
         <div style="margin-top:10px;font-size:18px;font-weight:800">Preparazione PDF...</div>

@@ -148,9 +148,9 @@ export default function CestinoPage() {
   return (
     <PageLayout>
       <PageBody>
-        <div className="min-h-full bg-[#f5f1e9] px-3 py-3 md:px-6 md:py-5">
+        <div className="min-h-full bg-[#e9f0f5] px-3 py-3 md:px-6 md:py-5">
           <div className="mx-auto max-w-[1280px] space-y-4">
-            <header className="overflow-hidden rounded-[28px] border border-amber-300/70 bg-gradient-to-br from-[#fffaf0] via-white to-[#f1d99d] shadow-[0_16px_45px_rgba(120,83,12,.13)]">
+            <header className="overflow-hidden rounded-[28px] border border-amber-300/70 bg-gradient-to-br from-[#f1f9fe] via-white to-[#9dd1f1] shadow-[0_16px_45px_rgba(120,83,12,.13)]">
               <div className="flex flex-col gap-5 p-5 md:flex-row md:items-center md:justify-between md:p-7">
                 <div>
                   <p className="flex items-center gap-2 text-[10px] font-black tracking-[.24em] text-amber-700">
@@ -235,7 +235,7 @@ export default function CestinoPage() {
                 </div>
                 <button
                   onClick={loadData}
-                  className="mt-auto h-11 rounded-xl bg-gradient-to-r from-[#956100] to-[#d2a239] px-5 text-[10px] font-black text-white"
+                  className="mt-auto h-11 rounded-xl bg-gradient-to-r from-[#0b598a] to-[#3997d2] px-5 text-[10px] font-black text-white"
                 >
                   APPLICA
                 </button>
@@ -466,10 +466,10 @@ function PremiumModal({
       }}
     >
       <section
-        className={`my-auto w-full max-w-lg overflow-hidden rounded-[26px] border bg-[#f8f4ec] shadow-2xl ${danger ? "border-red-300" : green ? "border-emerald-300" : "border-amber-300"}`}
+        className={`my-auto w-full max-w-lg overflow-hidden rounded-[26px] border bg-[#ecf3f8] shadow-2xl ${danger ? "border-red-300" : green ? "border-emerald-300" : "border-amber-300"}`}
       >
         <header
-          className={`flex items-center gap-3 p-4 ${danger ? "bg-gradient-to-r from-red-50 via-white to-red-200" : green ? "bg-gradient-to-r from-emerald-50 via-white to-emerald-200" : "bg-gradient-to-r from-[#fff9ed] via-[#eed59a] to-[#d5a539]"}`}
+          className={`flex items-center gap-3 p-4 ${danger ? "bg-gradient-to-r from-red-50 via-white to-red-200" : green ? "bg-gradient-to-r from-emerald-50 via-white to-emerald-200" : "bg-gradient-to-r from-[#eef8fe] via-[#9aceee] to-[#3999d5]"}`}
         >
           <div className="min-w-0 flex-1">
             <h2 className="text-base font-black text-slate-950">{title}</h2>

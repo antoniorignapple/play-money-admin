@@ -10,8 +10,8 @@ const server=await createServer({root:repo,configFile:false,plugins:[react(),tai
 const browser=await browserType.launch({headless:true,executablePath:process.env.MOBILE_BROWSER_EXECUTABLE || undefined,args:process.env.MOBILE_BROWSER_EXECUTABLE ? ['--no-sandbox','--no-zygote','--single-process','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader'] : []});
 const page=await browser.newPage({viewport:{width:440,height:956},isMobile:true,hasTouch:true,deviceScaleFactor:1,locale:'it-IT',timezoneId:'Europe/Rome'});
 const errors=[];page.on('pageerror',err=>errors.push(err.message));
-fs.mkdirSync(repo+'/docs/mobile-v19',{recursive:true});
-async function shot(name){if (!process.argv.includes('--screenshots')) return;await page.screenshot({path:repo+'/docs/mobile-v19/'+name+'.png'});}
+fs.mkdirSync(process.env.MOBILE_SCREENSHOT_DIR || repo+'/docs/mobile-v19',{recursive:true});
+async function shot(name){if (!process.argv.includes('--screenshots')) return;await page.screenshot({path:path.join(process.env.MOBILE_SCREENSHOT_DIR || repo+'/docs/mobile-v19',name+'.png')});}
 async function audit(name){
  const result = await page.evaluate(() => {
    const width=innerWidth;
@@ -19,12 +19,21 @@ async function audit(name){
    const controls=[...document.querySelectorAll('main button,main input,main select,main textarea')].filter(visible);
    return {
      page:document.querySelector('main')?.dataset.page,
+     duplicateTitles:[...document.querySelectorAll('.pm-cassa-page-heading,.pm-page-section-title,.pm-page-refresh,.pm-conteggi-actions [data-page-refresh]')].filter(visible).length,
+     summaryOverlap:(() => { const heading=document.querySelector('.pm-conteggi-summary-heading'); if(!heading) return false; const title=heading.querySelector('h2').getBoundingClientRect(); const actions=heading.querySelector('div').getBoundingClientRect(); return actions.top < title.bottom; })(),
      overflow:controls.filter(el => { const r=el.getBoundingClientRect();return r.right>width+2 || r.left < -2; }).map(el=>el.getAttribute('aria-label') || el.textContent.slice(0,50)),
      smallFonts:[...document.querySelectorAll('main input:not([type=checkbox]),main select,main textarea')].filter(visible).filter(el=>parseFloat(getComputedStyle(el).fontSize)<16).map(el=>el.className),
    };
  });
  assert.equal(result.overflow.length,0,`${name}: controls outside viewport: ${result.overflow}`);
- if ((await page.viewportSize()).width<768) assert.equal(result.smallFonts.length,0,`${name}: input text must not zoom on iOS`);
+ if ((await page.viewportSize()).width<768) {
+  assert.equal(result.smallFonts.length,0,`${name}: input text must not zoom on iOS`);
+  assert.equal(result.duplicateTitles,0,`${name}: old title and refresh must be hidden`);
+  assert.equal(result.summaryOverlap,false,`${name}: summary title overlaps actions`);
+  if(['cassa','analisi','conteggi'].includes(result.page)) {
+   assert.equal(await page.locator('.pm-mobile-header').getByRole('button',{name:`Aggiorna ${result.page}`,exact:true}).count(),1);
+  }
+ }
  console.log(`PASS layout: ${name}`);
 }
 
@@ -33,6 +42,7 @@ try{
  assert.deepEqual(await page.getByRole('navigation',{name:'Navigazione principale'}).getByRole('button').allTextContents(),['CASSA','ANALISI','CONTEGGI']);
  for(const width of [430,375]) { await page.setViewportSize({width,height:932});await audit(`analisi-${width}`); }
  await page.setViewportSize({width:440,height:956});
+ await page.getByRole('button',{name:'Aggiorna analisi',exact:true}).click();await page.waitForTimeout(200);
  const movements=page.getByRole('button',{name:'Movimenti',exact:true});if(await movements.count()){await movements.first().click();await shot('analisi-movimenti');await audit('analisi-movimenti');}
  await page.getByRole('navigation',{name:'Navigazione principale'}).getByRole('button',{name:'CASSA',exact:true}).click();await page.waitForTimeout(250);await shot('cassa');await audit('cassa');for(const width of [430,375]){await page.setViewportSize({width,height:932});await audit(`cassa-${width}`);}await page.setViewportSize({width:440,height:956});
  const beforeSelection=await page.locator('.pm-cassa-select input').isChecked();
@@ -47,7 +57,7 @@ try{
  const missing=page.locator('.pm-missing-row');assert.ok(await missing.count(),'Fixture must exercise missing venues');await missing.first().scrollIntoViewIfNeeded();await shot('conteggi-locali');await audit('conteggi-locali');
  await missing.first().getByRole('button').click();assert.ok(await page.getByRole('button',{name:'OK',exact:true}).count());await page.getByRole('button',{name:'OK',exact:true}).click();
  for(const [label,id] of [['LOCALI','locali'],['CALENDARIO','calendario'],['DEBITI E BONUS','debiti'],['SIMULAZIONI','simulazioni'],['AGENTI','agenti'],['GIRI','giri'],['AUTOMEZZI','automezzi'],['CESTINO','cestino'],['CASSA UFFICIO','contabilita-cassa']]){
-  await page.getByRole('button',{name:'Apri menu',exact:true}).click();if(id==='locali'){await page.waitForTimeout(400);await shot('menu')};await page.getByRole('navigation',{name:'Tutte le sezioni'}).getByRole('button').filter({has:page.locator('strong',{hasText:label})}).first().click();await page.waitForTimeout(300);await shot(id);await audit(id);for (const width of [430,375]) {await page.setViewportSize({width,height:932});await audit(`${id}-${width}`);}await page.setViewportSize({width:440,height:956});
+  await page.getByRole('button',{name:'Apri menu',exact:true}).click();if(id==='locali'){await page.waitForTimeout(400);assert.equal(await page.locator('.pm-mobile-menu-list small').count(),0);await shot('menu')};await page.getByRole('navigation',{name:'Tutte le sezioni'}).getByRole('button').filter({has:page.locator('strong',{hasText:label})}).first().click();await page.waitForTimeout(300);await shot(id);await audit(id);for (const width of [430,375]) {await page.setViewportSize({width,height:932});await audit(`${id}-${width}`);}await page.setViewportSize({width:440,height:956});
   if(id==='calendario') {
    const day=page.locator('.pm-calendar-agenda button:not(:disabled)').first();const prior=await day.getAttribute('aria-pressed');await day.click();assert.notEqual(await day.getAttribute('aria-pressed'),prior);
    await page.getByRole('button',{name:'Mese',exact:true}).click();await audit('calendario-mese');await page.getByRole('button',{name:'Agenda',exact:true}).click();

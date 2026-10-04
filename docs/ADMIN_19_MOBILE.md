@@ -34,3 +34,7 @@ Il telefono ha ora una navigazione dedicata: Cassa a sinistra, Analisi al centro
 Per il test browser: `npx playwright install chromium`, poi `npm run test:ui:mobile`. Per rigenerare le anteprime: `npm run test:ui:mobile -- --screenshots`. Un browser già installato può essere indicato con `MOBILE_BROWSER_EXECUTABLE`.
 
 Le immagini in `docs/mobile-v19` sono schermate vere del codice aggiornato con dati dimostrativi. Le verifiche sono in Chromium con simulazione touch: resta da validare l'uso su Safari/PWA in un iPhone fisico, soprattutto con tastiera, aree sicure e PDF. Nessuna migrazione o modifica allo schema database è richiesta da questo aggiornamento.
+
+## Aggiornamento 19.1
+
+Palette decorativa bianco e azzurro in tutte le sezioni, login, splash e report. Titoli maiuscoli; menu mobile senza sottotitoli. Aggiornamento per Cassa, Analisi e Conteggi nella barra superiore accanto alla ricerca; rimossi i titoli duplicati su mobile, mantenuta la navigazione delle date. Riepilogo Conteggi con titolo e comandi su righe distinte. Test browser aggiunti per titoli duplicati, posizione del riepilogo e pulsante aggiornamento.

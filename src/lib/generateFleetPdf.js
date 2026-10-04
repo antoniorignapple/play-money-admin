@@ -17,7 +17,7 @@ export function generateFleetPdf(rows, today) {
   };
   const header = () => {
     doc.setFillColor(ink); doc.rect(0, 0, W, 6, 'F');
-    text('PLAY MONEY', M, 43, 12, true, '#B48A42');
+    text('PLAY MONEY', M, 43, 12, true, '#4288b4');
     text('PARCO AUTOMEZZI', M, 80, 26, true);
     text(`SITUAZIONE AL ${fmtDate(today)}`, M, 104, 10, false, muted);
     doc.setFillColor('#F3F5F8'); doc.roundedRect(M, 126, inner, 62, 8, 8, 'F');

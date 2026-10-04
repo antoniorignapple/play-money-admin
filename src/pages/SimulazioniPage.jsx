@@ -276,9 +276,9 @@ export default function SimulazioniPage() {
   return (
     <PageLayout>
       <PageBody>
-        <div className="min-h-full bg-[#f5f1e9] px-3 py-3 md:px-6 md:py-5">
+        <div className="min-h-full bg-[#e9f0f5] px-3 py-3 md:px-6 md:py-5">
           <div className="mx-auto max-w-[1180px] space-y-4">
-            <header className="overflow-hidden rounded-[28px] border border-amber-300/70 bg-gradient-to-br from-[#fffaf0] via-white to-[#f3dfad] shadow-[0_16px_45px_rgba(120,83,12,.13)]">
+            <header className="overflow-hidden rounded-[28px] border border-amber-300/70 bg-gradient-to-br from-[#f1f9fe] via-white to-[#add8f3] shadow-[0_16px_45px_rgba(120,83,12,.13)]">
               <div className="flex flex-col gap-5 p-5 md:flex-row md:items-center md:justify-between md:p-7">
                 <div>
                   <p className="flex items-center gap-2 text-[10px] font-black tracking-[.24em] text-amber-700">
@@ -315,7 +315,7 @@ export default function SimulazioniPage() {
                     <button
                       type="button"
                       onClick={() => setShowNewReq(true)}
-                      className="flex h-11 items-center gap-2 rounded-2xl bg-gradient-to-r from-[#9b6500] to-[#d6a934] px-4 text-xs font-black text-white shadow-lg shadow-amber-900/15"
+                      className="flex h-11 items-center gap-2 rounded-2xl bg-gradient-to-r from-[#0c5d8f] to-[#3498d6] px-4 text-xs font-black text-white shadow-lg shadow-amber-900/15"
                     >
                       <Plus size={17} /> NUOVA
                     </button>
@@ -363,7 +363,7 @@ export default function SimulazioniPage() {
                         value={pdfFrom}
                         max={pdfTo || undefined}
                         onChange={(event) => setPdfFrom(event.target.value)}
-                        className="h-11 w-full rounded-[14px] border border-amber-200 bg-[#fffdf8] px-3 text-[12px] font-bold text-slate-800 outline-none focus:border-amber-500"
+                        className="h-11 w-full rounded-[14px] border border-amber-200 bg-[#f9fcfe] px-3 text-[12px] font-bold text-slate-800 outline-none focus:border-amber-500"
                       />
                     </label>
                     <label className="block">
@@ -373,7 +373,7 @@ export default function SimulazioniPage() {
                         value={pdfTo}
                         min={pdfFrom || undefined}
                         onChange={(event) => setPdfTo(event.target.value)}
-                        className="h-11 w-full rounded-[14px] border border-amber-200 bg-[#fffdf8] px-3 text-[12px] font-bold text-slate-800 outline-none focus:border-amber-500"
+                        className="h-11 w-full rounded-[14px] border border-amber-200 bg-[#f9fcfe] px-3 text-[12px] font-bold text-slate-800 outline-none focus:border-amber-500"
                       />
                     </label>
                     <label className="block">
@@ -381,7 +381,7 @@ export default function SimulazioniPage() {
                       <select
                         value={pdfEmployee}
                         onChange={(event) => setPdfEmployee(event.target.value)}
-                        className="h-11 w-full rounded-[14px] border border-amber-200 bg-[#fffdf8] px-3 text-[12px] font-bold text-slate-800 outline-none focus:border-amber-500"
+                        className="h-11 w-full rounded-[14px] border border-amber-200 bg-[#f9fcfe] px-3 text-[12px] font-bold text-slate-800 outline-none focus:border-amber-500"
                       >
                         <option value="all">TUTTI I DIPENDENTI</option>
                         {simulationOperators.map((operator) => (
@@ -395,7 +395,7 @@ export default function SimulazioniPage() {
                       type="button"
                       onClick={exportSimulationsPdf}
                       disabled={pdfLoading || loading}
-                      className="flex h-11 items-center justify-center gap-2 rounded-[14px] bg-gradient-to-r from-[#8f5d00] to-[#d2a437] px-6 text-[11px] font-black uppercase tracking-[.12em] text-white shadow-lg shadow-amber-900/15 transition hover:-translate-y-0.5 disabled:opacity-50 md:col-span-2 xl:col-span-1"
+                      className="flex h-11 items-center justify-center gap-2 rounded-[14px] bg-gradient-to-r from-[#0b5684] to-[#3797d2] px-6 text-[11px] font-black uppercase tracking-[.12em] text-white shadow-lg shadow-amber-900/15 transition hover:-translate-y-0.5 disabled:opacity-50 md:col-span-2 xl:col-span-1"
                     >
                       {pdfLoading ? (
                         <RefreshCw size={16} className="animate-spin" />
@@ -528,7 +528,7 @@ function PremiumTab({ active, icon: Icon, label, count, onClick }) {
         {count}
       </span>
       {active && (
-        <span className="absolute inset-x-8 bottom-0 h-[3px] rounded-full bg-gradient-to-r from-[#a16c05] to-[#e4bd59]" />
+        <span className="absolute inset-x-8 bottom-0 h-[3px] rounded-full bg-gradient-to-r from-[#0c639a] to-[#59afe4]" />
       )}
     </button>
   );
@@ -566,7 +566,7 @@ function SimList({
             onClick={() => onOpen(s)}
             className="flex w-full items-center gap-4 p-4 text-left md:p-5"
           >
-            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-[#8b5b00] to-[#d9ae42] text-white shadow-md">
+            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-[#0a5381] to-[#429fd9] text-white shadow-md">
               <Building2 size={19} />
             </div>
             <div className="min-w-0 flex-1">
@@ -678,9 +678,9 @@ function SnapshotDetail({
   ];
   return (
     <div className="fixed inset-0 z-[90] overflow-y-auto bg-[#e6f1f2]/95 p-2 backdrop-blur-sm md:p-5">
-      <div className="mx-auto min-h-full max-w-[520px] border border-white/80 bg-[#f7f2e9] px-3 py-3 shadow-2xl md:rounded-[28px] md:px-4">
+      <div className="mx-auto min-h-full max-w-[520px] border border-white/80 bg-[#e9f2f7] px-3 py-3 shadow-2xl md:rounded-[28px] md:px-4">
         <div className="flex min-h-[calc(100vh-2rem)] flex-col">
-          <div className="flex items-center rounded-[22px] border border-amber-400 bg-gradient-to-r from-[#fff8e8] via-[#ecd190] to-[#d5a638] p-2 shadow-lg shadow-amber-900/10">
+          <div className="flex items-center rounded-[22px] border border-amber-400 bg-gradient-to-r from-[#eaf6fd] via-[#90c9ec] to-[#3899d5] p-2 shadow-lg shadow-amber-900/10">
             <button
               type="button"
               onPointerDown={(e) => {
@@ -698,7 +698,7 @@ function SnapshotDetail({
             <div className="w-10" />
           </div>
           <div className="mt-4 flex items-center rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-            <span className="rounded-xl bg-gradient-to-br from-[#8b5b00] to-[#d4a631] px-3 py-2 text-xs font-black text-white">
+            <span className="rounded-xl bg-gradient-to-br from-[#0a5381] to-[#3196d4] px-3 py-2 text-xs font-black text-white">
               {s.venue_id || "—"}
             </span>
             <span className="ml-3 flex-1 truncate text-sm font-black text-slate-950">
@@ -767,7 +767,7 @@ function SnapshotDetail({
               <button
                 type="button"
                 onClick={onClose}
-                className="mt-1 w-full rounded-xl bg-gradient-to-r from-[#d7a83d] via-[#b47b0e] to-[#835100] px-4 py-3 text-xs font-black text-white shadow-lg"
+                className="mt-1 w-full rounded-xl bg-gradient-to-r from-[#3d9cd7] via-[#0f74b3] to-[#0a4e79] px-4 py-3 text-xs font-black text-white shadow-lg"
               >
                 CHIUDI DETTAGLIO
               </button>
@@ -806,7 +806,7 @@ function SnapshotDetail({
 function SnapshotValue({ label, value, hero }) {
   return (
     <div
-      className={`flex items-center justify-between rounded-2xl px-4 py-4 shadow-sm ${hero ? "border border-amber-400 bg-gradient-to-r from-[#936000] via-[#d9a82f] to-[#9b6500] text-white" : "border border-slate-200 bg-white text-slate-950"}`}
+      className={`flex items-center justify-between rounded-2xl px-4 py-4 shadow-sm ${hero ? "border border-amber-400 bg-gradient-to-r from-[#0b5888] via-[#2f98d9] to-[#0c5d8f] text-white" : "border border-slate-200 bg-white text-slate-950"}`}
     >
       <span className="text-xs font-black">{label}</span>
       <span className="text-xl font-black tabular-nums">{fmtEuro0(value)}</span>
@@ -823,8 +823,8 @@ function PremiumModal({ open, onClose, title, subtitle, children, footer }) {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <section className="my-auto w-full max-w-lg overflow-hidden rounded-[26px] border border-amber-300 bg-[#f8f4ec] shadow-2xl">
-        <header className="flex items-center gap-3 bg-gradient-to-r from-[#fff9ed] via-[#eed59a] to-[#d5a539] p-4">
+      <section className="my-auto w-full max-w-lg overflow-hidden rounded-[26px] border border-amber-300 bg-[#ecf3f8] shadow-2xl">
+        <header className="flex items-center gap-3 bg-gradient-to-r from-[#eef8fe] via-[#9aceee] to-[#3999d5] p-4">
           <div className="min-w-0 flex-1">
             <p className="truncate text-base font-black text-slate-950">
               {title}

@@ -135,8 +135,8 @@ try {
 function PremiumField({ icon: Icon, label, children }) {
   return (
     <label className="block">
-      <span className="mb-2 flex items-center gap-2 text-[9px] font-black uppercase tracking-[.16em] text-[#8a641d]">
-        {Icon && <span className="flex h-7 w-7 items-center justify-center rounded-[10px] border border-[#e4cb8f] bg-[#fff8e8] text-[#a57318]"><Icon size={13}/></span>}
+      <span className="mb-2 flex items-center gap-2 text-[9px] font-black uppercase tracking-[.16em] text-[#1d608a]">
+        {Icon && <span className="flex h-7 w-7 items-center justify-center rounded-[10px] border border-[#8fc3e4] bg-[#eaf6fd] text-[#186fa5]"><Icon size={13}/></span>}
         {label}
       </span>
       {children}
@@ -146,13 +146,13 @@ function PremiumField({ icon: Icon, label, children }) {
 
 function MovementMoneyRow({ label, icon: Icon, value, onChange }) {
   return (
-    <div className="flex min-h-[72px] items-center gap-3 rounded-[19px] border border-[#e4dbc9] bg-white px-4 shadow-[0_8px_22px_rgba(39,27,5,.04)]">
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] border border-[#e1c888] bg-[#fff7e5] text-[#a26e13]"><Icon size={17}/></span>
+    <div className="flex min-h-[72px] items-center gap-3 rounded-[19px] border border-[#c9dae4] bg-white px-4 shadow-[0_8px_22px_rgba(39,27,5,.04)]">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] border border-[#88bfe1] bg-[#e7f5fd] text-[#136ba2]"><Icon size={17}/></span>
       <span className="flex-1 text-[14px] font-black text-[#7b8799]">{label}</span>
       <div className="relative w-[132px]">
         <input type="number" inputMode="decimal" value={value} onChange={(e) => onChange(e.target.value)} placeholder="0"
-          className="h-11 w-full rounded-[13px] border border-[#e0cfaa] bg-[#fffdf8] px-3 pr-8 text-right text-[16px] font-black tabular-nums text-[#3c2a0c] outline-none focus:border-[#c9982d] focus:ring-2 focus:ring-[#d9ae50]/20" />
-        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[13px] font-black text-[#a6751e]">€</span>
+          className="h-11 w-full rounded-[13px] border border-[#aacbe0] bg-[#f9fcfe] px-3 pr-8 text-right text-[16px] font-black tabular-nums text-[#0c2a3c] outline-none focus:border-[#2d8dc9] focus:ring-2 focus:ring-[#50a4d9]/20" />
+        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[13px] font-black text-[#1e72a6]">€</span>
       </div>
     </div>
   )
@@ -548,8 +548,8 @@ async function deleteMovement(row) {
   // Filtri premium: stessa gerarchia visiva della sezione Conteggi.
   const filterBanners = (
     <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-      <section className="rounded-[22px] border border-[#decda8] bg-[#fffdf9] p-4 shadow-[0_18px_38px_-32px_rgba(68,43,5,.72)]">
-        <div className="mb-3 flex items-center justify-center gap-2 text-[#946318]">
+      <section className="rounded-[22px] border border-[#a8c9de] bg-[#f9fdff] p-4 shadow-[0_18px_38px_-32px_rgba(68,43,5,.72)]">
+        <div className="mb-3 flex items-center justify-center gap-2 text-[#186494]">
           <Calendar size={15} />
           <p className="text-[11px] font-black tracking-[0.18em]">DATA</p>
         </div>
@@ -557,21 +557,21 @@ async function deleteMovement(row) {
           <Input type="date" value={draftDateFrom} onChange={(e) => setDraftDateFrom(e.target.value)} />
           <Input type="date" value={draftDateTo} onChange={(e) => setDraftDateTo(e.target.value)} />
         </div>
-        <button type="button" onClick={updateDateRange} className="mt-2 flex h-9 w-full items-center justify-center gap-2 rounded-[12px] border border-[#d9c28f] bg-[#fbf5e8] text-[9px] font-black tracking-[0.1em] text-[#765116] transition active:scale-[.98]">
+        <button type="button" onClick={updateDateRange} className="mt-2 flex h-9 w-full items-center justify-center gap-2 rounded-[12px] border border-[#8fbdd9] bg-[#e8f4fb] text-[9px] font-black tracking-[0.1em] text-[#165176] transition active:scale-[.98]">
           <RefreshCw size={13} />AGGIORNA INTERVALLO
         </button>
       </section>
 
-      <section className="rounded-[22px] border border-[#decda8] bg-[#fffdf9] p-4 shadow-[0_18px_38px_-32px_rgba(68,43,5,.72)]">
-        <div className="mb-3 flex items-center justify-center gap-2 text-[#946318]">
+      <section className="rounded-[22px] border border-[#a8c9de] bg-[#f9fdff] p-4 shadow-[0_18px_38px_-32px_rgba(68,43,5,.72)]">
+        <div className="mb-3 flex items-center justify-center gap-2 text-[#186494]">
           <User size={15} />
           <p className="text-[11px] font-black tracking-[0.18em]">UTENTE</p>
         </div>
         <Input value={cognome} onChange={(e) => setCognome(e.target.value)} placeholder="Cerca per cognome" />
       </section>
 
-      <section className="rounded-[22px] border border-[#decda8] bg-[#fffdf9] p-4 shadow-[0_18px_38px_-32px_rgba(68,43,5,.72)]">
-        <div className="mb-3 flex items-center justify-center gap-2 text-[#946318]">
+      <section className="rounded-[22px] border border-[#a8c9de] bg-[#f9fdff] p-4 shadow-[0_18px_38px_-32px_rgba(68,43,5,.72)]">
+        <div className="mb-3 flex items-center justify-center gap-2 text-[#186494]">
           <Building2 size={15} />
           <p className="text-[11px] font-black tracking-[0.18em]">LOCALE</p>
         </div>
@@ -590,29 +590,35 @@ async function deleteMovement(row) {
         </div>
       </section>
 
-      <button type="button" onClick={() => setNewOpen(true)} className="group relative min-h-[146px] overflow-hidden rounded-[22px] border border-[#bd8a2d] bg-[linear-gradient(135deg,#fff3d1_0%,#e4c16e_100%)] p-4 text-[#65420d] shadow-[0_20px_42px_-30px_rgba(97,61,6,.7)] transition hover:-translate-y-0.5 hover:brightness-102 active:scale-[.985]">
+      <button type="button" onClick={() => setNewOpen(true)} className="group relative min-h-[146px] overflow-hidden rounded-[22px] border border-[#2d86bd] bg-[linear-gradient(135deg,#d4edfc_0%,#6eb7e4_100%)] p-4 text-[#0d4365] shadow-[0_20px_42px_-30px_rgba(97,61,6,.7)] transition hover:-translate-y-0.5 hover:brightness-102 active:scale-[.985]">
         <span className="absolute -right-8 -top-10 h-28 w-28 rounded-full bg-white/40 blur-2xl" />
         <span className="relative flex h-full flex-col items-center justify-center gap-3">
-          <span className="flex h-12 w-12 items-center justify-center rounded-[16px] border border-[#c79c4b] bg-white/65 shadow-[0_12px_22px_-16px_rgba(91,55,5,.6)]"><Plus size={24} strokeWidth={2.8} /></span>
+          <span className="flex h-12 w-12 items-center justify-center rounded-[16px] border border-[#4b97c7] bg-white/65 shadow-[0_12px_22px_-16px_rgba(91,55,5,.6)]"><Plus size={24} strokeWidth={2.8} /></span>
           <span className="text-[12px] font-black tracking-[0.17em]">NUOVO MOVIMENTO</span>
         </span>
       </button>
     </div>
   )
 
+  useEffect(() => {
+    const refresh = () => { loadData() };
+    window.addEventListener('admin-page-refresh', refresh);
+    return () => window.removeEventListener('admin-page-refresh', refresh);
+  });
+
   return (
     <PageLayout>
       <PageBody>
-        <div className="min-h-full bg-[radial-gradient(circle_at_15%_0%,rgba(226,186,99,.16),transparent_28%),linear-gradient(180deg,#f7f2e8_0%,#f4f0e8_100%)] px-3 py-3 md:px-6 md:py-5">
+        <div className="min-h-full bg-[radial-gradient(circle_at_15%_0%,rgba(99,177,226,.16),transparent_28%),linear-gradient(180deg,#e8f1f7_0%,#e8eff4_100%)] px-3 py-3 md:px-6 md:py-5">
           <div className="mx-auto max-w-[1720px] space-y-4">
-          <section className="relative overflow-hidden rounded-[30px] border border-[#dfc98f] bg-[linear-gradient(135deg,#fffdf8_0%,#f4e5bf_100%)] px-4 py-5 shadow-[0_24px_60px_-38px_rgba(80,55,15,.62)] md:px-7">
+          <section className="pm-cassa-page-heading relative overflow-hidden rounded-[30px] border border-[#8fc0df] bg-[linear-gradient(135deg,#f9fcfe_0%,#bfe0f4_100%)] px-4 py-5 shadow-[0_24px_60px_-38px_rgba(80,55,15,.62)] md:px-7">
             <div className="pointer-events-none absolute -left-16 -top-24 h-60 w-60 rounded-full bg-white/75 blur-3xl" />
-            <div className="pointer-events-none absolute -right-12 -top-20 h-64 w-64 rounded-full bg-amber-400/20 blur-3xl" />
+            <div className="pointer-events-none absolute -right-12 -top-20 h-64 w-64 rounded-full bg-sky-400/20 blur-3xl" />
             <div className="relative min-h-[58px]">
               <div className="mx-auto flex max-w-[900px] items-center justify-center px-14 text-center">
-                <h1 className="text-[29px] font-black tracking-[0.13em] text-[#3d2a0b] md:text-[35px]">SEZIONE CASSA</h1>
+                <h1 className="text-[29px] font-black tracking-[0.13em] text-[#0b2a3d] md:text-[35px]">SEZIONE CASSA</h1>
               </div>
-              <button type="button" onClick={loadData} disabled={loading} className="absolute right-0 top-1/2 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-[16px] border border-[#d8b86c] bg-[linear-gradient(145deg,#fffaf0,#ecd18f)] text-[#755019] shadow-[0_13px_24px_-17px_rgba(116,79,17,.48)] transition hover:-translate-y-[55%] hover:brightness-102 active:scale-95 disabled:opacity-60" aria-label="Aggiorna cassa" title="Aggiorna">
+              <button type="button" onClick={loadData} disabled={loading} className="absolute right-0 top-1/2 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-[16px] border border-[#6cafd8] bg-[linear-gradient(145deg,#f1f9fe,#8fc8ec)] text-[#195275] shadow-[0_13px_24px_-17px_rgba(116,79,17,.48)] transition hover:-translate-y-[55%] hover:brightness-102 active:scale-95 disabled:opacity-60" aria-label="Aggiorna cassa" title="Aggiorna">
                 <RefreshCw size={19} strokeWidth={2.8} className={loading ? 'animate-spin' : ''} />
               </button>
             </div>
@@ -624,10 +630,10 @@ async function deleteMovement(row) {
           </div>
           <div className="hidden md:block">{filterBanners}</div>
 
-          <section className="overflow-hidden rounded-[28px] border border-[#dfcfaa] bg-[#fffdf9] shadow-[0_24px_55px_-38px_rgba(65,43,8,.68)]">
-            <div className="relative flex min-h-[68px] flex-col items-center justify-center gap-2 border-b border-[#eadfca] px-4 py-4 text-center md:flex-row">
-              <h2 className="text-[21px] font-black tracking-[0.18em] text-[#946318] md:text-[26px]">LISTA MOVIMENTI</h2>
-              {!loading && <span className="rounded-full border border-[#d9c28d] bg-[#fbf5e8] px-2.5 py-1 text-[9px] font-black tracking-[0.1em] text-[#765116]">{rows.length} MOVIMENTI</span>}
+          <section className="overflow-hidden rounded-[28px] border border-[#aacbdf] bg-[#f9fdff] shadow-[0_24px_55px_-38px_rgba(65,43,8,.68)]">
+            <div className="relative flex min-h-[68px] flex-col items-center justify-center gap-2 border-b border-[#cadeea] px-4 py-4 text-center md:flex-row">
+              <h2 className="text-[21px] font-black tracking-[0.18em] text-[#186494] md:text-[26px]">LISTA MOVIMENTI</h2>
+              {!loading && <span className="rounded-full border border-[#8dbcd9] bg-[#e8f4fb] px-2.5 py-1 text-[9px] font-black tracking-[0.1em] text-[#165176]">{rows.length} MOVIMENTI</span>}
               {hasPending && (
                 <div className="flex items-center gap-2 md:absolute md:right-4 md:top-1/2 md:-translate-y-1/2">
                   <Badge variant="danger" size="sm">{pendingDeletes.size} da cancellare</Badge>
@@ -652,8 +658,8 @@ async function deleteMovement(row) {
     <col className="w-[6%]" />
   </colgroup>
 
-  <thead className="sticky top-0 z-10 bg-[#f5ead3]">
-                  <tr className="border-b border-[#dfcfaa]">
+  <thead className="sticky top-0 z-10 bg-[#d3e8f5]">
+                  <tr className="border-b border-[#aacbdf]">
                     <th className="w-10 px-4 py-2.5">
                       <input
                         type="checkbox" checked={allChecked} onChange={selectAllVisible}
@@ -706,17 +712,17 @@ async function deleteMovement(row) {
                           <td
                             colSpan={3}
                             className={`px-3 py-2.5 text-center text-[11px] font-black uppercase tracking-[0.16em] ${
-                              pending ? 'line-through text-[var(--color-danger)]' : 'text-[#946318]'
+                              pending ? 'line-through text-[var(--color-danger)]' : 'text-[#186494]'
                             }`}
                           >
                             Operazione generica
                           </td>
                         ) : (
                           <>
-                            <Td className={`text-right font-black tabular-nums ${pending ? 'line-through text-[var(--color-danger)]' : 'text-[#3d2a0b]'}`}>
+                            <Td className={`text-right font-black tabular-nums ${pending ? 'line-through text-[var(--color-danger)]' : 'text-[#0b2a3d]'}`}>
                               {formatEuro0(r.acconto)}
                             </Td>
-                            <Td className={`text-right font-black tabular-nums ${pending ? 'line-through text-[var(--color-danger)]' : 'text-[#765116]'}`}>
+                            <Td className={`text-right font-black tabular-nums ${pending ? 'line-through text-[var(--color-danger)]' : 'text-[#165176]'}`}>
                               {formatEuro0(r.recupero)}
                             </Td>
                             <Td className={`text-right font-black tabular-nums ${pending ? 'line-through text-[var(--color-danger)]' : 'text-slate-700'}`}>
@@ -776,18 +782,18 @@ async function deleteMovement(row) {
                           <small>{dipendenteName(operatorById(r.created_by))}</small>
                           <small>{r.origine === 'chiusura_conteggio' || r.origine === 'admin_cassa' ? `${toIT(r.work_date)} 00:00` : formatDateTime(r.created_at)}</small>
                         </span>
-                        <Pencil size={20} className="shrink-0 text-[#946318]" />
+                        <Pencil size={20} className="shrink-0 text-[#186494]" />
                       </button>
                       <label className="pm-cassa-select" title="Seleziona per cancellare">
                         <input type="checkbox" checked={pending} onChange={() => toggleRow(r.id)} aria-label={`Seleziona movimento ${r.venue_id ? venueLabel(r.venue_id) : 'generico'} per cancellare`} />
                       </label>
                     </div>
                     {!isGenericMovement(r) && <div className="pm-cassa-values">
-                      <div><small>Acconto</small><strong className="text-[#3d2a0b]">{formatEuro0(r.acconto)}</strong></div>
-                      <div><small>Recupero</small><strong className="text-[#765116]">{formatEuro0(r.recupero)}</strong></div>
+                      <div><small>Acconto</small><strong className="text-[#0b2a3d]">{formatEuro0(r.acconto)}</strong></div>
+                      <div><small>Recupero</small><strong className="text-[#165176]">{formatEuro0(r.recupero)}</strong></div>
                       <div><small>Da riportare</small><strong className="text-slate-700">{formatEuro0(r.da_riportare)}</strong></div>
                     </div>}
-                    {isGenericMovement(r) && <p className="px-3 pb-3 text-sm text-[#946318]">Operazione generica</p>}
+                    {isGenericMovement(r) && <p className="px-3 pb-3 text-sm text-[#186494]">Operazione generica</p>}
                   </article>
                 )
               })}
@@ -798,32 +804,32 @@ async function deleteMovement(row) {
       </PageBody>
 
       {!loading && rows.length > 0 && (
-        <div className="relative z-30 shrink-0 border-t border-[#d4b86f] bg-[linear-gradient(135deg,#fffdf8_0%,#f2e2b9_100%)] px-3 py-2.5 shadow-[0_-14px_34px_-24px_rgba(72,45,5,.72)] md:px-6">
+        <div className="relative z-30 shrink-0 border-t border-[#6fadd4] bg-[linear-gradient(135deg,#f9fcfe_0%,#b9dcf2_100%)] px-3 py-2.5 shadow-[0_-14px_34px_-24px_rgba(72,45,5,.72)] md:px-6">
 <div className="mx-auto grid max-w-[1720px] grid-cols-3 items-center md:grid-cols-[40px_27fr_13fr_20fr_12fr_10fr_12fr_6fr]">
-  <p className="hidden pr-4 text-right text-[11px] font-black tracking-[0.2em] text-[#946318] md:col-start-4 md:block">
+  <p className="hidden pr-4 text-right text-[11px] font-black tracking-[0.2em] text-[#186494] md:col-start-4 md:block">
     TOTALI
   </p>
 
   <div className="text-center md:col-start-5 md:pr-4 md:text-right">
-    <p className="text-[9px] font-black tracking-[0.1em] text-[#946318]">
+    <p className="text-[9px] font-black tracking-[0.1em] text-[#186494]">
       ACCONTO
     </p>
-    <p className="text-[17px] font-black tabular-nums text-[#3d2a0b] md:text-[20px]">
+    <p className="text-[17px] font-black tabular-nums text-[#0b2a3d] md:text-[20px]">
       {formatEuro0(totals.acconto)}
     </p>
   </div>
 
-  <div className="border-x border-[#ddcda8] text-center md:col-start-6 md:border-0 md:pr-4 md:text-right">
-    <p className="text-[9px] font-black tracking-[0.1em] text-[#946318]">
+  <div className="border-x border-[#a8c9dd] text-center md:col-start-6 md:border-0 md:pr-4 md:text-right">
+    <p className="text-[9px] font-black tracking-[0.1em] text-[#186494]">
       RECUPERO
     </p>
-    <p className="text-[17px] font-black tabular-nums text-[#765116] md:text-[20px]">
+    <p className="text-[17px] font-black tabular-nums text-[#165176] md:text-[20px]">
       {formatEuro0(totals.recupero)}
     </p>
   </div>
 
   <div className="text-center md:col-start-7 md:pr-4 md:text-right">
-    <p className="text-[9px] font-black tracking-[0.1em] text-[#946318]">
+    <p className="text-[9px] font-black tracking-[0.1em] text-[#186494]">
       DA RIPORTARE
     </p>
     <p className="text-[17px] font-black tabular-nums text-slate-700 md:text-[20px]">
@@ -843,14 +849,14 @@ async function deleteMovement(row) {
         closeOnBackdrop={false}
         closeOnEscape={false}
       >
-        <div className="space-y-4 rounded-[24px] bg-[#fbf8f1] p-1">
-          <div className="rounded-[22px] border border-[#e3cb91] bg-[linear-gradient(135deg,#fffdf8,#f8edcf)] p-4 shadow-[0_12px_30px_rgba(111,76,14,.08)]">
+        <div className="space-y-4 rounded-[24px] bg-[#f1f7fb] p-1">
+          <div className="rounded-[22px] border border-[#91c4e3] bg-[linear-gradient(135deg,#f9fcfe,#cfe8f8)] p-4 shadow-[0_12px_30px_rgba(111,76,14,.08)]">
             <div className="space-y-3">
               <PremiumField icon={Calendar} label="DATA">
-                <Input className="h-12 rounded-[15px] border-[#dbc58f] bg-white px-4 font-bold" type="date" value={newRow.work_date} onChange={(e) => setNewRow((p) => ({ ...p, work_date: e.target.value }))} />
+                <Input className="h-12 rounded-[15px] border-[#8fbedb] bg-white px-4 font-bold" type="date" value={newRow.work_date} onChange={(e) => setNewRow((p) => ({ ...p, work_date: e.target.value }))} />
               </PremiumField>
               <PremiumField icon={User} label="DIPENDENTE">
-                <Select className="h-12 rounded-[15px] border-[#dbc58f] bg-white px-4 font-bold" value={newRow.created_by} onChange={(e) => setNewRow((p) => ({ ...p, created_by: e.target.value }))}>
+                <Select className="h-12 rounded-[15px] border-[#8fbedb] bg-white px-4 font-bold" value={newRow.created_by} onChange={(e) => setNewRow((p) => ({ ...p, created_by: e.target.value }))}>
                   <option value="">Seleziona dipendente…</option>
                   {dipendenti.map((d) => (<option key={dipendenteId(d)} value={dipendenteId(d)}>{dipendenteName(d)}</option>))}
                 </Select>
@@ -868,10 +874,10 @@ async function deleteMovement(row) {
           </div>
 
           <PremiumField label="NOTE FACOLTATIVE">
-            <Input className="h-12 rounded-[15px] border-[#dbc58f] bg-white px-4" value={newRow.note} onChange={(e) => setNewRow((p) => ({ ...p, note: e.target.value }))} placeholder="Aggiungi una nota…" />
+            <Input className="h-12 rounded-[15px] border-[#8fbedb] bg-white px-4" value={newRow.note} onChange={(e) => setNewRow((p) => ({ ...p, note: e.target.value }))} placeholder="Aggiungi una nota…" />
           </PremiumField>
 
-          <button onClick={createMovement} className="h-13 w-full rounded-[18px] bg-[linear-gradient(135deg,#d49a26,#b88016)] py-4 text-[12px] font-black uppercase tracking-[0.18em] text-white shadow-[0_12px_26px_rgba(181,128,22,.25)] transition hover:-translate-y-0.5">
+          <button onClick={createMovement} className="h-13 w-full rounded-[18px] bg-[linear-gradient(135deg,#2691d4,#167ab8)] py-4 text-[12px] font-black uppercase tracking-[0.18em] text-white shadow-[0_12px_26px_rgba(181,128,22,.25)] transition hover:-translate-y-0.5">
             CREA MOVIMENTO
           </button>
         </div>
@@ -891,14 +897,14 @@ async function deleteMovement(row) {
         closeOnBackdrop={false}
         closeOnEscape={false}
       >
-        <div className="space-y-4 rounded-[24px] bg-[#fbf8f1] p-1">
-          <div className="rounded-[22px] border border-[#e3cb91] bg-[linear-gradient(135deg,#fffdf8,#f8edcf)] p-4 shadow-[0_12px_30px_rgba(111,76,14,.08)]">
+        <div className="space-y-4 rounded-[24px] bg-[#f1f7fb] p-1">
+          <div className="rounded-[22px] border border-[#91c4e3] bg-[linear-gradient(135deg,#f9fcfe,#cfe8f8)] p-4 shadow-[0_12px_30px_rgba(111,76,14,.08)]">
             <div className="space-y-3">
               <PremiumField icon={Calendar} label="DATA">
-                <Input className="h-12 rounded-[15px] border-[#dbc58f] bg-white px-4 font-bold" type="date" value={editRow.work_date} onChange={(e) => setEditRow((p) => ({ ...p, work_date: e.target.value }))} />
+                <Input className="h-12 rounded-[15px] border-[#8fbedb] bg-white px-4 font-bold" type="date" value={editRow.work_date} onChange={(e) => setEditRow((p) => ({ ...p, work_date: e.target.value }))} />
               </PremiumField>
               <PremiumField icon={User} label="DIPENDENTE">
-                <Select className="h-12 rounded-[15px] border-[#dbc58f] bg-white px-4 font-bold" value={editRow.created_by} onChange={(e) => setEditRow((p) => ({ ...p, created_by: e.target.value }))}>
+                <Select className="h-12 rounded-[15px] border-[#8fbedb] bg-white px-4 font-bold" value={editRow.created_by} onChange={(e) => setEditRow((p) => ({ ...p, created_by: e.target.value }))}>
                   <option value="">Seleziona dipendente…</option>
                   {dipendenti.map((d) => (<option key={dipendenteId(d)} value={dipendenteId(d)}>{dipendenteName(d)}</option>))}
                 </Select>
@@ -916,10 +922,10 @@ async function deleteMovement(row) {
           </div>
 
           <PremiumField label="NOTE FACOLTATIVE">
-            <Input className="h-12 rounded-[15px] border-[#dbc58f] bg-white px-4" value={editRow.note} onChange={(e) => setEditRow((p) => ({ ...p, note: e.target.value }))} placeholder="Aggiungi una nota…" />
+            <Input className="h-12 rounded-[15px] border-[#8fbedb] bg-white px-4" value={editRow.note} onChange={(e) => setEditRow((p) => ({ ...p, note: e.target.value }))} placeholder="Aggiungi una nota…" />
           </PremiumField>
 
-          <button onClick={updateMovement} className="h-13 w-full rounded-[18px] bg-[linear-gradient(135deg,#d49a26,#b88016)] py-4 text-[12px] font-black uppercase tracking-[0.18em] text-white shadow-[0_12px_26px_rgba(181,128,22,.25)] transition hover:-translate-y-0.5">
+          <button onClick={updateMovement} className="h-13 w-full rounded-[18px] bg-[linear-gradient(135deg,#2691d4,#167ab8)] py-4 text-[12px] font-black uppercase tracking-[0.18em] text-white shadow-[0_12px_26px_rgba(181,128,22,.25)] transition hover:-translate-y-0.5">
             SALVA MODIFICHE
           </button>
         </div>

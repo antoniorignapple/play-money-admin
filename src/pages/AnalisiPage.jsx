@@ -357,13 +357,13 @@ async function exportAgentPdf({ dateLabel, agente, riepilogo, movements, targetW
 
 function AnalisiMoneyRow({ label, icon: Icon, value, onChange }) {
   return (
-    <div className="flex min-h-[72px] items-center gap-3 rounded-[19px] border border-[#e4dbc9] bg-white px-4 shadow-[0_8px_22px_rgba(39,27,5,.04)]">
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] border border-[#e1c888] bg-[#fff7e5] text-[#a26e13]"><Icon size={17}/></span>
+    <div className="flex min-h-[72px] items-center gap-3 rounded-[19px] border border-[#c9dae4] bg-white px-4 shadow-[0_8px_22px_rgba(39,27,5,.04)]">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] border border-[#88bfe1] bg-[#e7f5fd] text-[#136ba2]"><Icon size={17}/></span>
       <span className="flex-1 text-[14px] font-black text-[#7b8799]">{label}</span>
       <div className="relative w-[132px]">
         <input type="number" inputMode="decimal" value={value} onChange={(e) => onChange(e.target.value)} placeholder="0"
-          className="h-11 w-full rounded-[13px] border border-[#e0cfaa] bg-[#fffdf8] px-3 pr-8 text-right text-[16px] font-black tabular-nums text-[#3c2a0c] outline-none focus:border-[#c9982d] focus:ring-2 focus:ring-[#d9ae50]/20" />
-        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[13px] font-black text-[#a6751e]">€</span>
+          className="h-11 w-full rounded-[13px] border border-[#aacbe0] bg-[#f9fcfe] px-3 pr-8 text-right text-[16px] font-black tabular-nums text-[#0c2a3c] outline-none focus:border-[#2d8dc9] focus:ring-2 focus:ring-[#50a4d9]/20" />
+        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[13px] font-black text-[#1e72a6]">€</span>
       </div>
     </div>
   )
@@ -670,37 +670,43 @@ export default function AnalisiPage() {
     }
   }
 
+  useEffect(() => {
+    const refresh = () => { loadData() };
+    window.addEventListener('admin-page-refresh', refresh);
+    return () => window.removeEventListener('admin-page-refresh', refresh);
+  });
+
   return (
     <PageLayout>
       <PageBody>
-        <div className="min-h-full bg-[radial-gradient(circle_at_15%_0%,rgba(226,186,99,.16),transparent_28%),linear-gradient(180deg,#f7f2e8_0%,#f4f0e8_100%)] px-3 py-3 md:px-6 md:py-5">
+        <div className="min-h-full bg-[radial-gradient(circle_at_15%_0%,rgba(99,177,226,.16),transparent_28%),linear-gradient(180deg,#e8f1f7_0%,#e8eff4_100%)] px-3 py-3 md:px-6 md:py-5">
           <div className="mx-auto max-w-[1720px] space-y-4">
-            <section className="relative overflow-hidden rounded-[30px] border border-[#dfc98f] bg-[linear-gradient(135deg,#fffdf8_0%,#f4e5bf_100%)] px-4 py-5 shadow-[0_24px_60px_-38px_rgba(80,55,15,.62)] md:px-7">
+            <section className="relative overflow-hidden rounded-[30px] border border-[#8fc0df] bg-[linear-gradient(135deg,#f9fcfe_0%,#bfe0f4_100%)] px-4 py-5 shadow-[0_24px_60px_-38px_rgba(80,55,15,.62)] md:px-7">
               <div className="pointer-events-none absolute -left-16 -top-24 h-60 w-60 rounded-full bg-white/75 blur-3xl" />
-              <div className="pointer-events-none absolute -right-12 -top-20 h-64 w-64 rounded-full bg-amber-400/20 blur-3xl" />
+              <div className="pointer-events-none absolute -right-12 -top-20 h-64 w-64 rounded-full bg-sky-400/20 blur-3xl" />
               <div className="pm-analisi-heading relative flex min-h-[92px] flex-col items-center justify-center text-center">
-                <h1 className="text-[29px] font-black tracking-[0.13em] text-[#3d2a0b] md:text-[35px]">ANALISI GIORNALIERA</h1>
+                <h1 className="pm-page-section-title text-[29px] font-black tracking-[0.13em] text-[#0b2a3d] md:text-[35px]">ANALISI GIORNALIERA</h1>
                 <div className="pm-analisi-date mt-3 flex flex-wrap items-center justify-center gap-2">
-                  <button type="button" onClick={() => moveDay(-1)} title="Giorno precedente" aria-label="Vai al giorno precedente" className="flex h-10 w-10 items-center justify-center rounded-[13px] border border-[#d8b86c] bg-[linear-gradient(145deg,#fffaf0,#ecd18f)] text-[#755019] shadow-[0_10px_20px_-16px_rgba(116,79,17,.48)] transition hover:-translate-y-0.5 active:scale-95">
+                  <button type="button" onClick={() => moveDay(-1)} title="Giorno precedente" aria-label="Vai al giorno precedente" className="flex h-10 w-10 items-center justify-center rounded-[13px] border border-[#6cafd8] bg-[linear-gradient(145deg,#f1f9fe,#8fc8ec)] text-[#195275] shadow-[0_10px_20px_-16px_rgba(116,79,17,.48)] transition hover:-translate-y-0.5 active:scale-95">
                     <ChevronLeft size={19} strokeWidth={2.7} />
                   </button>
-                  <label className="group flex h-10 items-center gap-2 rounded-[13px] border border-[#d8b86c] bg-white/70 px-3 text-[#755019] shadow-[0_10px_20px_-16px_rgba(116,79,17,.48)] transition hover:bg-white">
+                  <label className="group flex h-10 items-center gap-2 rounded-[13px] border border-[#6cafd8] bg-white/70 px-3 text-[#195275] shadow-[0_10px_20px_-16px_rgba(116,79,17,.48)] transition hover:bg-white">
                     <CalendarDays size={15} />
-                    <Input type="date" value={data} onChange={(e) => setData(e.target.value)} className="h-8 w-[132px] border-0 bg-transparent p-0 text-[11px] font-black text-[#5d3e0c] shadow-none" />
+                    <Input type="date" value={data} onChange={(e) => setData(e.target.value)} className="h-8 w-[132px] border-0 bg-transparent p-0 text-[11px] font-black text-[#0c3e5d] shadow-none" />
                   </label>
-                  <button type="button" onClick={() => moveDay(1)} title="Giorno successivo" aria-label="Vai al giorno successivo" className="flex h-10 w-10 items-center justify-center rounded-[13px] border border-[#d8b86c] bg-[linear-gradient(145deg,#fffaf0,#ecd18f)] text-[#755019] shadow-[0_10px_20px_-16px_rgba(116,79,17,.48)] transition hover:-translate-y-0.5 active:scale-95">
+                  <button type="button" onClick={() => moveDay(1)} title="Giorno successivo" aria-label="Vai al giorno successivo" className="flex h-10 w-10 items-center justify-center rounded-[13px] border border-[#6cafd8] bg-[linear-gradient(145deg,#f1f9fe,#8fc8ec)] text-[#195275] shadow-[0_10px_20px_-16px_rgba(116,79,17,.48)] transition hover:-translate-y-0.5 active:scale-95">
                     <ChevronRight size={19} strokeWidth={2.7} />
                   </button>
-                  <button type="button" onClick={loadData} title="Aggiorna" className="flex h-10 w-10 items-center justify-center rounded-[13px] border border-[#d8b86c] bg-[linear-gradient(145deg,#fffaf0,#ecd18f)] text-[#755019] shadow-[0_10px_20px_-16px_rgba(116,79,17,.48)] transition hover:-translate-y-0.5 active:scale-95">
+                  <button type="button" onClick={loadData} title="Aggiorna" className="pm-page-refresh flex h-10 w-10 items-center justify-center rounded-[13px] border border-[#6cafd8] bg-[linear-gradient(145deg,#f1f9fe,#8fc8ec)] text-[#195275] shadow-[0_10px_20px_-16px_rgba(116,79,17,.48)] transition hover:-translate-y-0.5 active:scale-95">
                     <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
                   </button>
                 </div>
               </div>
             </section>
 
-            <section className="overflow-hidden rounded-[28px] border border-[#dfcfaa] bg-[#fffdf9] shadow-[0_24px_55px_-38px_rgba(65,43,8,.68)]">
-              <div className="border-b border-[#eadfca] px-4 py-4 text-center">
-                <h2 className="text-[21px] font-black tracking-[0.18em] text-[#946318] md:text-[26px]">RIEPILOGO GENERALE</h2>
+            <section className="overflow-hidden rounded-[28px] border border-[#aacbdf] bg-[#f9fdff] shadow-[0_24px_55px_-38px_rgba(65,43,8,.68)]">
+              <div className="border-b border-[#cadeea] px-4 py-4 text-center">
+                <h2 className="text-[21px] font-black tracking-[0.18em] text-[#186494] md:text-[26px]">RIEPILOGO GENERALE</h2>
               </div>
               <div className="pm-analisi-overview grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
                 {[
@@ -711,9 +717,9 @@ export default function AnalisiPage() {
                   ['MONETE', formatEuro0(grandTotals.monete)],
                   ['RIFORNIMENTO', formatEuro0(grandTotals.rifornimento)],
                 ].map(([label, value]) => (
-                  <div key={label} className="border-b border-r border-[#eee5d4] px-3 py-6 text-center xl:border-b-0">
+                  <div key={label} className="border-b border-r border-[#d4e4ee] px-3 py-6 text-center xl:border-b-0">
                     <p className="text-[10px] font-black tracking-[0.16em] text-slate-500 md:text-[11px]">{label}</p>
-                    <p className="mt-3 text-[23px] font-black tabular-nums text-[#33250f] md:text-[27px]">{value}</p>
+                    <p className="mt-3 text-[23px] font-black tabular-nums text-[#0f2533] md:text-[27px]">{value}</p>
                   </div>
                 ))}
               </div>
@@ -721,11 +727,11 @@ export default function AnalisiPage() {
 
             <section>
               <div className="mb-4 text-center">
-                <h2 className="text-[20px] font-black tracking-[0.17em] text-[#8d5f17] md:text-[24px]">LISTA AGENTI</h2>
+                <h2 className="text-[20px] font-black tracking-[0.17em] text-[#17608d] md:text-[24px]">LISTA AGENTI</h2>
               </div>
 
             {loading && (
-              <div className="space-y-2 rounded-[24px] border border-[#e3d8c2] bg-white p-3">
+              <div className="space-y-2 rounded-[24px] border border-[#c2d6e3] bg-white p-3">
                 {Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} />)}
               </div>
             )}
@@ -747,33 +753,33 @@ export default function AnalisiPage() {
               return (
                 <article
                   key={r.id}
-                  className={`mb-3 overflow-hidden rounded-[24px] border bg-[#fffdf9] shadow-[0_20px_42px_-34px_rgba(61,39,4,.75)] last:mb-0 ${cassaSubmitted ? 'border-emerald-400' : 'border-[#d5b76e]'}`}
+                  className={`mb-3 overflow-hidden rounded-[24px] border bg-[#f9fdff] shadow-[0_20px_42px_-34px_rgba(61,39,4,.75)] last:mb-0 ${cassaSubmitted ? 'border-emerald-400' : 'border-[#6eaed5]'}`}
                 >
-                  <div className={`pm-analisi-agent-heading flex items-start justify-between gap-3 border-b px-3 py-3 md:px-4 ${cassaSubmitted ? 'border-emerald-300 bg-[linear-gradient(135deg,#e8fff1,#83d7a8)]' : 'border-[#eee3cf] bg-[linear-gradient(135deg,#fff4d5,#e9c977)]'}`}>
+                  <div className={`pm-analisi-agent-heading flex items-start justify-between gap-3 border-b px-3 py-3 md:px-4 ${cassaSubmitted ? 'border-emerald-300 bg-[linear-gradient(135deg,#e8fff1,#83d7a8)]' : 'border-[#cfe2ee] bg-[linear-gradient(135deg,#d8eefc,#77bde9)]'}`}>
                     <div className="flex min-w-0 flex-1 items-start gap-3">
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
-                          <p className="text-[22px] font-black uppercase tracking-[0.04em] text-[#2f210b] md:text-[25px]">{r.name}</p>
+                          <p className="text-[22px] font-black uppercase tracking-[0.04em] text-[#0b212f] md:text-[25px]">{r.name}</p>
                           {cassaSubmitted && <span className="rounded-full border border-emerald-500/45 bg-emerald-700 px-2.5 py-1 text-[9px] font-black uppercase tracking-[.1em] text-white">INVIATO · {formatInsertedAt(agentLock?.submitted_at)}</span>}
                           {!agentLocked && agentLock?.status === 'reopened' && <span className="rounded-full border border-orange-300 bg-orange-50 px-2.5 py-1 text-[9px] font-black uppercase tracking-[.1em] text-orange-800">RIAPERTO DALL’ADMIN</span>}
                         </div>
 
                         <div className="mt-2 flex flex-wrap items-center gap-x-6 gap-y-2 text-[12px] font-black uppercase tracking-[0.06em] md:text-[14px]">
-                          <span className="text-slate-500">MEZZO <strong className="ml-1 text-[#281d0b]">{r.mezzo || '—'}</strong></span>
-                          <span className="text-slate-500">KM: <strong className="ml-1 tabular-nums text-[#281d0b]">{r.km || '—'}</strong></span>
-                          <span className="text-slate-500">RIFORNIMENTO: <strong className="ml-1 tabular-nums text-[#281d0b]">{formatEuro0(r.rifornimento)}</strong></span>
+                          <span className="text-slate-500">MEZZO <strong className="ml-1 text-[#0b1d28]">{r.mezzo || '—'}</strong></span>
+                          <span className="text-slate-500">KM: <strong className="ml-1 tabular-nums text-[#0b1d28]">{r.km || '—'}</strong></span>
+                          <span className="text-slate-500">RIFORNIMENTO: <strong className="ml-1 tabular-nums text-[#0b1d28]">{formatEuro0(r.rifornimento)}</strong></span>
                         </div>
 
-                        <div className="mt-2 flex max-w-[980px] items-start gap-2 rounded-[11px] border border-[#d7b96f]/70 bg-white/45 px-3 py-2">
-                          <span className="shrink-0 text-[10px] font-black uppercase tracking-[0.1em] text-[#805814]">NOTE:</span>
-                          <span className="whitespace-pre-wrap break-words text-[12px] font-bold leading-relaxed text-[#35270f] md:text-[13px]">{r.note || '—'}</span>
+                        <div className="mt-2 flex max-w-[980px] items-start gap-2 rounded-[11px] border border-[#6fafd7]/70 bg-white/45 px-3 py-2">
+                          <span className="shrink-0 text-[10px] font-black uppercase tracking-[0.1em] text-[#145780]">NOTE:</span>
+                          <span className="whitespace-pre-wrap break-words text-[12px] font-bold leading-relaxed text-[#0f2635] md:text-[13px]">{r.note || '—'}</span>
                         </div>
 
                         <button
                           type="button"
                           onClick={() => setExpandedAgentId(isExpanded ? null : String(r.id))}
                           aria-expanded={isExpanded}
-                          className="mt-3 inline-flex h-8 items-center gap-1 rounded-[10px] border border-[#d2b36a] bg-white/70 px-2.5 text-[10px] font-black tracking-[0.08em] text-[#68450e] transition hover:bg-white active:scale-95"
+                          className="mt-3 inline-flex h-8 items-center gap-1 rounded-[10px] border border-[#6aaad2] bg-white/70 px-2.5 text-[10px] font-black tracking-[0.08em] text-[#0e4568] transition hover:bg-white active:scale-95"
                         >
                           Movimenti
                           <ChevronDown
@@ -789,13 +795,13 @@ export default function AnalisiPage() {
                         onClick={() => setLockTarget({ id: r.id, name: r.name, locked: agentLocked, status: agentLock?.status || 'in_progress' })}
                         disabled={lockSavingId === String(r.id)}
                         title={cassaSubmitted ? 'Riapri il Giro Cassa' : agentLocked ? 'Riapri le modifiche' : 'Blocca le modifiche'}
-                        className={`inline-flex h-10 w-10 items-center justify-center rounded-[13px] border transition active:scale-95 disabled:opacity-50 ${agentLocked ? 'border-red-300 bg-red-600 text-white shadow-[0_10px_20px_-14px_rgba(220,38,38,.8)]' : 'border-[#d3b469] bg-white/75 text-[#68450e]'}`}
+                        className={`inline-flex h-10 w-10 items-center justify-center rounded-[13px] border transition active:scale-95 disabled:opacity-50 ${agentLocked ? 'border-red-300 bg-red-600 text-white shadow-[0_10px_20px_-14px_rgba(220,38,38,.8)]' : 'border-[#69aad3] bg-white/75 text-[#0e4568]'}`}
                       >
                         {agentLocked ? <Lock size={16} /> : <Unlock size={16} />}
                       </button>
                       <button
                         onClick={() => exportPdf(r)}
-                        className="inline-flex h-10 items-center justify-center gap-2 rounded-[13px] border border-[#d3b469] bg-[linear-gradient(145deg,#fff8e6,#e9cd86)] px-3.5 text-[10px] font-black tracking-[0.11em] text-[#68450e] shadow-[0_10px_20px_-14px_rgba(111,72,10,.52)] transition hover:-translate-y-0.5 active:scale-95"
+                        className="inline-flex h-10 items-center justify-center gap-2 rounded-[13px] border border-[#69aad3] bg-[linear-gradient(145deg,#e8f5fd,#86c3e9)] px-3.5 text-[10px] font-black tracking-[0.11em] text-[#0e4568] shadow-[0_10px_20px_-14px_rgba(111,72,10,.52)] transition hover:-translate-y-0.5 active:scale-95"
                       >
                         <FileDown size={14} strokeWidth={2.4} /> PDF
                       </button>
@@ -803,9 +809,9 @@ export default function AnalisiPage() {
                   </div>
 
                   {isExpanded && (
-                    <div className="overflow-x-auto border-b border-[#e8dcc5] bg-[#faf7f1] p-3">
-                     <div className="pm-analisi-movements min-w-[820px] overflow-hidden rounded-[16px] border border-[#e2d4b9] bg-white">
-                      <div className="pm-analisi-movement-header grid grid-cols-[minmax(180px,1fr)_150px_90px_90px_110px_72px] border-b border-[#e4d6bc] bg-[#f2e5cd] px-3 py-2.5 text-[9px] font-black uppercase tracking-[0.12em] text-[#79571f]">
+                    <div className="overflow-x-auto border-b border-[#c5dbe8] bg-[#f1f7fa] p-3">
+                     <div className="pm-analisi-movements min-w-[820px] overflow-hidden rounded-[16px] border border-[#b9d2e2] bg-white">
+                      <div className="pm-analisi-movement-header grid grid-cols-[minmax(180px,1fr)_150px_90px_90px_110px_72px] border-b border-[#bcd5e4] bg-[#cde4f2] px-3 py-2.5 text-[9px] font-black uppercase tracking-[0.12em] text-[#1f5679]">
                         <div>Locale</div>
                         <div>Data e ora inserimento</div>
                         <div className="text-right">Acconto</div>
@@ -822,7 +828,7 @@ export default function AnalisiPage() {
                         agentMovements.map((m) => (
                           <div
                             key={m.id}
-                            className="pm-analisi-movement-row grid grid-cols-[minmax(180px,1fr)_150px_90px_90px_110px_72px] items-center border-b border-[#eee7da] px-3 py-2.5 text-[11px] last:border-0 even:bg-[#fffaf1]"
+                            className="pm-analisi-movement-row grid grid-cols-[minmax(180px,1fr)_150px_90px_90px_110px_72px] items-center border-b border-[#dae6ee] px-3 py-2.5 text-[11px] last:border-0 even:bg-[#f2f9fe]"
                           >
                             <div className="truncate font-semibold text-slate-700">
                               {venueLabel(m.venue_id)}
@@ -831,7 +837,7 @@ export default function AnalisiPage() {
                             <div className="font-bold tabular-nums text-slate-500">{formatInsertedAt(m.created_at)}</div>
 
                             {isGenericMovement(m) ? (
-                              <div className="col-span-3 text-center text-[10px] font-black uppercase tracking-[0.16em] text-[#946318]">OPERAZIONE GENERICA</div>
+                              <div className="col-span-3 text-center text-[10px] font-black uppercase tracking-[0.16em] text-[#186494]">OPERAZIONE GENERICA</div>
                             ) : (
                               <>
                                 <div data-label="Acconto" className="text-right font-black tabular-nums text-slate-800">{formatEuro0(m.acconto || 0)}</div>
@@ -866,26 +872,26 @@ export default function AnalisiPage() {
                   )}
 
                   {/* Totali del singolo agente */}
-                  <div className="grid grid-cols-2 divide-x divide-y divide-[#eee5d4] border-t border-[#eee5d4] bg-[#fffdf9] md:grid-cols-5 md:divide-y-0">
-                    <div className="bg-[#fff6dc] px-3 py-3 text-center">
-                      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#946318]">Totale</p>
-                      <p className="mt-1 text-[23px] font-black tabular-nums text-[#241806]">{formatEuro0(cassaGenerale)}</p>
+                  <div className="grid grid-cols-2 divide-x divide-y divide-[#d4e4ee] border-t border-[#d4e4ee] bg-[#f9fdff] md:grid-cols-5 md:divide-y-0">
+                    <div className="bg-[#dff1fc] px-3 py-3 text-center">
+                      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#186494]">Totale</p>
+                      <p className="mt-1 text-[23px] font-black tabular-nums text-[#061824]">{formatEuro0(cassaGenerale)}</p>
                     </div>
                     <div className="px-3 py-3 text-center">
                       <p className="text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">Fondo cassa</p>
-                      <p className="mt-1 text-[17px] font-black tabular-nums text-[#33250f]">{formatEuro0(r.monete)}</p>
+                      <p className="mt-1 text-[17px] font-black tabular-nums text-[#0f2533]">{formatEuro0(r.monete)}</p>
                     </div>
                     <div className="px-3 py-3 text-center">
                       <p className="text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">Acconti</p>
-                      <p className="mt-1 text-[17px] font-black tabular-nums text-[#33250f]">{formatEuro0(r.acconti)}</p>
+                      <p className="mt-1 text-[17px] font-black tabular-nums text-[#0f2533]">{formatEuro0(r.acconti)}</p>
                     </div>
                     <div className="px-3 py-3 text-center">
                       <p className="text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">Recuperi</p>
-                      <p className="mt-1 text-[17px] font-black tabular-nums text-[#33250f]">{formatEuro0(r.recuperi)}</p>
+                      <p className="mt-1 text-[17px] font-black tabular-nums text-[#0f2533]">{formatEuro0(r.recuperi)}</p>
                     </div>
                     <div className="px-3 py-3 text-center">
                       <p className="text-[9px] font-black uppercase tracking-[0.12em] text-slate-400">Da riportare</p>
-                      <p className="mt-1 text-[17px] font-black tabular-nums text-[#33250f]">{formatEuro0(r.da_riportare)}</p>
+                      <p className="mt-1 text-[17px] font-black tabular-nums text-[#0f2533]">{formatEuro0(r.da_riportare)}</p>
                     </div>
                   </div>
                 </article>
@@ -919,10 +925,10 @@ export default function AnalisiPage() {
         closeOnEscape={false}
       >
         {editMov && (
-          <div className="space-y-4 rounded-[24px] bg-[#fbf8f1] p-1">
-            <div className="rounded-[21px] border border-[#e3cb91] bg-[linear-gradient(135deg,#fffdf8,#f8edcf)] p-4 shadow-[0_12px_30px_rgba(111,76,14,.08)]">
-              <p className="mb-2 flex items-center gap-2 text-[9px] font-black uppercase tracking-[.16em] text-[#8a641d]"><Building2 size={13}/> LOCALE</p>
-              <p className="text-[15px] font-black text-[#3d2a0b]">{venueLabel(editMov.venue_id)}</p>
+          <div className="space-y-4 rounded-[24px] bg-[#f1f7fb] p-1">
+            <div className="rounded-[21px] border border-[#91c4e3] bg-[linear-gradient(135deg,#f9fcfe,#cfe8f8)] p-4 shadow-[0_12px_30px_rgba(111,76,14,.08)]">
+              <p className="mb-2 flex items-center gap-2 text-[9px] font-black uppercase tracking-[.16em] text-[#1d608a]"><Building2 size={13}/> LOCALE</p>
+              <p className="text-[15px] font-black text-[#0b2a3d]">{venueLabel(editMov.venue_id)}</p>
             </div>
             <div className="space-y-3">
               <AnalisiMoneyRow label="Acconto" icon={Plus} value={editDraft.acconto} onChange={(v) => setEditDraft((p) => ({ ...p, acconto: v }))} />
@@ -930,7 +936,7 @@ export default function AnalisiPage() {
               <AnalisiMoneyRow label="Da riportare" icon={RefreshCw} value={editDraft.da_riportare} onChange={(v) => setEditDraft((p) => ({ ...p, da_riportare: v }))} />
             </div>
             <button onClick={saveMovimento} disabled={savingMov}
-              className="w-full rounded-[18px] bg-[linear-gradient(135deg,#d49a26,#b88016)] py-4 text-[12px] font-black uppercase tracking-[0.18em] text-white shadow-[0_12px_26px_rgba(181,128,22,.25)] disabled:opacity-50">
+              className="w-full rounded-[18px] bg-[linear-gradient(135deg,#2691d4,#167ab8)] py-4 text-[12px] font-black uppercase tracking-[0.18em] text-white shadow-[0_12px_26px_rgba(181,128,22,.25)] disabled:opacity-50">
               {savingMov ? 'SALVATAGGIO…' : 'SALVA MODIFICHE'}
             </button>
           </div>

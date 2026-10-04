@@ -167,12 +167,12 @@ function PremiumFormModal({
     }
   };
   return (
-    <div className="fixed inset-0 z-[10001] flex items-center justify-center bg-[#120d05]/70 p-3 backdrop-blur-md">
+    <div className="fixed inset-0 z-[10001] flex items-center justify-center bg-[#050d12]/70 p-3 backdrop-blur-md">
       <form
         onSubmit={submit}
-        className="w-full max-w-[560px] overflow-hidden rounded-[30px] border border-[#d5b66c] bg-[#fffdf9] shadow-[0_40px_100px_-30px_rgba(0,0,0,.9)]"
+        className="w-full max-w-[560px] overflow-hidden rounded-[30px] border border-[#6cadd5] bg-[#f9fdff] shadow-[0_40px_100px_-30px_rgba(0,0,0,.9)]"
       >
-        <div className="relative overflow-hidden bg-[linear-gradient(135deg,#3f2908_0%,#895912_58%,#c89532_100%)] px-5 py-6 text-white">
+        <div className="relative overflow-hidden bg-[linear-gradient(135deg,#082a3f_0%,#125b89_58%,#328ec8_100%)] px-5 py-6 text-white">
           <div className="pointer-events-none absolute -right-12 -top-16 h-48 w-48 rounded-full bg-amber-200/20 blur-3xl" />
           <button
             type="button"
@@ -208,14 +208,14 @@ function PremiumFormModal({
           </div>
         </div>
         <div className="space-y-4 p-5">
-          <div className="rounded-[18px] border border-amber-200 bg-[linear-gradient(135deg,#fff9e9,#f7e5b7)] p-3 text-[10px] font-bold leading-relaxed text-[#795116]">
+          <div className="rounded-[18px] border border-amber-200 bg-[linear-gradient(135deg,#ebf6fd,#b7def7)] p-3 text-[10px] font-bold leading-relaxed text-[#165379]">
             <Sparkles size={14} className="mb-1" />
             Inserisci i dati richiesti. Le informazioni saranno disponibili
             immediatamente in entrambe le app.
           </div>
           {fields.map((field) => (
             <label key={field.name} className="block">
-              <span className="text-[9px] font-black uppercase tracking-[.16em] text-[#8a5d16]">
+              <span className="text-[9px] font-black uppercase tracking-[.16em] text-[#165e8a]">
                 {field.label}
                 {field.required ? " *" : ""}
               </span>
@@ -234,7 +234,7 @@ function PremiumFormModal({
                     }))
                   }
                   placeholder={field.placeholder || ""}
-                  className="h-12 min-w-0 flex-1 rounded-[15px] border border-[#d9c28d] bg-white px-3 text-[14px] font-bold text-slate-900 outline-none transition focus:border-[#a87318] focus:ring-2 focus:ring-amber-200"
+                  className="h-12 min-w-0 flex-1 rounded-[15px] border border-[#8dbcd9] bg-white px-3 text-[14px] font-bold text-slate-900 outline-none transition focus:border-[#1871a8] focus:ring-2 focus:ring-amber-200"
                 />
                 {field.onRefresh && (
                   <button
@@ -244,7 +244,7 @@ function PremiumFormModal({
                       setValues((v) => ({ ...v, [field.name]: next }));
                     }}
                     title="Genera un nuovo codice"
-                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[15px] border border-[#c99b42] bg-[linear-gradient(145deg,#fff8e8,#e9ca7d)] text-[#754c0d] shadow-sm transition hover:-translate-y-0.5 active:rotate-180"
+                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[15px] border border-[#4295c9] bg-[linear-gradient(145deg,#eaf6fd,#7dc0e9)] text-[#0d4d75] shadow-sm transition hover:-translate-y-0.5 active:rotate-180"
                   >
                     <RefreshCw size={17} />
                   </button>
@@ -263,11 +263,11 @@ function PremiumFormModal({
             </div>
           )}
         </div>
-        <div className="border-t border-[#e5d7bb] bg-[#faf2e2] p-3">
+        <div className="border-t border-[#bbd5e5] bg-[#e2f1fa] p-3">
           <button
             type="submit"
             disabled={saving}
-            className="h-12 w-full rounded-[14px] bg-[linear-gradient(135deg,#aa741b,#68420a)] text-[11px] font-black tracking-[.1em] text-white shadow-[0_14px_25px_-16px_rgba(75,45,3,.9)] disabled:opacity-45"
+            className="h-12 w-full rounded-[14px] bg-[linear-gradient(135deg,#1b73aa,#0a4468)] text-[11px] font-black tracking-[.1em] text-white shadow-[0_14px_25px_-16px_rgba(75,45,3,.9)] disabled:opacity-45"
           >
             {saving ? "SALVATAGGIO…" : submitLabel}
           </button>
@@ -327,9 +327,9 @@ export function SlotManagementModal({ open, onClose, slots = [], note = "", onSa
   };
 
   return (
-    <div className="fixed inset-0 z-[10002] flex items-center justify-center bg-[#120d05]/75 p-3 backdrop-blur-md">
-      <div className="flex max-h-[94vh] w-full max-w-[620px] flex-col overflow-hidden rounded-[30px] border border-[#d5b66c] bg-[#fffdf9] shadow-[0_40px_100px_-30px_rgba(0,0,0,.9)]">
-        <div className="relative shrink-0 overflow-hidden bg-[linear-gradient(135deg,#3f2908_0%,#895912_58%,#c89532_100%)] px-5 py-6 text-white">
+    <div className="fixed inset-0 z-[10002] flex items-center justify-center bg-[#050d12]/75 p-3 backdrop-blur-md">
+      <div className="flex max-h-[94vh] w-full max-w-[620px] flex-col overflow-hidden rounded-[30px] border border-[#6cadd5] bg-[#f9fdff] shadow-[0_40px_100px_-30px_rgba(0,0,0,.9)]">
+        <div className="relative shrink-0 overflow-hidden bg-[linear-gradient(135deg,#082a3f_0%,#125b89_58%,#328ec8_100%)] px-5 py-6 text-white">
           <div className="pointer-events-none absolute -right-12 -top-16 h-48 w-48 rounded-full bg-amber-200/20 blur-3xl" />
           <button
             type="button"
@@ -356,7 +356,7 @@ export function SlotManagementModal({ open, onClose, slots = [], note = "", onSa
         </div>
 
         <div className="min-h-0 overflow-y-auto p-5">
-          <div className="mb-4 rounded-[18px] border border-amber-200 bg-[linear-gradient(135deg,#fff9e9,#f7e5b7)] p-3 text-[10px] font-bold leading-relaxed text-[#795116]">
+          <div className="mb-4 rounded-[18px] border border-amber-200 bg-[linear-gradient(135deg,#ebf6fd,#b7def7)] p-3 text-[10px] font-bold leading-relaxed text-[#165379]">
             Imposta la quantità presente per ogni modello. Lascia <strong>0</strong> per i mobili non installati.
           </div>
 
@@ -367,9 +367,9 @@ export function SlotManagementModal({ open, onClose, slots = [], note = "", onSa
               return (
                 <div
                   key={model}
-                  className={`flex items-center gap-3 rounded-[18px] border p-3 transition ${quantity > 0 ? "border-[#c99b42] bg-[#fff8e8] shadow-[0_12px_24px_-22px_rgba(90,55,4,.9)]" : "border-[#e5d8bd] bg-white"}`}
+                  className={`flex items-center gap-3 rounded-[18px] border p-3 transition ${quantity > 0 ? "border-[#4295c9] bg-[#eaf6fd] shadow-[0_12px_24px_-22px_rgba(90,55,4,.9)]" : "border-[#bdd6e5] bg-white"}`}
                 >
-                  <span className={`flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-[15px] border ${quantity > 0 ? "border-[#d3ad61] bg-[linear-gradient(180deg,#fff7e7,#faedd1)]" : "border-[#eadcc0] bg-[#fffaf1]"}`}>
+                  <span className={`flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-[15px] border ${quantity > 0 ? "border-[#61a7d3] bg-[linear-gradient(180deg,#e9f5fd,#d1eafa)]" : "border-[#c0daea] bg-[#f2f9fe]"}`}>
                     {slotImage ? (
                       <img
                         src={slotImage}
@@ -378,19 +378,19 @@ export function SlotManagementModal({ open, onClose, slots = [], note = "", onSa
                         loading="lazy"
                       />
                     ) : (
-                      <Gamepad2 size={21} className={quantity > 0 ? "text-[#8c5d12]" : "text-[#9c7c47]"} />
+                      <Gamepad2 size={21} className={quantity > 0 ? "text-[#125d8c]" : "text-[#477b9c]"} />
                     )}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="text-[9px] font-black tracking-[.14em] text-[#a06c17]">MOBILE SLOT</p>
-                    <p className="truncate text-[15px] font-black text-[#33250f]">{model}</p>
+                    <p className="text-[9px] font-black tracking-[.14em] text-[#176ba0]">MOBILE SLOT</p>
+                    <p className="truncate text-[15px] font-black text-[#0f2533]">{model}</p>
                   </div>
                   <div className="flex shrink-0 items-center gap-1.5">
                     <button
                       type="button"
                       disabled={saving || quantity <= 0}
                       onClick={() => setQuantity(model, quantity - 1)}
-                      className="flex h-10 w-10 items-center justify-center rounded-[12px] border border-[#d8c08b] bg-white text-[#805718] transition active:scale-95 disabled:opacity-30"
+                      className="flex h-10 w-10 items-center justify-center rounded-[12px] border border-[#8bbad8] bg-white text-[#185880] transition active:scale-95 disabled:opacity-30"
                       aria-label={`Riduci ${model}`}
                     >
                       <Minus size={16} />
@@ -403,14 +403,14 @@ export function SlotManagementModal({ open, onClose, slots = [], note = "", onSa
                       disabled={saving}
                       value={quantity}
                       onChange={(event) => setQuantity(model, event.target.value)}
-                      className="h-10 w-16 rounded-[12px] border border-[#d8c08b] bg-white text-center text-[17px] font-black tabular-nums text-[#3d2a0b] outline-none focus:border-[#a87318] focus:ring-2 focus:ring-amber-200"
+                      className="h-10 w-16 rounded-[12px] border border-[#8bbad8] bg-white text-center text-[17px] font-black tabular-nums text-[#0b2a3d] outline-none focus:border-[#1871a8] focus:ring-2 focus:ring-amber-200"
                       aria-label={`Quantità ${model}`}
                     />
                     <button
                       type="button"
                       disabled={saving || quantity >= 999}
                       onClick={() => setQuantity(model, quantity + 1)}
-                      className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-[linear-gradient(135deg,#a97218,#70490d)] text-white transition active:scale-95 disabled:opacity-30"
+                      className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-[linear-gradient(135deg,#1871a9,#0d4a70)] text-white transition active:scale-95 disabled:opacity-30"
                       aria-label={`Aumenta ${model}`}
                     >
                       <Plus size={16} />
@@ -421,11 +421,11 @@ export function SlotManagementModal({ open, onClose, slots = [], note = "", onSa
             })}
           </div>
 
-          <div className="mt-5 rounded-[18px] border border-[#e5d8bd] bg-[#fff9ee] p-4">
-            <label htmlFor="slot-note" className="text-[11px] font-black tracking-[.08em] text-[#805718]">
+          <div className="mt-5 rounded-[18px] border border-[#bdd6e5] bg-[#eff8fe] p-4">
+            <label htmlFor="slot-note" className="text-[11px] font-black tracking-[.08em] text-[#185880]">
               NOTE PARCO SLOT
             </label>
-            <p id="slot-note-help" className="mt-1 text-[11px] leading-relaxed text-[#79694c]">
+            <p id="slot-note-help" className="mt-1 text-[11px] leading-relaxed text-[#4c6879]">
               Annota il fondo cassa delle slot o altre informazioni utili per questo locale.
             </p>
             <textarea
@@ -437,7 +437,7 @@ export function SlotManagementModal({ open, onClose, slots = [], note = "", onSa
               maxLength={2000}
               rows={3}
               placeholder="Es. In questo locale il fondo cassa delle slot è di 500 € ciascuna."
-              className="mt-3 w-full resize-y rounded-[13px] border border-[#d8c08b] bg-white p-3 text-[13px] leading-relaxed text-[#3d2a0b] outline-none focus:border-[#a87318] focus:ring-2 focus:ring-amber-200 disabled:opacity-45"
+              className="mt-3 w-full resize-y rounded-[13px] border border-[#8bbad8] bg-white p-3 text-[13px] leading-relaxed text-[#0b2a3d] outline-none focus:border-[#1871a8] focus:ring-2 focus:ring-amber-200 disabled:opacity-45"
             />
           </div>
 
@@ -448,12 +448,12 @@ export function SlotManagementModal({ open, onClose, slots = [], note = "", onSa
           )}
         </div>
 
-        <div className="shrink-0 border-t border-[#e5d7bb] bg-[#faf2e2] p-3">
+        <div className="shrink-0 border-t border-[#bbd5e5] bg-[#e2f1fa] p-3">
           <button
             type="button"
             disabled={saving}
             onClick={save}
-            className="h-12 w-full rounded-[14px] bg-[linear-gradient(135deg,#aa741b,#68420a)] text-[11px] font-black tracking-[.1em] text-white shadow-[0_14px_25px_-16px_rgba(75,45,3,.9)] disabled:opacity-45"
+            className="h-12 w-full rounded-[14px] bg-[linear-gradient(135deg,#1b73aa,#0a4468)] text-[11px] font-black tracking-[.1em] text-white shadow-[0_14px_25px_-16px_rgba(75,45,3,.9)] disabled:opacity-45"
           >
             {saving ? "SALVATAGGIO…" : "SALVA SLOT E NOTE"}
           </button>
@@ -818,22 +818,22 @@ export default function LocaliPage() {
   return (
     <PageLayout>
       <PageBody className="min-h-0 !overflow-hidden">
-        <div className="flex h-full min-h-0 overflow-hidden bg-[radial-gradient(circle_at_12%_0%,rgba(226,186,99,.18),transparent_27%),linear-gradient(180deg,#f7f2e8,#f3eee5)]">
+        <div className="flex h-full min-h-0 overflow-hidden bg-[radial-gradient(circle_at_12%_0%,rgba(99,177,226,.18),transparent_27%),linear-gradient(180deg,#e8f1f7,#e5eef3)]">
           <aside
-            className={`${selectedVenue ? "hidden md:flex" : "flex"} h-full min-h-0 w-full shrink-0 flex-col overflow-hidden border-r border-[#dfcfaa] bg-[#fffdf9]/95 md:w-[345px]`}
+            className={`${selectedVenue ? "hidden md:flex" : "flex"} h-full min-h-0 w-full shrink-0 flex-col overflow-hidden border-r border-[#aacbdf] bg-[#f9fdff]/95 md:w-[345px]`}
           >
-            <div className="border-b border-[#e5d8bd] bg-[linear-gradient(135deg,#fff7e5,#ead08b)] p-4">
-              <p className="text-[9px] font-black tracking-[.22em] text-[#9b6a19]">
+            <div className="border-b border-[#bdd6e5] bg-[linear-gradient(135deg,#e7f5fd,#8bc6ea)] p-4">
+              <p className="text-[9px] font-black tracking-[.22em] text-[#19699b]">
                 ANAGRAFICA
               </p>
               <div className="mt-1 flex items-center justify-between">
-                <h1 className="text-[24px] font-black tracking-[.12em] text-[#3c290b]">
+                <h1 className="text-[24px] font-black tracking-[.12em] text-[#0b293c]">
                   LOCALI
                 </h1>
                 <div className="flex items-center gap-2">
                 <button type="button" onClick={exportLocaliPdf} disabled={pdfLoading || loading}
                   aria-label="Apri PDF di tutti i locali con Change" title="PDF di tutti i locali con Change"
-                  className="flex h-10 items-center gap-1.5 rounded-[13px] border border-[#b5822b] bg-[#fff8e8] px-2.5 text-[11px] font-black text-[#80530d] shadow-sm disabled:opacity-50">
+                  className="flex h-10 items-center gap-1.5 rounded-[13px] border border-[#2b80b5] bg-[#eaf6fd] px-2.5 text-[11px] font-black text-[#0d5480] shadow-sm disabled:opacity-50">
                   {pdfLoading ? <LoaderCircle size={16} className="animate-spin" /> : <FileText size={16} />} PDF
                 </button>
                 <button
@@ -841,14 +841,14 @@ export default function LocaliPage() {
                     setGeneratedCode(generateVenueCode());
                     setCreateVenueOpen(true);
                   }}
-                  className="flex h-10 w-10 items-center justify-center rounded-[13px] bg-[linear-gradient(135deg,#a97218,#6d470c)] text-white shadow-lg"
+                  className="flex h-10 w-10 items-center justify-center rounded-[13px] bg-[linear-gradient(135deg,#1871a9,#0c486d)] text-white shadow-lg"
                 >
                   <Plus size={17} />
                 </button>
                 </div>
               </div>
             </div>
-            <div className="border-b border-[#eadfca] p-3">
+            <div className="border-b border-[#cadeea] p-3">
               <Input
                 ref={searchRef}
                 leftIcon={Search}
@@ -857,7 +857,7 @@ export default function LocaliPage() {
                 placeholder="Cerca locale, sigla, città…"
               />
             </div>
-            <div className="pm-locali-scroll min-h-0 flex-1 overflow-y-scroll p-2 [scrollbar-color:#b77b18_#f3e7ce] [scrollbar-width:thin]">
+            <div className="pm-locali-scroll min-h-0 flex-1 overflow-y-scroll p-2 [scrollbar-color:#187ab7_#cee5f3] [scrollbar-width:thin]">
               {loading ? (
                 <SkeletonList count={8} />
               ) : filteredVenues.length === 0 ? (
@@ -874,15 +874,15 @@ export default function LocaliPage() {
                       <button
                         key={venue.id}
                         onClick={() => selectVenue(venue)}
-                        className={`flex w-full items-center gap-3 rounded-[16px] border p-2.5 text-left transition ${active ? "border-[#ad781d] bg-[linear-gradient(135deg,#fff1c8,#e8c874)] shadow-[0_12px_24px_-20px_rgba(85,52,2,.8)]" : "border-transparent hover:border-[#e1d0aa] hover:bg-[#fff8e9]"}`}
+                        className={`flex w-full items-center gap-3 rounded-[16px] border p-2.5 text-left transition ${active ? "border-[#1d76ad] bg-[linear-gradient(135deg,#cce9fb,#74bce8)] shadow-[0_12px_24px_-20px_rgba(85,52,2,.8)]" : "border-transparent hover:border-[#aacce1] hover:bg-[#ebf6fd]"}`}
                       >
                         <span
-                          className={`flex h-10 min-w-14 items-center justify-center rounded-[12px] px-2 font-mono text-[11px] font-black ${active ? "bg-[#80530d] text-white" : "bg-[#f0e4cc] text-[#7b5518]"}`}
+                          className={`flex h-10 min-w-14 items-center justify-center rounded-[12px] px-2 font-mono text-[11px] font-black ${active ? "bg-[#0d5480] text-white" : "bg-[#cce2f0] text-[#18557b]"}`}
                         >
                           {venue.id}
                         </span>
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate text-[12px] font-black uppercase text-[#33250f]">
+                          <span className="block truncate text-[12px] font-black uppercase text-[#0f2533]">
                             {venue.name}
                           </span>
                           <span className="mt-0.5 flex items-center gap-1 truncate text-[9px] font-bold text-slate-400">
@@ -913,25 +913,25 @@ export default function LocaliPage() {
               <div className="mx-auto max-w-[1450px] space-y-4">
                 <button
                   onClick={() => setSelectedVenue(null)}
-                  className="inline-flex items-center gap-1 text-[12px] font-black text-[#8d5d13] md:hidden"
+                  className="inline-flex items-center gap-1 text-[12px] font-black text-[#135e8d] md:hidden"
                 >
                   <ArrowLeft size={14} /> TORNA AI LOCALI
                 </button>
-                <section className="relative overflow-hidden rounded-[30px] border border-[#d6b76c] bg-[linear-gradient(135deg,#fffdf8_0%,#f1dca9_100%)] p-5 shadow-[0_25px_60px_-38px_rgba(72,43,3,.8)] md:p-7">
+                <section className="relative overflow-hidden rounded-[30px] border border-[#6cadd6] bg-[linear-gradient(135deg,#f9fcfe_0%,#a9d5f1_100%)] p-5 shadow-[0_25px_60px_-38px_rgba(72,43,3,.8)] md:p-7">
                   <div className="absolute -right-14 -top-20 h-64 w-64 rounded-full bg-amber-300/25 blur-3xl" />
                   <div className="relative flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                     <div className="flex min-w-0 items-center gap-4">
-                      <span className="flex h-16 min-w-20 items-center justify-center rounded-[19px] bg-[linear-gradient(135deg,#4b3008,#a26c17)] px-3 font-mono text-[18px] font-black text-white shadow-xl">
+                      <span className="flex h-16 min-w-20 items-center justify-center rounded-[19px] bg-[linear-gradient(135deg,#08314b,#176da2)] px-3 font-mono text-[18px] font-black text-white shadow-xl">
                         {selectedVenue.id}
                       </span>
                       <div className="min-w-0">
-                        <p className="text-[9px] font-black tracking-[.2em] text-[#9b6a19]">
+                        <p className="text-[9px] font-black tracking-[.2em] text-[#19699b]">
                           SCHEDA LOCALE
                         </p>
-                        <h2 className="pm-local-venue-name truncate text-[25px] font-black uppercase tracking-[.05em] text-[#30210a] md:text-[32px]">
+                        <h2 className="pm-local-venue-name truncate text-[25px] font-black uppercase tracking-[.05em] text-[#0a2130] md:text-[32px]">
                           {selectedVenue.name}
                         </h2>
-                        <p className="mt-1 flex items-center gap-1 text-[11px] font-bold text-[#76521b]">
+                        <p className="mt-1 flex items-center gap-1 text-[11px] font-bold text-[#1b5376]">
                           <MapPin size={12} />
                           {selectedVenue.city || "Città non indicata"} · CODICE{" "}
                           {selectedVenue.code}
@@ -941,13 +941,13 @@ export default function LocaliPage() {
                     <div className="flex gap-2">
                       <button
                         onClick={() => setEditVenueOpen(true)}
-                        className="flex h-11 items-center gap-2 rounded-[14px] border border-[#d0b16c] bg-white/75 px-4 text-[10px] font-black text-[#775016]"
+                        className="flex h-11 items-center gap-2 rounded-[14px] border border-[#6caad0] bg-white/75 px-4 text-[10px] font-black text-[#165277]"
                       >
                         <Pencil size={14} /> MODIFICA
                       </button>
                       <button
                         onClick={() => setCreateMachineOpen(true)}
-                        className="flex h-11 items-center gap-2 rounded-[14px] bg-[linear-gradient(135deg,#a97218,#70490d)] px-4 text-[10px] font-black text-white"
+                        className="flex h-11 items-center gap-2 rounded-[14px] bg-[linear-gradient(135deg,#1871a9,#0d4a70)] px-4 text-[10px] font-black text-white"
                       >
                         <Plus size={14} /> NUOVO CHANGE
                       </button>
@@ -955,7 +955,7 @@ export default function LocaliPage() {
                   </div>
                 </section>
 
-                <section className="grid grid-cols-2 overflow-hidden rounded-[25px] border border-[#dfcfaa] bg-[#fffdf9] shadow-[0_20px_45px_-36px_rgba(62,38,3,.7)] md:grid-cols-5">
+                <section className="grid grid-cols-2 overflow-hidden rounded-[25px] border border-[#aacbdf] bg-[#f9fdff] shadow-[0_20px_45px_-36px_rgba(62,38,3,.7)] md:grid-cols-5">
                   {[
                     ["CHANGE", sortedMachines.length],
                     ["LIVELLO TOTALE", formatEuro0(totalLevel)],
@@ -968,12 +968,12 @@ export default function LocaliPage() {
                   ].map(([label, value]) => (
                     <div
                       key={label}
-                      className="border-b border-r border-[#eee4d1] px-3 py-5 text-center"
+                      className="border-b border-r border-[#d1e3ee] px-3 py-5 text-center"
                     >
                       <p className="text-[9px] font-black tracking-[.13em] text-slate-400">
                         {label}
                       </p>
-                      <p className="mt-2 text-[17px] font-black text-[#33250f]">
+                      <p className="mt-2 text-[17px] font-black text-[#0f2533]">
                         {value}
                       </p>
                     </div>
@@ -982,22 +982,22 @@ export default function LocaliPage() {
 
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-[9px] font-black tracking-[.2em] text-[#a06c17]">
+                    <p className="text-[9px] font-black tracking-[.2em] text-[#176ba0]">
                       PARCO MACCHINE
                     </p>
-                    <h3 className="text-[21px] font-black tracking-[.1em] text-[#3d2a0b]">
+                    <h3 className="text-[21px] font-black tracking-[.1em] text-[#0b2a3d]">
                       CHANGE INSTALLATI NEL LOCALE
                     </h3>
                   </div>
                   <button
                     onClick={() => selectVenue(selectedVenue)}
-                    className="flex h-10 w-10 items-center justify-center rounded-[13px] border border-[#d6bd84] bg-white text-[#805718]"
+                    className="flex h-10 w-10 items-center justify-center rounded-[13px] border border-[#84b7d6] bg-white text-[#185880]"
                   >
                     <RefreshCw size={15} />
                   </button>
                 </div>
                 {sortedMachines.length === 0 ? (
-                  <div className="rounded-[25px] border border-[#e1d4b9] bg-white p-8">
+                  <div className="rounded-[25px] border border-[#b9d2e1] bg-white p-8">
                     <EmptyState
                       title="Nessun Change"
                       description="Aggiungi il primo Change a questo locale."
@@ -1013,10 +1013,10 @@ export default function LocaliPage() {
                       return (
                         <article
                           key={machine.id}
-                          className="overflow-hidden rounded-[26px] border border-[#d9c18a] bg-[#fffdf9] shadow-[0_22px_48px_-35px_rgba(66,39,3,.75)]"
+                          className="overflow-hidden rounded-[26px] border border-[#8abbd9] bg-[#f9fdff] shadow-[0_22px_48px_-35px_rgba(66,39,3,.75)]"
                         >
                           <div className="pm-local-change-card grid min-h-[235px] grid-cols-[145px_1fr]">
-                            <div className="relative flex items-end justify-center overflow-hidden border-r border-[#e2d3b3] bg-[radial-gradient(circle_at_50%_70%,#f0cb70,transparent_48%),linear-gradient(180deg,#fff8e6,#f1e0bd)] p-2">
+                            <div className="relative flex items-end justify-center overflow-hidden border-r border-[#b3d0e2] bg-[radial-gradient(circle_at_50%_70%,#70bff0,transparent_48%),linear-gradient(180deg,#e8f5fd,#bdddf1)] p-2">
                               <img
                                 src={getChangeImage(machine.name)}
                                 alt={machine.name}
@@ -1030,10 +1030,10 @@ export default function LocaliPage() {
                             <div className="pm-local-machine-detail flex flex-col p-4">
                               <div className="flex items-start justify-between gap-2">
                                 <div>
-                                  <p className="text-[9px] font-black tracking-[.18em] text-[#a16d18]">
+                                  <p className="text-[9px] font-black tracking-[.18em] text-[#186ca1]">
                                     CHANGE MACHINE
                                   </p>
-                                  <h4 className="mt-1 text-[20px] font-black uppercase text-[#30210a]">
+                                  <h4 className="mt-1 text-[20px] font-black uppercase text-[#0a2130]">
                                     {machine.name}
                                   </h4>
                                 </div>
@@ -1042,7 +1042,7 @@ export default function LocaliPage() {
                                     onClick={() =>
                                       setEditMachineTarget(machine)
                                     }
-                                    className="flex h-9 w-9 items-center justify-center rounded-[11px] border border-[#dac493] text-[#815718]"
+                                    className="flex h-9 w-9 items-center justify-center rounded-[11px] border border-[#93bfda] text-[#185981]"
                                   >
                                     <Pencil size={14} />
                                   </button>
@@ -1057,19 +1057,19 @@ export default function LocaliPage() {
                                 </div>
                               </div>
                               <div className="mt-4 grid grid-cols-2 gap-2">
-                                <div className="rounded-[15px] bg-[#f6ecd7] p-3">
-                                  <p className="text-[8px] font-black tracking-[.13em] text-[#987025]">
+                                <div className="rounded-[15px] bg-[#d7eaf6] p-3">
+                                  <p className="text-[8px] font-black tracking-[.13em] text-[#256c98]">
                                     LIVELLO ATTUALE
                                   </p>
                                   <p className="mt-1 text-[23px] font-black text-emerald-700">
                                     {formatEuro0(machine.level)}
                                   </p>
                                 </div>
-                                <div className="rounded-[15px] bg-[#f6ecd7] p-3">
-                                  <p className="text-[8px] font-black tracking-[.13em] text-[#987025]">
+                                <div className="rounded-[15px] bg-[#d7eaf6] p-3">
+                                  <p className="text-[8px] font-black tracking-[.13em] text-[#256c98]">
                                     FONDO
                                   </p>
-                                  <p className="mt-1 text-[23px] font-black text-[#39270c]">
+                                  <p className="mt-1 text-[23px] font-black text-[#0c2839]">
                                     {formatEuro0(machine.fondo)}
                                   </p>
                                 </div>
@@ -1093,7 +1093,7 @@ export default function LocaliPage() {
                                 [machine.id]: !open,
                               }))
                             }
-                            className="flex h-12 w-full items-center justify-between border-t border-[#e5d7bb] bg-[#faf2e2] px-4 text-[10px] font-black tracking-[.12em] text-[#805718]"
+                            className="flex h-12 w-full items-center justify-between border-t border-[#bbd5e5] bg-[#e2f1fa] px-4 text-[10px] font-black tracking-[.12em] text-[#185880]"
                           >
                             <span>VEDI STORICO · {reports.length} REPORT</span>
                             {open ? (
@@ -1103,7 +1103,7 @@ export default function LocaliPage() {
                             )}
                           </button>
                           {open && (
-                            <div className="max-h-[330px] overflow-y-auto border-t border-[#eadfca] p-3">
+                            <div className="max-h-[330px] overflow-y-auto border-t border-[#cadeea] p-3">
                               {reports.length === 0 ? (
                                 <p className="py-6 text-center text-xs font-bold text-slate-400">
                                   Nessun report disponibile
@@ -1119,9 +1119,9 @@ export default function LocaliPage() {
                                         key={
                                           report.id || `${machine.id}-${index}`
                                         }
-                                        className="flex items-center gap-3 rounded-[15px] border border-[#e6dcc8] bg-white p-3"
+                                        className="flex items-center gap-3 rounded-[15px] border border-[#c8dae6] bg-white p-3"
                                       >
-                                        <span className="h-10 w-1 rounded-full bg-[#b47a19]" />
+                                        <span className="h-10 w-1 rounded-full bg-[#1979b4]" />
                                         <div className="min-w-0 flex-1">
                                           <p className="text-[11px] font-black text-slate-800">
                                             {formatDateTime(
@@ -1137,7 +1137,7 @@ export default function LocaliPage() {
                                           </p>
                                         </div>
                                         <div className="flex items-center gap-2">
-                                          <p className="text-[18px] font-black text-[#805718]">
+                                          <p className="text-[18px] font-black text-[#185880]">
                                             {formatEuro0(current)}
                                           </p>
                                           <button
@@ -1162,17 +1162,17 @@ export default function LocaliPage() {
                   </div>
                 )}
 
-                <section className="overflow-hidden rounded-[26px] border border-[#d9c18a] bg-[#fffdf9] shadow-[0_22px_48px_-35px_rgba(66,39,3,.75)]">
-                  <div className="flex flex-col gap-3 border-b border-[#e8dcc3] bg-[linear-gradient(135deg,#fff9eb,#f1dfb4)] p-5 md:flex-row md:items-center md:justify-between">
+                <section className="overflow-hidden rounded-[26px] border border-[#8abbd9] bg-[#f9fdff] shadow-[0_22px_48px_-35px_rgba(66,39,3,.75)]">
+                  <div className="flex flex-col gap-3 border-b border-[#c3dae8] bg-[linear-gradient(135deg,#ecf7fd,#b4daf1)] p-5 md:flex-row md:items-center md:justify-between">
                     <div className="flex items-center gap-3">
-                      <span className="flex h-11 w-11 items-center justify-center rounded-[14px] bg-[linear-gradient(135deg,#a97218,#70490d)] text-white shadow-lg">
+                      <span className="flex h-11 w-11 items-center justify-center rounded-[14px] bg-[linear-gradient(135deg,#1871a9,#0d4a70)] text-white shadow-lg">
                         <Gamepad2 size={20} />
                       </span>
                       <div>
-                        <p className="text-[9px] font-black tracking-[.2em] text-[#a06c17]">
+                        <p className="text-[9px] font-black tracking-[.2em] text-[#176ba0]">
                           PARCO SLOT
                         </p>
-                        <h3 className="text-[19px] font-black tracking-[.08em] text-[#3d2a0b] md:text-[21px]">
+                        <h3 className="text-[19px] font-black tracking-[.08em] text-[#0b2a3d] md:text-[21px]">
                           SLOT INSTALLATE NEL LOCALE
                         </h3>
                       </div>
@@ -1181,7 +1181,7 @@ export default function LocaliPage() {
                       type="button"
                       disabled={selectedVenue.slot_load_error}
                       onClick={() => setSlotModalOpen(true)}
-                      className="flex h-11 items-center justify-center gap-2 rounded-[14px] bg-[linear-gradient(135deg,#a97218,#70490d)] px-5 text-[10px] font-black tracking-[.08em] text-white shadow-lg disabled:opacity-45"
+                      className="flex h-11 items-center justify-center gap-2 rounded-[14px] bg-[linear-gradient(135deg,#1871a9,#0d4a70)] px-5 text-[10px] font-black tracking-[.08em] text-white shadow-lg disabled:opacity-45"
                     >
                       {sortedSlots.length ? <Pencil size={14} /> : <Plus size={14} />}
                       {sortedSlots.length ? "GESTISCI SLOT" : "AGGIUNGI SLOT"}
@@ -1199,7 +1199,7 @@ export default function LocaliPage() {
                             type="button"
                             disabled={selectedVenue.slot_load_error}
                             onClick={() => setSlotModalOpen(true)}
-                            className="flex h-10 items-center gap-2 rounded-[13px] border border-[#c99b42] bg-[#fff8e8] px-4 text-[10px] font-black text-[#805718]"
+                            className="flex h-10 items-center gap-2 rounded-[13px] border border-[#4295c9] bg-[#eaf6fd] px-4 text-[10px] font-black text-[#185880]"
                           >
                             <Plus size={14} /> AGGIUNGI SLOT
                           </button>
@@ -1213,9 +1213,9 @@ export default function LocaliPage() {
                         return (
                           <article
                             key={slot.model}
-                            className="flex min-h-[118px] items-center gap-3 rounded-[19px] border border-[#e1d0aa] bg-white p-4 shadow-[0_14px_28px_-26px_rgba(72,43,3,.8)]"
+                            className="flex min-h-[118px] items-center gap-3 rounded-[19px] border border-[#aacce1] bg-white p-4 shadow-[0_14px_28px_-26px_rgba(72,43,3,.8)]"
                           >
-                            <span className="flex h-[78px] w-[78px] shrink-0 items-center justify-center overflow-hidden rounded-[18px] border border-[#ecd9af] bg-[linear-gradient(180deg,#fff8ea,#fbf0d6)]">
+                            <span className="flex h-[78px] w-[78px] shrink-0 items-center justify-center overflow-hidden rounded-[18px] border border-[#afd5ec] bg-[linear-gradient(180deg,#ecf7fd,#d6edfb)]">
                               {slotImage ? (
                                 <img
                                   src={slotImage}
@@ -1224,14 +1224,14 @@ export default function LocaliPage() {
                                   loading="lazy"
                                 />
                               ) : (
-                                <Gamepad2 size={24} className="text-[#8a5d16]" />
+                                <Gamepad2 size={24} className="text-[#165e8a]" />
                               )}
                             </span>
                             <div className="min-w-0 flex-1">
-                              <p className="text-[8px] font-black tracking-[.16em] text-[#a06c17]">MOBILE SLOT</p>
-                              <h4 className="mt-1 truncate text-[15px] font-black text-[#33250f]">{slot.model}</h4>
+                              <p className="text-[8px] font-black tracking-[.16em] text-[#176ba0]">MOBILE SLOT</p>
+                              <h4 className="mt-1 truncate text-[15px] font-black text-[#0f2533]">{slot.model}</h4>
                             </div>
-                            <div className="shrink-0 rounded-[14px] bg-[linear-gradient(135deg,#aa741b,#68420a)] px-3 py-2 text-center text-white shadow-md">
+                            <div className="shrink-0 rounded-[14px] bg-[linear-gradient(135deg,#1b73aa,#0a4468)] px-3 py-2 text-center text-white shadow-md">
                               <p className="text-[20px] font-black leading-none tabular-nums">{slot.quantity}</p>
                               <p className="mt-1 text-[7px] font-black tracking-[.12em] text-amber-100">SLOT</p>
                             </div>
@@ -1246,9 +1246,9 @@ export default function LocaliPage() {
                     </p>
                   )}
                   {selectedVenue.slot_note && (
-                    <div className="border-t border-[#e8dcc3] bg-[#fff9ee] px-5 py-4">
-                      <p className="text-[10px] font-black tracking-[.1em] text-[#805718]">NOTE PARCO SLOT</p>
-                      <p className="mt-2 whitespace-pre-wrap break-words text-[13px] leading-relaxed text-[#3d2a0b]">{selectedVenue.slot_note}</p>
+                    <div className="border-t border-[#c3dae8] bg-[#eff8fe] px-5 py-4">
+                      <p className="text-[10px] font-black tracking-[.1em] text-[#185880]">NOTE PARCO SLOT</p>
+                      <p className="mt-2 whitespace-pre-wrap break-words text-[13px] leading-relaxed text-[#0b2a3d]">{selectedVenue.slot_note}</p>
                     </div>
                   )}
                 </section>
@@ -1423,7 +1423,7 @@ export default function LocaliPage() {
           onClick={() => !deleting && setDangerOpen(false)}
         >
           <div
-            className="max-h-[94vh] w-full max-w-[620px] overflow-y-auto rounded-[30px] border border-red-400/45 bg-[#fffdf9] shadow-[0_40px_100px_-28px_rgba(0,0,0,.95)]"
+            className="max-h-[94vh] w-full max-w-[620px] overflow-y-auto rounded-[30px] border border-red-400/45 bg-[#f9fdff] shadow-[0_40px_100px_-28px_rgba(0,0,0,.95)]"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="relative bg-[linear-gradient(135deg,#4b0909,#9f1d1d)] p-5 text-center text-white">

@@ -1419,33 +1419,39 @@ export default function ConteggiPage({ initialPeriodId = '', onOpenAccounting })
     }
   }
 
+  useEffect(() => {
+    const refresh = () => { loadDashboard() };
+    window.addEventListener('admin-page-refresh', refresh);
+    return () => window.removeEventListener('admin-page-refresh', refresh);
+  });
+
   return (
     <PageLayout>
       <PageBody>
-        <div className="min-h-full bg-[radial-gradient(circle_at_15%_0%,rgba(226,186,99,.16),transparent_28%),linear-gradient(180deg,#f7f2e8_0%,#f4f0e8_100%)] px-3 py-3 md:px-6 md:py-5">
+        <div className="min-h-full bg-[radial-gradient(circle_at_15%_0%,rgba(99,177,226,.16),transparent_28%),linear-gradient(180deg,#e8f1f7_0%,#e8eff4_100%)] px-3 py-3 md:px-6 md:py-5">
           <div className="mx-auto max-w-[1720px] space-y-4">
-            <section className="relative overflow-visible rounded-[30px] border border-[#dfc98f] bg-[linear-gradient(135deg,#fffdf8_0%,#f4e5bf_100%)] px-4 py-5 shadow-[0_24px_60px_-38px_rgba(80,55,15,.62)] md:px-7">
+            <section className="relative overflow-visible rounded-[30px] border border-[#8fc0df] bg-[linear-gradient(135deg,#f9fcfe_0%,#bfe0f4_100%)] px-4 py-5 shadow-[0_24px_60px_-38px_rgba(80,55,15,.62)] md:px-7">
               <div className="pointer-events-none absolute -left-16 -top-24 h-60 w-60 rounded-full bg-white/75 blur-3xl" />
-              <div className="pointer-events-none absolute -right-12 -top-20 h-64 w-64 rounded-full bg-amber-400/20 blur-3xl" />
+              <div className="pointer-events-none absolute -right-12 -top-20 h-64 w-64 rounded-full bg-sky-400/20 blur-3xl" />
 
               <div className="pm-conteggi-heading relative min-h-[92px]">
                 <div className="office-conteggi-entry"><button className="office-button primary" disabled={!selectedPeriodId || loading} onClick={() => onOpenAccounting(selectedPeriodId)}><Calculator size={16}/> CONTABILITÀ CONTEGGI</button></div>
                 <div className="office-conteggi-title mx-auto flex max-w-[900px] flex-col items-center justify-center px-14 text-center">
-                  <h1 className="text-[29px] font-black tracking-[0.13em] text-[#3d2a0b] md:text-[35px]">
+                  <h1 className="pm-page-section-title text-[29px] font-black tracking-[0.13em] text-[#0b2a3d] md:text-[35px]">
                     SEZIONE CONTEGGI
                   </h1>
-                  <div className="mt-3 flex items-center justify-center gap-2 text-[#6d4a11]">
+                  <div className="mt-3 flex items-center justify-center gap-2 text-[#114a6d]">
                     <button
                       type="button"
                       onClick={() => navigatePeriod(previousPeriod)}
                       disabled={!previousPeriod}
                       title={previousPeriod ? "Periodo precedente" : "Nessun periodo precedente"}
-                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#d8b86c]/70 bg-white/70 text-[#8a5d14] shadow-sm transition hover:-translate-x-0.5 hover:bg-white disabled:cursor-not-allowed disabled:opacity-20"
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#6cafd8]/70 bg-white/70 text-[#145d8a] shadow-sm transition hover:-translate-x-0.5 hover:bg-white disabled:cursor-not-allowed disabled:opacity-20"
                     >
                       <ChevronLeft size={20} strokeWidth={2.8} />
                     </button>
                     <div className="flex min-w-0 flex-wrap items-center justify-center gap-2">
-                      <span className="text-[10px] font-black tracking-[0.22em] text-[#a47624]">
+                      <span className="text-[10px] font-black tracking-[0.22em] text-[#2473a4]">
                         {periodView === "archive" ? "PERIODO ARCHIVIATO" : "PERIODO ATTIVO"}
                       </span>
                       <span className="text-[16px] font-black tabular-nums md:text-[19px]">
@@ -1464,7 +1470,7 @@ export default function ConteggiPage({ initialPeriodId = '', onOpenAccounting })
                       onClick={() => navigatePeriod(nextPeriod)}
                       disabled={!nextPeriod}
                       title={nextPeriod ? "Periodo successivo" : "Sei già nel periodo più recente"}
-                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#d8b86c]/70 bg-white/70 text-[#8a5d14] shadow-sm transition hover:translate-x-0.5 hover:bg-white disabled:cursor-not-allowed disabled:opacity-20"
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#6cafd8]/70 bg-white/70 text-[#145d8a] shadow-sm transition hover:translate-x-0.5 hover:bg-white disabled:cursor-not-allowed disabled:opacity-20"
                     >
                       <ChevronRight size={20} strokeWidth={2.8} />
                     </button>
@@ -1474,10 +1480,10 @@ export default function ConteggiPage({ initialPeriodId = '', onOpenAccounting })
                 <div className="pm-conteggi-actions absolute right-0 top-0 z-40 flex items-start gap-2">
                   <button
                     type="button"
-                    aria-label="Aggiorna conteggi"
+                    data-page-refresh="true" aria-label="Aggiorna conteggi"
                     onClick={() => loadDashboard()}
                     disabled={!selectedPeriodId || loading}
-                    className="flex h-12 items-center justify-center gap-2 rounded-[16px] border border-[#d8b86c] bg-white px-4 text-[10px] font-black tracking-[0.08em] text-[#755019] shadow-[0_13px_24px_-17px_rgba(116,79,17,.48)] transition hover:-translate-y-0.5 active:scale-95 disabled:opacity-45"
+                    className="flex h-12 items-center justify-center gap-2 rounded-[16px] border border-[#6cafd8] bg-white px-4 text-[10px] font-black tracking-[0.08em] text-[#195275] shadow-[0_13px_24px_-17px_rgba(116,79,17,.48)] transition hover:-translate-y-0.5 active:scale-95 disabled:opacity-45"
                   >
                     <RefreshCw
                       size={15}
@@ -1489,10 +1495,10 @@ export default function ConteggiPage({ initialPeriodId = '', onOpenAccounting })
                     <button
                       type="button"
                       onClick={() => setPeriodMenuOpen((v) => !v)}
-                      className={`group relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-[16px] border transition-all duration-200 active:scale-95 ${periodMenuOpen ? "border-[#c89d4b] bg-[linear-gradient(145deg,#fff4d3,#e6c371)] text-[#69450e] shadow-[0_15px_28px_-18px_rgba(116,79,17,.55)]" : "border-[#d8b86c] bg-[linear-gradient(145deg,#fffaf0,#ecd18f)] text-[#755019] shadow-[0_13px_24px_-17px_rgba(116,79,17,.48)] hover:-translate-y-0.5 hover:brightness-102"}`}
+                      className={`group relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-[16px] border transition-all duration-200 active:scale-95 ${periodMenuOpen ? "border-[#4b98c8] bg-[linear-gradient(145deg,#d6edfc,#71b9e6)] text-[#0e4669] shadow-[0_15px_28px_-18px_rgba(116,79,17,.55)]" : "border-[#6cafd8] bg-[linear-gradient(145deg,#f1f9fe,#8fc8ec)] text-[#195275] shadow-[0_13px_24px_-17px_rgba(116,79,17,.48)] hover:-translate-y-0.5 hover:brightness-102"}`}
                       aria-label="Apri gestione periodo"
                     >
-                      <span className="absolute inset-0 bg-[radial-gradient(circle_at_35%_18%,rgba(255,236,177,.28),transparent_46%)]" />
+                      <span className="absolute inset-0 bg-[radial-gradient(circle_at_35%_18%,rgba(183,224,249,.28),transparent_46%)]" />
                       {periodMenuOpen ? (
                         <X size={19} className="relative z-10" />
                       ) : (
@@ -1505,8 +1511,8 @@ export default function ConteggiPage({ initialPeriodId = '', onOpenAccounting })
                     </button>
 
                     {periodMenuOpen && (
-                      <div className="absolute right-0 mt-2 w-[300px] overflow-hidden rounded-[22px] border border-[#d9c28d] bg-[#fffdf8] p-3 shadow-[0_28px_70px_-30px_rgba(45,28,4,.85)]">
-                        <p className="px-1 pb-2 text-[9px] font-black tracking-[0.22em] text-[#a0711f]">
+                      <div className="absolute right-0 mt-2 w-[300px] overflow-hidden rounded-[22px] border border-[#8dbcd9] bg-[#f9fcfe] p-3 shadow-[0_28px_70px_-30px_rgba(45,28,4,.85)]">
+                        <p className="px-1 pb-2 text-[9px] font-black tracking-[0.22em] text-[#1f6fa0]">
                           CONTEGGI
                         </p>
                         <div className="grid gap-2">
@@ -1517,7 +1523,7 @@ export default function ConteggiPage({ initialPeriodId = '', onOpenAccounting })
                               );
                               setPeriodMenuOpen(false);
                             }}
-                            className="flex h-11 items-center justify-center gap-2 rounded-[13px] border border-[#dfcfad] bg-white text-[10px] font-black text-slate-600"
+                            className="flex h-11 items-center justify-center gap-2 rounded-[13px] border border-[#adccdf] bg-white text-[10px] font-black text-slate-600"
                           >
                             {periodView === "active" ? (
                               <Archive size={14} />
@@ -1529,8 +1535,8 @@ export default function ConteggiPage({ initialPeriodId = '', onOpenAccounting })
                               : "PERIODO ATTIVO"}
                           </button>
                           {periodView === "archive" && visiblePeriods.length > 0 && (
-                            <div className="max-h-[280px] overflow-y-auto rounded-[14px] border border-[#e4d5b5] bg-[#fbf7ee] p-2">
-                              <p className="px-2 pb-2 text-[8px] font-black tracking-[0.16em] text-[#9b742d]">
+                            <div className="max-h-[280px] overflow-y-auto rounded-[14px] border border-[#b5d2e4] bg-[#eef6fb] p-2">
+                              <p className="px-2 pb-2 text-[8px] font-black tracking-[0.16em] text-[#2d719b]">
                                 PERIODI ARCHIVIATI
                               </p>
                               <div className="grid gap-1.5">
@@ -1542,9 +1548,9 @@ export default function ConteggiPage({ initialPeriodId = '', onOpenAccounting })
                                       setSelectedPeriodId(period.id);
                                       setPeriodMenuOpen(false);
                                     }}
-                                    className={`rounded-[11px] border px-3 py-2.5 text-left transition ${selectedPeriodId === period.id ? "border-[#b7892f] bg-[#fff1c7]" : "border-[#e5d8bd] bg-white hover:bg-[#fffaf0]"}`}
+                                    className={`rounded-[11px] border px-3 py-2.5 text-left transition ${selectedPeriodId === period.id ? "border-[#2f83b7] bg-[#cbe9fb]" : "border-[#bdd6e5] bg-white hover:bg-[#f1f9fe]"}`}
                                   >
-                                    <span className="block text-[10px] font-black tabular-nums text-[#4b350f]">
+                                    <span className="block text-[10px] font-black tabular-nums text-[#0f344b]">
                                       {formatITDate(period.date_from)} — {formatITDate(period.date_to)}
                                     </span>
                                     <span className="mt-0.5 block truncate text-[8px] font-bold text-black/40">
@@ -1558,7 +1564,7 @@ export default function ConteggiPage({ initialPeriodId = '', onOpenAccounting })
                           {!isClosed && selectedPeriod && (
                             <button
                               onClick={openFinalization}
-                              className="flex h-11 items-center justify-center gap-2 rounded-[13px] bg-[linear-gradient(135deg,#c99635,#8d5d13)] text-[10px] font-black tracking-[0.08em] text-white"
+                              className="flex h-11 items-center justify-center gap-2 rounded-[13px] bg-[linear-gradient(135deg,#3590c9,#135e8d)] text-[10px] font-black tracking-[0.08em] text-white"
                             >
                               <CheckCircle2 size={15} />
                               FINALIZZA
@@ -1572,9 +1578,9 @@ export default function ConteggiPage({ initialPeriodId = '', onOpenAccounting })
               </div>
             </section>
 
-            <section className="overflow-hidden rounded-[28px] border border-[#dfcfaa] bg-[#fffdf9] shadow-[0_24px_55px_-38px_rgba(65,43,8,.68)]">
-              <div className="pm-conteggi-summary-heading relative border-b border-[#eadfca] px-4 py-4 text-center">
-                <h2 className="text-[21px] font-black tracking-[0.18em] text-[#946318] md:text-[26px]">
+            <section className="overflow-hidden rounded-[28px] border border-[#aacbdf] bg-[#f9fdff] shadow-[0_24px_55px_-38px_rgba(65,43,8,.68)]">
+              <div className="pm-conteggi-summary-heading relative border-b border-[#cadeea] px-4 py-4 text-center">
+                <h2 className="text-[21px] font-black tracking-[0.18em] text-[#186494] md:text-[26px]">
                   RIEPILOGO GENERALE
                 </h2>
                 <div className="absolute right-4 top-1/2 flex -translate-y-1/2 items-center gap-2">
@@ -1584,11 +1590,11 @@ export default function ConteggiPage({ initialPeriodId = '', onOpenAccounting })
                       handleGeneratePdf("Riepilogo generale", rows)
                     }
                     disabled={!rows.length}
-                    className="group flex h-10 min-w-[94px] items-center justify-center gap-2 rounded-[13px] border border-[#d3b469] bg-[linear-gradient(145deg,#fff8e6,#e9cd86)] px-3.5 text-[10px] font-black tracking-[0.11em] text-[#68450e] shadow-[0_10px_20px_-14px_rgba(111,72,10,.52)] transition hover:-translate-y-0.5 hover:brightness-102 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+                    className="group flex h-10 min-w-[94px] items-center justify-center gap-2 rounded-[13px] border border-[#69aad3] bg-[linear-gradient(145deg,#e8f5fd,#86c3e9)] px-3.5 text-[10px] font-black tracking-[0.11em] text-[#0e4568] shadow-[0_10px_20px_-14px_rgba(111,72,10,.52)] transition hover:-translate-y-0.5 hover:brightness-102 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     <FileText size={14} /> PDF
                   </button>
-                  <span className="flex h-10 min-w-[94px] items-center justify-center rounded-[13px] border border-[#b98529] bg-[linear-gradient(145deg,#fff5d8,#e6c675)] px-3.5 text-[9px] font-black text-[#70480d] shadow-[0_9px_18px_-14px_rgba(111,72,10,.72)]">
+                  <span className="flex h-10 min-w-[94px] items-center justify-center rounded-[13px] border border-[#2982b9] bg-[linear-gradient(145deg,#dbeffc,#75bbe6)] px-3.5 text-[9px] font-black text-[#0d4a70] shadow-[0_9px_18px_-14px_rgba(111,72,10,.72)]">
                     {totalSummary.conteggi}{" "}
                     {totalSummary.conteggi === 1 ? "CONTEGGIO" : "CONTEGGI"}
                   </span>
@@ -1604,21 +1610,21 @@ export default function ConteggiPage({ initialPeriodId = '', onOpenAccounting })
                 ].map(([label, value]) => (
                   <div
                     key={label}
-                    className="border-b border-r border-[#eee5d4] px-5 py-8 text-center xl:border-b-0"
+                    className="border-b border-r border-[#d4e4ee] px-5 py-8 text-center xl:border-b-0"
                   >
                     <p className="text-[11px] font-black tracking-[0.18em] text-slate-500 md:text-[12px]">
                       {label}
                     </p>
-                    <p className="mt-3 text-[27px] font-black tabular-nums text-[#33250f] md:text-[31px]">
+                    <p className="mt-3 text-[27px] font-black tabular-nums text-[#0f2533] md:text-[31px]">
                       {fmtEuro(value)}
                     </p>
                   </div>
                 ))}
                 <div
-                  className={`relative overflow-hidden px-5 py-8 text-center ${totalSummary.finale > 0 ? "bg-emerald-50" : totalSummary.finale < 0 ? "bg-rose-50" : "bg-[#f7efdf]"}`}
+                  className={`relative overflow-hidden px-5 py-8 text-center ${totalSummary.finale > 0 ? "bg-emerald-50" : totalSummary.finale < 0 ? "bg-rose-50" : "bg-[#dfeef7]"}`}
                 >
                   <div className="absolute right-[-30px] top-[-35px] h-24 w-24 rounded-full bg-white/55 blur-2xl" />
-                  <p className="relative text-[11px] font-black tracking-[0.18em] text-[#8c641f] md:text-[12px]">
+                  <p className="relative text-[11px] font-black tracking-[0.18em] text-[#1f628c] md:text-[12px]">
                     TOTALE
                   </p>
                   <p
@@ -1632,17 +1638,17 @@ export default function ConteggiPage({ initialPeriodId = '', onOpenAccounting })
 
             <section>
               <div className="mb-4 text-center">
-                <h2 className="text-[16px] font-black tracking-[0.15em] text-[#a06d18] md:text-[19px]">
+                <h2 className="text-[16px] font-black tracking-[0.15em] text-[#186ca0] md:text-[19px]">
                   RIEPILOGHI SINGOLI DIPENDENTI
                 </h2>
               </div>
               {loading ? (
-                <div className="rounded-[24px] border border-[#e3d8c2] bg-white p-8 text-center text-sm font-bold text-slate-400">
+                <div className="rounded-[24px] border border-[#c2d6e3] bg-white p-8 text-center text-sm font-bold text-slate-400">
                   Caricamento conteggi…
                 </div>
               ) : operatorStats.length === 0 ? (
-                <div className="rounded-[24px] border border-[#e3d8c2] bg-white p-8 text-center">
-                  <Users className="mx-auto text-[#b58a3e]" />
+                <div className="rounded-[24px] border border-[#c2d6e3] bg-white p-8 text-center">
+                  <Users className="mx-auto text-[#3e87b5]" />
                   <p className="mt-3 font-black text-slate-700">
                     Nessun conteggio nel periodo
                   </p>
@@ -1661,10 +1667,10 @@ export default function ConteggiPage({ initialPeriodId = '', onOpenAccounting })
                     return (
                       <article
                         key={op.name}
-                        className={`overflow-hidden rounded-[24px] border bg-[#fffdf9] shadow-[0_20px_42px_-34px_rgba(61,39,4,.75)] transition ${submitted ? "border-emerald-400" : open ? "border-[#c99a43]" : hasConteggi ? "border-orange-300" : "border-[#e2d6bf]"}`}
+                        className={`overflow-hidden rounded-[24px] border bg-[#f9fdff] shadow-[0_20px_42px_-34px_rgba(61,39,4,.75)] transition ${submitted ? "border-emerald-400" : open ? "border-[#4396c9]" : hasConteggi ? "border-orange-300" : "border-[#bfd5e2]"}`}
                       >
                         <div
-                          className={`relative overflow-hidden border-b px-3 py-3 ${submitted ? "border-emerald-300 bg-[linear-gradient(135deg,#dcfce7,#86efac)]" : hasConteggi ? "border-orange-200 bg-[linear-gradient(135deg,#fff3d6,#fdba74)]" : "border-[#eee3cf] bg-[linear-gradient(135deg,#fffaf0,#f0e5cf)]"}`}
+                          className={`relative overflow-hidden border-b px-3 py-3 ${submitted ? "border-emerald-300 bg-[linear-gradient(135deg,#dcfce7,#86efac)]" : hasConteggi ? "border-orange-200 bg-[linear-gradient(135deg,#d9effc,#7dc6f4)]" : "border-[#cfe2ee] bg-[linear-gradient(135deg,#f1f9fe,#cfe3f0)]"}`}
                         >
                           <div className={`absolute -right-8 -top-12 h-28 w-28 rounded-full blur-3xl ${submitted ? "bg-emerald-300/30" : "bg-amber-300/20"}`} />
                           <div className="relative flex items-center gap-2">
@@ -1679,13 +1685,13 @@ export default function ConteggiPage({ initialPeriodId = '', onOpenAccounting })
                               className="flex min-w-0 flex-1 items-center gap-2 text-left"
                             >
                               <span className="min-w-0 flex-1">
-                                <span className={`block truncate text-[15px] font-black uppercase tracking-[0.055em] ${submitted ? "text-emerald-950" : "text-[#3b2a0e]"}`}>GIRO: {getGiroName(op)}</span>
+                                <span className={`block truncate text-[15px] font-black uppercase tracking-[0.055em] ${submitted ? "text-emerald-950" : "text-[#0e2a3b]"}`}>GIRO: {getGiroName(op)}</span>
                                 <span className={`mt-1 block truncate text-[8px] font-black uppercase tracking-[.1em] ${submitted ? "text-emerald-700" : "text-orange-700"}`}>
                                   {submitted ? `INVIATO • ${formatITDateTime(submission.submitted_at)}` : submission?.status === "reopened" ? "RIAPERTO DALL’ADMIN" : "IN LAVORAZIONE"}
                                 </span>
                               </span>
                             </button>
-                            <span className={`flex h-7 min-w-7 items-center justify-center rounded-full border px-2 text-[10px] font-black tabular-nums shadow-sm ${submitted ? "border-emerald-500 bg-white/70 text-emerald-800" : "border-[#d1a45d] bg-white/70 text-[#68450e]"}`}>
+                            <span className={`flex h-7 min-w-7 items-center justify-center rounded-full border px-2 text-[10px] font-black tabular-nums shadow-sm ${submitted ? "border-emerald-500 bg-white/70 text-emerald-800" : "border-[#5da5d1] bg-white/70 text-[#0e4568]"}`}>
                               {op.rows.length}
                             </span>
                             {submitted && giroId && !isClosed && (
@@ -1700,7 +1706,7 @@ export default function ConteggiPage({ initialPeriodId = '', onOpenAccounting })
                                   op.rows,
                                 );
                               }}
-                              className="flex h-8 items-center justify-center gap-1.5 rounded-[10px] border border-[#cda957] bg-white/75 px-2.5 text-[9px] font-black tracking-[0.08em] text-[#795116] shadow-sm transition hover:-translate-y-0.5 hover:bg-white active:scale-95"
+                              className="flex h-8 items-center justify-center gap-1.5 rounded-[10px] border border-[#57a0cd] bg-white/75 px-2.5 text-[9px] font-black tracking-[0.08em] text-[#165379] shadow-sm transition hover:-translate-y-0.5 hover:bg-white active:scale-95"
                               title={`Genera PDF del Giro ${getGiroName(op)}`}
                               aria-label={`Genera PDF del Giro ${getGiroName(op)}`}
                             >
@@ -1715,7 +1721,7 @@ export default function ConteggiPage({ initialPeriodId = '', onOpenAccounting })
                                   [op.name]: !prev[op.name],
                                 }))
                               }
-                              className="flex h-8 w-8 items-center justify-center rounded-[10px] text-[#8f651d] transition hover:bg-white/55"
+                              className="flex h-8 w-8 items-center justify-center rounded-[10px] text-[#1d638f] transition hover:bg-white/55"
                               aria-label={`Apri dettagli ${op.name}`}
                             >
                               {open ? (
@@ -1727,7 +1733,7 @@ export default function ConteggiPage({ initialPeriodId = '', onOpenAccounting })
                           </div>
                         </div>
 
-                        <div className="relative overflow-hidden border-b border-[#d6b36b] bg-[linear-gradient(135deg,#3f2b0d_0%,#765018_55%,#b8862f_100%)] px-3 py-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,.18)]">
+                        <div className="relative overflow-hidden border-b border-[#6badd6] bg-[linear-gradient(135deg,#0d2c3f_0%,#185276_55%,#2f83b8_100%)] px-3 py-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,.18)]">
                           <div className="absolute -right-8 -top-10 h-24 w-24 rounded-full bg-amber-200/20 blur-2xl" />
                           <div className="relative conteggi-esattore-controls">
                             <div className="conteggi-esattore-label flex items-center gap-2 px-1">
@@ -1761,7 +1767,7 @@ export default function ConteggiPage({ initialPeriodId = '', onOpenAccounting })
                                 saveEsattoreOverride(op.name, op.esattore)
                               }
                               disabled={saving}
-                              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[linear-gradient(145deg,#fff0a8,#d6a837)] text-[#4b3209] shadow-[0_9px_18px_-12px_rgba(255,215,94,.95)] transition active:scale-95 disabled:opacity-50"
+                              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[linear-gradient(145deg,#afdcf8,#3799d6)] text-[#09324b] shadow-[0_9px_18px_-12px_rgba(255,215,94,.95)] transition active:scale-95 disabled:opacity-50"
                             >
                               {saving ? (
                                 <RefreshCw size={14} className="animate-spin" />
@@ -1791,7 +1797,7 @@ export default function ConteggiPage({ initialPeriodId = '', onOpenAccounting })
                           }
                           className="w-full text-left"
                         >
-                          <div className="divide-y divide-[#eee7da] px-3">
+                          <div className="divide-y divide-[#dae6ee] px-3">
                             {[
                               ["ACCONTI", op.acconti],
                               ["DA RIPORTARE", op.riporto],
@@ -1812,9 +1818,9 @@ export default function ConteggiPage({ initialPeriodId = '', onOpenAccounting })
                             ))}
                           </div>
                           <div
-                            className={`flex items-center justify-between px-4 py-3 ${op.finale > 0 ? "bg-emerald-50" : op.finale < 0 ? "bg-rose-50" : "bg-[#f6eedf]"}`}
+                            className={`flex items-center justify-between px-4 py-3 ${op.finale > 0 ? "bg-emerald-50" : op.finale < 0 ? "bg-rose-50" : "bg-[#dfedf6]"}`}
                           >
-                            <span className="text-[10px] font-black tracking-[0.14em] text-[#7d5819]">
+                            <span className="text-[10px] font-black tracking-[0.14em] text-[#19577d]">
                               TOTALE
                             </span>
                             <span
@@ -1825,13 +1831,13 @@ export default function ConteggiPage({ initialPeriodId = '', onOpenAccounting })
                           </div>
                         </button>
                         {open && (
-                          <div className="border-t border-[#e8dcc5] bg-[#faf7f1] p-3">
+                          <div className="border-t border-[#c5dbe8] bg-[#f1f7fa] p-3">
                             <div className="space-y-2">
                               {op.rows.map((r) => (
                                 <button
                                   key={r.id}
                                   onClick={() => setSelectedRow(r)}
-                                  className="flex w-full items-center justify-between rounded-[13px] border border-[#e8dfcf] bg-white px-3 py-2 text-left"
+                                  className="flex w-full items-center justify-between rounded-[13px] border border-[#cfdee8] bg-white px-3 py-2 text-left"
                                 >
                                   <div className="min-w-0">
                                     <p className="truncate text-[11px] font-black text-slate-800">
@@ -1859,9 +1865,9 @@ export default function ConteggiPage({ initialPeriodId = '', onOpenAccounting })
               )}
             </section>
 
-            <section className="overflow-hidden rounded-[28px] border border-[#d9c79f] bg-[linear-gradient(180deg,#f7edd8_0%,#f2e5cd_100%)] shadow-[0_22px_48px_-36px_rgba(65,43,8,.65)]">
-              <div className="border-b border-[#dfcfaf] bg-[linear-gradient(135deg,#f8edd7,#ead5aa)] px-4 py-4 text-center">
-                <h2 className="text-[20px] font-black tracking-[0.17em] text-[#8d5f17] md:text-[24px]">
+            <section className="overflow-hidden rounded-[28px] border border-[#9fc3d9] bg-[linear-gradient(180deg,#d8ebf7_0%,#cde4f2_100%)] shadow-[0_22px_48px_-36px_rgba(65,43,8,.65)]">
+              <div className="border-b border-[#afcddf] bg-[linear-gradient(135deg,#d7ebf8,#aad1ea)] px-4 py-4 text-center">
+                <h2 className="text-[20px] font-black tracking-[0.17em] text-[#17608d] md:text-[24px]">
                   LOCALI DISPONIBILI
                 </h2>
               </div>
@@ -1872,14 +1878,14 @@ export default function ConteggiPage({ initialPeriodId = '', onOpenAccounting })
               ) : (
                 <div className="overflow-x-auto p-3 md:p-4">
                   <div
-                    className="pm-missing-header min-w-[980px] items-center gap-3 border-b border-[#d8c7a8] px-4 pb-3"
+                    className="pm-missing-header min-w-[980px] items-center gap-3 border-b border-[#a8c6d8] px-4 pb-3"
                     style={{
                       display: "grid",
                       gridTemplateColumns:
                         "minmax(300px, 1.6fr) repeat(3, minmax(150px, 0.72fr)) 96px",
                     }}
                   >
-                    <p className="text-[10px] font-black tracking-[0.16em] text-[#7c5a20]">
+                    <p className="text-[10px] font-black tracking-[0.16em] text-[#20597c]">
                       LOCALE
                     </p>
                     <p className="text-center text-[10px] font-black tracking-[0.16em] text-blue-600/75">
@@ -1891,7 +1897,7 @@ export default function ConteggiPage({ initialPeriodId = '', onOpenAccounting })
                     <p className="text-center text-[10px] font-black tracking-[0.14em] text-emerald-600/75">
                       DA RIPORTARE
                     </p>
-                    <p className="text-center text-[10px] font-black tracking-[0.16em] text-[#7c5a20]">
+                    <p className="text-center text-[10px] font-black tracking-[0.16em] text-[#20597c]">
                       STATO
                     </p>
                   </div>
@@ -1912,7 +1918,7 @@ export default function ConteggiPage({ initialPeriodId = '', onOpenAccounting })
                       return (
                         <div
                           key={v.id}
-                          className={`pm-missing-row min-h-[62px] min-w-[980px] items-center gap-3 rounded-[16px] border border-[#ddcdb0] px-4 py-2.5 transition hover:-translate-y-[1px] hover:border-[#cfb981] hover:shadow-[0_12px_24px_-20px_rgba(72,45,7,.45)] ${index % 2 === 0 ? "bg-[#fffaf1]" : "bg-[#f9f0df]"} ${rowGlow}`}
+                          className={`pm-missing-row min-h-[62px] min-w-[980px] items-center gap-3 rounded-[16px] border border-[#b0ccdd] px-4 py-2.5 transition hover:-translate-y-[1px] hover:border-[#81b1cf] hover:shadow-[0_12px_24px_-20px_rgba(72,45,7,.45)] ${index % 2 === 0 ? "bg-[#f2f9fe]" : "bg-[#dfeff9]"} ${rowGlow}`}
                           style={{
                             display: "grid",
                             gridTemplateColumns:
@@ -1920,10 +1926,10 @@ export default function ConteggiPage({ initialPeriodId = '', onOpenAccounting })
                           }}
                         >
                           <div className="flex min-w-0 items-center gap-3">
-                            <div className="flex h-10 min-w-14 items-center justify-center rounded-[12px] border border-[#ddc99f] bg-[#f2e3c5] px-2 font-mono text-[11px] font-black text-[#7c5315]">
+                            <div className="flex h-10 min-w-14 items-center justify-center rounded-[12px] border border-[#9fc5dd] bg-[#c5e1f2] px-2 font-mono text-[11px] font-black text-[#15557c]">
                               {v.id}
                             </div>
-                            <p className="min-w-0 truncate text-[14px] font-black text-[#302610] md:text-[15px]">
+                            <p className="min-w-0 truncate text-[14px] font-black text-[#102430] md:text-[15px]">
                               {v.name}
                             </p>
                           </div>
@@ -2025,7 +2031,7 @@ export default function ConteggiPage({ initialPeriodId = '', onOpenAccounting })
             <button
               type="button"
               onClick={() => setVenueStatusPopup(null)}
-              className={`relative mt-5 h-12 w-full rounded-[16px] text-[12px] font-black uppercase tracking-[0.12em] text-white ${venueStatusPopup.status === "ok" ? "bg-[linear-gradient(135deg,#059669,#047857)]" : venueStatusPopup.status === "warning" ? "bg-[linear-gradient(135deg,#d97706,#c2410c)]" : "bg-[linear-gradient(135deg,#e11d48,#be123c)]"}`}
+              className={`relative mt-5 h-12 w-full rounded-[16px] text-[12px] font-black uppercase tracking-[0.12em] text-white ${venueStatusPopup.status === "ok" ? "bg-[linear-gradient(135deg,#059669,#047857)]" : venueStatusPopup.status === "warning" ? "bg-[linear-gradient(135deg,#1186ce,#c2410c)]" : "bg-[linear-gradient(135deg,#e11d48,#be123c)]"}`}
             >
               OK
             </button>
@@ -2138,22 +2144,22 @@ export default function ConteggiPage({ initialPeriodId = '', onOpenAccounting })
           onClick={() => setSelectedRow(null)}
         >
           <div
-            className="flex max-h-[94vh] w-full max-w-[470px] flex-col overflow-hidden rounded-[30px] border border-[#c99635] bg-[linear-gradient(180deg,#f8f4eb_0%,#f2ede3_100%)] shadow-[0_38px_100px_-30px_rgba(0,0,0,.95)]"
+            className="flex max-h-[94vh] w-full max-w-[470px] flex-col overflow-hidden rounded-[30px] border border-[#3590c9] bg-[linear-gradient(180deg,#ebf3f8_0%,#e3ecf2_100%)] shadow-[0_38px_100px_-30px_rgba(0,0,0,.95)]"
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="border-b border-[#d9c49a] bg-[linear-gradient(135deg,#fff9eb,#ead18e)] px-5 py-4 text-center">
-              <p className="text-[9px] font-black tracking-[0.24em] text-[#986619]">
+            <div className="border-b border-[#9ac1d9] bg-[linear-gradient(135deg,#ecf7fd,#8ec7ea)] px-5 py-4 text-center">
+              <p className="text-[9px] font-black tracking-[0.24em] text-[#196798]">
                 DETTAGLIO DEL CONTEGGIO
               </p>
-              <p className="mt-1 text-[11px] font-bold text-[#74501a]">
+              <p className="mt-1 text-[11px] font-bold text-[#1a5274]">
                 {formatITDate(selectedRow.conteggio_date)} · Effettuato da{" "}
                 {getOperatorName(selectedRow)}
               </p>
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto p-4">
-              <div className="rounded-[18px] border border-[#ddd7cc] bg-white/90 px-4 py-3 shadow-[0_10px_20px_-20px_rgba(23,32,50,.6)]">
-                <p className="text-[8px] font-black uppercase tracking-[0.16em] text-[#a06b13]">
+              <div className="rounded-[18px] border border-[#ccd6dd] bg-white/90 px-4 py-3 shadow-[0_10px_20px_-20px_rgba(23,32,50,.6)]">
+                <p className="text-[8px] font-black uppercase tracking-[0.16em] text-[#136aa0]">
                   LOCALE · {selectedRow.venue_id}
                 </p>
                 <p className="mt-1 text-[16px] font-black uppercase text-slate-900">
@@ -2165,7 +2171,7 @@ export default function ConteggiPage({ initialPeriodId = '', onOpenAccounting })
                 </p>
               </div>
 
-              <div className="mt-3 flex min-h-[68px] items-center justify-between rounded-[20px] border border-[#9d670e] bg-[linear-gradient(110deg,#8a5806_0%,#d9a70f_58%,#936009_100%)] px-4 text-white shadow-[0_18px_32px_-24px_rgba(108,66,1,.9)]">
+              <div className="mt-3 flex min-h-[68px] items-center justify-between rounded-[20px] border border-[#0e669d] bg-[linear-gradient(110deg,#0b5685_0%,#118bd7_58%,#0c5d90_100%)] px-4 text-white shadow-[0_18px_32px_-24px_rgba(108,66,1,.9)]">
                 <span className="text-[15px] font-black uppercase">
                   ESATTORE
                 </span>
@@ -2186,8 +2192,8 @@ export default function ConteggiPage({ initialPeriodId = '', onOpenAccounting })
                     ["GIORNO 3", selectedRow.rp_day3],
                     ["GIORNO 4", selectedRow.rp_day4],
                   ].map(([label, value]) => (
-                    <div key={label} className="min-w-0 rounded-[14px] border border-[#dcc89d] bg-[#fff9ec] px-2 py-2.5 text-center shadow-[0_8px_18px_-18px_rgba(91,57,5,.8)]">
-                      <p className="min-h-[22px] text-[6.5px] font-black uppercase leading-[1.15] tracking-[.07em] text-[#8b5b12]">{label}</p>
+                    <div key={label} className="min-w-0 rounded-[14px] border border-[#9dc4dc] bg-[#edf7fe] px-2 py-2.5 text-center shadow-[0_8px_18px_-18px_rgba(91,57,5,.8)]">
+                      <p className="min-h-[22px] text-[6.5px] font-black uppercase leading-[1.15] tracking-[.07em] text-[#125d8b]">{label}</p>
                       <p className="mt-1 text-[12px] font-black tabular-nums text-slate-900">{Number(value) ? fmtEuro(value) : "—"}</p>
                     </div>
                   ))}
@@ -2195,11 +2201,11 @@ export default function ConteggiPage({ initialPeriodId = '', onOpenAccounting })
               </div>
 
               <div className="my-4 flex items-center gap-3">
-                <span className="h-px flex-1 bg-[#d9c8a4]" />
-                <span className="text-[9px] font-black tracking-[0.22em] text-[#8c5b0e]">
+                <span className="h-px flex-1 bg-[#a4c5d9]" />
+                <span className="text-[9px] font-black tracking-[0.22em] text-[#0e5c8c]">
                   VOCI EXTRA
                 </span>
-                <span className="h-px flex-1 bg-[#d9c8a4]" />
+                <span className="h-px flex-1 bg-[#a4c5d9]" />
               </div>
               <div className="space-y-2">
                 <SnapshotRow label="USO CASSA" value={selectedRow.uso_cassa} />
@@ -2210,7 +2216,7 @@ export default function ConteggiPage({ initialPeriodId = '', onOpenAccounting })
               </div>
             </div>
 
-            <div className="border-t border-[#cda85d] bg-[#f6efe1] p-4 shadow-[0_-16px_30px_-28px_rgba(62,38,2,.8)]">
+            <div className="border-t border-[#5da2cd] bg-[#e1eef6] p-4 shadow-[0_-16px_30px_-28px_rgba(62,38,2,.8)]">
               <div className="mb-2 flex items-end justify-between px-1">
                 <span className="pb-1 text-[11px] font-black tracking-[0.12em] text-slate-900">
                   TOTALE
@@ -2225,7 +2231,7 @@ export default function ConteggiPage({ initialPeriodId = '', onOpenAccounting })
               <button
                 type="button"
                 onClick={() => setSelectedRow(null)}
-                className="h-12 w-full rounded-[15px] border border-[#95600b] bg-[linear-gradient(110deg,#7c4d03,#d4a10d,#855405)] text-[12px] font-black tracking-[0.14em] text-white shadow-[0_13px_24px_-17px_rgba(91,55,3,.9)] transition active:scale-[.98]"
+                className="h-12 w-full rounded-[15px] border border-[#0c6094] bg-[linear-gradient(110deg,#0a4c75,#1187d0,#0a5380)] text-[12px] font-black tracking-[0.14em] text-white shadow-[0_13px_24px_-17px_rgba(91,55,3,.9)] transition active:scale-[.98]"
               >
                 CHIUDI DETTAGLIO
               </button>
@@ -2262,16 +2268,16 @@ function FinalizationWizard({
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-3 backdrop-blur-sm">
-      <div className="max-h-[92vh] w-full max-w-[620px] overflow-hidden rounded-[28px] border border-[#d8bd7e] bg-[#fffdf8] shadow-[0_35px_90px_-30px_rgba(0,0,0,.85)]">
-        <div className="border-b border-[#e6d8ba] bg-[linear-gradient(135deg,#fff4d4,#e8c875)] px-5 py-4 text-center">
-          <p className="text-[9px] font-black tracking-[0.22em] text-[#9a6a18]">
+      <div className="max-h-[92vh] w-full max-w-[620px] overflow-hidden rounded-[28px] border border-[#7eb6d8] bg-[#f9fcfe] shadow-[0_35px_90px_-30px_rgba(0,0,0,.85)]">
+        <div className="border-b border-[#bad5e6] bg-[linear-gradient(135deg,#d7eefc,#75bce8)] px-5 py-4 text-center">
+          <p className="text-[9px] font-black tracking-[0.22em] text-[#18689a]">
             FINALIZZA PERIODO
           </p>
-          <h2 className="mt-1 text-[19px] font-black tracking-[0.08em] text-[#3e2a0b]">
+          <h2 className="mt-1 text-[19px] font-black tracking-[0.08em] text-[#0b2a3e]">
             {titles[state.step]}
           </h2>
           {period && (
-            <p className="mt-1 text-[11px] font-bold text-[#7a5619]">
+            <p className="mt-1 text-[11px] font-bold text-[#19557a]">
               {formatITDate(period.date_from)} — {formatITDate(period.date_to)}
             </p>
           )}
@@ -2280,18 +2286,18 @@ function FinalizationWizard({
         <div className="max-h-[66vh] overflow-y-auto p-5">
           {state.step === "processing" ? (
             <div className="flex min-h-[260px] flex-col items-center justify-center px-2 text-center">
-              <div className="flex h-20 w-20 items-center justify-center rounded-full border-4 border-[#ead7aa] bg-white shadow-inner">
-                <span className="text-[22px] font-black tabular-nums text-[#8b5d14]">
+              <div className="flex h-20 w-20 items-center justify-center rounded-full border-4 border-[#aad1ea] bg-white shadow-inner">
+                <span className="text-[22px] font-black tabular-nums text-[#145d8b]">
                   {state.progress || 1}%
                 </span>
               </div>
-              <div className="mt-6 h-3 w-full overflow-hidden rounded-full border border-[#dfc98f] bg-[#f5ead0]">
+              <div className="mt-6 h-3 w-full overflow-hidden rounded-full border border-[#8fc0df] bg-[#d0e7f5]">
                 <div
-                  className="h-full rounded-full bg-[linear-gradient(90deg,#e7c977,#a96f16)] transition-[width] duration-200"
+                  className="h-full rounded-full bg-[linear-gradient(90deg,#77bce7,#1671a9)] transition-[width] duration-200"
                   style={{ width: `${state.progress || 1}%` }}
                 />
               </div>
-              <p className="mt-4 text-[13px] font-black uppercase tracking-[.12em] text-[#6d480d]">
+              <p className="mt-4 text-[13px] font-black uppercase tracking-[.12em] text-[#0d486d]">
                 {state.progressMessage}
               </p>
               {state.error ? (
@@ -2306,7 +2312,7 @@ function FinalizationWizard({
               )}
             </div>
           ) : state.loading && !preview ? (
-            <div className="flex min-h-[220px] flex-col items-center justify-center gap-3 text-[#8b641f]">
+            <div className="flex min-h-[220px] flex-col items-center justify-center gap-3 text-[#1f628b]">
               <RefreshCw size={26} className="animate-spin" />
               <p className="text-[11px] font-black uppercase tracking-[0.12em]">
                 Controllo dati in corso…
@@ -2317,25 +2323,25 @@ function FinalizationWizard({
               <p className="mb-4 text-center text-[13px] font-bold text-slate-700">
                 Confermi che i Da Riportare indicati di seguito sono corretti?
               </p>
-              <div className="overflow-hidden rounded-[18px] border border-[#e3d7c0]">
+              <div className="overflow-hidden rounded-[18px] border border-[#c0d6e3]">
                 {employees.map((employee) => (
                   <div
                     key={employee.auth_user_id || employee.full_name}
-                    className="flex items-center justify-between border-b border-[#eee5d5] bg-white px-4 py-3 last:border-b-0"
+                    className="flex items-center justify-between border-b border-[#d5e4ee] bg-white px-4 py-3 last:border-b-0"
                   >
                     <span className="text-[12px] font-black uppercase text-slate-700">
                       {employee.full_name}
                     </span>
-                    <span className="text-[15px] font-black tabular-nums text-[#785116]">
+                    <span className="text-[15px] font-black tabular-nums text-[#165278]">
                       {fmtEuro(employee.total_da_riportare)}
                     </span>
                   </div>
                 ))}
-                <div className="flex items-center justify-between bg-[#f5e8cc] px-4 py-4">
-                  <span className="text-[11px] font-black tracking-[0.12em] text-[#6a4710]">
+                <div className="flex items-center justify-between bg-[#cce5f5] px-4 py-4">
+                  <span className="text-[11px] font-black tracking-[0.12em] text-[#10476a]">
                     TOTALE GENERALE
                   </span>
-                  <span className="text-[20px] font-black tabular-nums text-[#5e3e0d]">
+                  <span className="text-[20px] font-black tabular-nums text-[#0d3f5e]">
                     {fmtEuro(preview?.total_da_riportare)}
                   </span>
                 </div>
@@ -2354,9 +2360,9 @@ function FinalizationWizard({
                 {missing.map((venue) => (
                   <div
                     key={venue.id}
-                    className="flex items-center gap-3 rounded-[14px] border border-[#e4dac7] bg-white px-4 py-3"
+                    className="flex items-center gap-3 rounded-[14px] border border-[#c7d9e4] bg-white px-4 py-3"
                   >
-                    <span className="font-mono text-[11px] font-black text-[#8c621c]">
+                    <span className="font-mono text-[11px] font-black text-[#1c618c]">
                       {venue.id}
                     </span>
                     <span className="text-[12px] font-black text-slate-700">
@@ -2367,9 +2373,9 @@ function FinalizationWizard({
               </div>
             </>
           ) : state.step === "archive" ? (
-            <div className="rounded-[20px] border border-[#dfcfad] bg-[#fbf6eb] p-5 text-center">
-              <Archive className="mx-auto text-[#99691b]" size={30} />
-              <p className="mt-4 text-[15px] font-black text-[#3d2b0f]">
+            <div className="rounded-[20px] border border-[#adccdf] bg-[#ebf5fb] p-5 text-center">
+              <Archive className="mx-auto text-[#1b6999]" size={30} />
+              <p className="mt-4 text-[15px] font-black text-[#0f2b3d]">
                 Il periodo finirà nell’Archivio.
               </p>
               <p className="mt-3 text-[13px] font-bold leading-relaxed text-slate-600">
@@ -2379,18 +2385,18 @@ function FinalizationWizard({
                 Cassa del periodo verrà fotografata con tutti i trasferimenti.
                 Confermi?
               </p>
-              <div className="mt-4 grid gap-2 rounded-[16px] border border-[#e1d2b3] bg-white p-4 text-left text-[12px] font-bold text-slate-600">
+              <div className="mt-4 grid gap-2 rounded-[16px] border border-[#b3cfe1] bg-white p-4 text-left text-[12px] font-bold text-slate-600">
                 <div className="flex justify-between gap-3">
                   <span>Cassa generata</span>
-                  <strong className="tabular-nums text-[#5f430f]">{fmtEuro(preview?.cassa_summary?.cassa_generata)}</strong>
+                  <strong className="tabular-nums text-[#0f405f]">{fmtEuro(preview?.cassa_summary?.cassa_generata)}</strong>
                 </div>
                 <div className="flex justify-between gap-3">
                   <span>Trasferimenti registrati</span>
                   <strong className="tabular-nums text-red-600">− {fmtEuro(preview?.cassa_summary?.trasferimenti_totale)}</strong>
                 </div>
-                <div className="flex justify-between gap-3 border-t border-[#ece2cf] pt-2">
+                <div className="flex justify-between gap-3 border-t border-[#cfe1ec] pt-2">
                   <span>Cassa finale del periodo</span>
-                  <strong className="tabular-nums text-[#5f430f]">{fmtEuro(preview?.cassa_summary?.cassa_disponibile)}</strong>
+                  <strong className="tabular-nums text-[#0f405f]">{fmtEuro(preview?.cassa_summary?.cassa_disponibile)}</strong>
                 </div>
               </div>
             </div>
@@ -2400,7 +2406,7 @@ function FinalizationWizard({
                 Indica la data finale del nuovo periodo.
               </p>
               <div className="grid gap-3 sm:grid-cols-2">
-                <label className="rounded-[16px] border border-[#dfd2b8] bg-[#f8f1e3] p-3">
+                <label className="rounded-[16px] border border-[#b8d0df] bg-[#e3f0f8] p-3">
                   <span className="text-[9px] font-black tracking-[0.12em] text-slate-500">
                     DATA INIZIALE · BLOCCATA
                   </span>
@@ -2408,11 +2414,11 @@ function FinalizationWizard({
                     type="date"
                     value={preview?.new_date_from || ""}
                     disabled
-                    className="mt-2 h-11 w-full rounded-[12px] border border-[#ded2bc] bg-white px-3 font-black text-slate-600"
+                    className="mt-2 h-11 w-full rounded-[12px] border border-[#bcd1de] bg-white px-3 font-black text-slate-600"
                   />
                 </label>
-                <label className="rounded-[16px] border border-[#d7b96e] bg-[#fff9eb] p-3">
-                  <span className="text-[9px] font-black tracking-[0.12em] text-[#8c621b]">
+                <label className="rounded-[16px] border border-[#6eafd7] bg-[#ecf7fd] p-3">
+                  <span className="text-[9px] font-black tracking-[0.12em] text-[#1b618c]">
                     DATA FINALE · OBBLIGATORIA
                   </span>
                   <input
@@ -2420,11 +2426,11 @@ function FinalizationWizard({
                     min={preview?.new_date_from || ""}
                     value={state.newDateTo}
                     onChange={(e) => onDateToChange(e.target.value)}
-                    className="mt-2 h-11 w-full rounded-[12px] border border-[#d2b56e] bg-white px-3 font-black text-slate-800 outline-none"
+                    className="mt-2 h-11 w-full rounded-[12px] border border-[#6eacd2] bg-white px-3 font-black text-slate-800 outline-none"
                   />
                 </label>
               </div>
-              <div className="mt-4 rounded-[16px] border border-[#e3d8c2] bg-white p-4 text-[12px] font-bold text-slate-600">
+              <div className="mt-4 rounded-[16px] border border-[#c2d6e3] bg-white p-4 text-[12px] font-bold text-slate-600">
                 <div className="flex justify-between">
                   <span>Conteggi da archiviare</span>
                   <strong>{preview?.conteggi_count || 0}</strong>
@@ -2433,7 +2439,7 @@ function FinalizationWizard({
                   <span>Da Riportare trasferiti</span>
                   <strong>{fmtEuro(preview?.total_da_riportare)}</strong>
                 </div>
-                <div className="mt-2 flex justify-between border-t border-[#eee5d5] pt-2">
+                <div className="mt-2 flex justify-between border-t border-[#d5e4ee] pt-2">
                   <span>Cassa finale archiviata</span>
                   <strong>{fmtEuro(preview?.cassa_summary?.cassa_disponibile)}</strong>
                 </div>
@@ -2443,12 +2449,12 @@ function FinalizationWizard({
         </div>
 
         {state.step !== "processing" && (
-          <div className="grid grid-cols-2 gap-2 border-t border-[#e8ddc7] bg-white p-4">
+          <div className="grid grid-cols-2 gap-2 border-t border-[#c7dbe8] bg-white p-4">
             <button
               type="button"
               onClick={isFirst ? onClose : onBack}
               disabled={state.loading}
-              className="h-12 rounded-[15px] border border-[#ddd1bb] bg-white text-[11px] font-black text-slate-600 disabled:opacity-50"
+              className="h-12 rounded-[15px] border border-[#bbd0dd] bg-white text-[11px] font-black text-slate-600 disabled:opacity-50"
             >
               {isFirst ? "NO, ANNULLA" : "INDIETRO"}
             </button>
@@ -2461,7 +2467,7 @@ function FinalizationWizard({
                 (isLast &&
                   (!state.newDateTo || state.newDateTo < preview.new_date_from))
               }
-              className="h-12 rounded-[15px] bg-[linear-gradient(135deg,#c99635,#8d5d13)] px-3 text-[11px] font-black text-white shadow-[0_12px_24px_-16px_rgba(100,61,5,.8)] disabled:opacity-45"
+              className="h-12 rounded-[15px] bg-[linear-gradient(135deg,#3590c9,#135e8d)] px-3 text-[11px] font-black text-white shadow-[0_12px_24px_-16px_rgba(100,61,5,.8)] disabled:opacity-45"
             >
               {state.loading
                 ? "FINALIZZAZIONE…"
@@ -2658,7 +2664,7 @@ function Chip({ label, value, danger = false }) {
 
 function SnapshotRow({ label, value, danger = false }) {
   return (
-    <div className="flex min-h-[56px] items-center justify-between rounded-[17px] border border-[#ded8cd] bg-white/95 px-4 shadow-[0_10px_20px_-21px_rgba(24,31,45,.7)]">
+    <div className="flex min-h-[56px] items-center justify-between rounded-[17px] border border-[#cdd7de] bg-white/95 px-4 shadow-[0_10px_20px_-21px_rgba(24,31,45,.7)]">
       <p
         className={`text-[13px] font-black uppercase ${danger ? "text-[#681515]" : "text-slate-900"}`}
       >

@@ -19,12 +19,12 @@ export const TabItem = ({ icon: Icon, id, label, activeTab, setActiveTab, badge 
     >
       <span
         className={`pm-tab-ico ${isActive ? "pm-tab-ico-active" : "pm-tab-ico-idle"}`}
-        style={isActive ? { "--pm-ico-glow": "rgba(92,58,10,.28)" } : undefined}
+        style={isActive ? { "--pm-ico-glow": "rgba(10,61,92,.28)" } : undefined}
       >
         <Icon
           size={24}
           strokeWidth={isActive ? 2.8 : 2.4}
-          className={isActive ? "text-[#fffaf0]" : "text-[#766b5d]"}
+          className={isActive ? "text-[#f1f9fe]" : "text-[#5d6c76]"}
         />
 
         {badgeValue > 0 && (
@@ -38,7 +38,7 @@ export const TabItem = ({ icon: Icon, id, label, activeTab, setActiveTab, badge 
         className={`
           text-[11px] leading-none tracking-[0.09em] font-black
           transition-colors duration-200
-          ${isActive ? "text-[#fffaf0]" : "text-[#766b5d]"}
+          ${isActive ? "text-[#f1f9fe]" : "text-[#5d6c76]"}
         `}
       >
         {label}

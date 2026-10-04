@@ -63,14 +63,14 @@ function Modal({ open, onClose, title, width = "md", footer, children }) {
         : "max-w-[600px]";
   return (
     <div
-      className="finance-theme fixed inset-0 z-[10001] flex items-center justify-center bg-[#120d05]/70 p-3 backdrop-blur-md"
+      className="finance-theme fixed inset-0 z-[10001] flex items-center justify-center bg-[#050d12]/70 p-3 backdrop-blur-md"
       onPointerDown={(e) => {
         if (e.target === e.currentTarget) close();
       }}
     >
       <section
         role="dialog" aria-modal="true" aria-label={title}
-        className={`finance-modal flex max-h-[94vh] w-full ${maxWidth} flex-col overflow-hidden rounded-[30px] border border-[#d5b66c] bg-[#fffdf9] shadow-[0_40px_100px_-30px_rgba(0,0,0,.9)]`}
+        className={`finance-modal flex max-h-[94vh] w-full ${maxWidth} flex-col overflow-hidden rounded-[30px] border border-[#6cadd5] bg-[#f9fdff] shadow-[0_40px_100px_-30px_rgba(0,0,0,.9)]`}
         onPointerDown={(e) => e.stopPropagation()}
       >
         <div className="finance-modal-title shrink-0">
@@ -80,7 +80,7 @@ function Modal({ open, onClose, title, width = "md", footer, children }) {
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto p-5"><fieldset disabled={busy} className="min-w-0">{children}</fieldset></div>
         {footer && (
-          <div className="flex shrink-0 justify-end gap-2 border-t border-[#e5d7bb] bg-[#faf2e2] p-3">
+          <div className="flex shrink-0 justify-end gap-2 border-t border-[#bbd5e5] bg-[#e2f1fa] p-3">
             <fieldset disabled={busy} className="flex flex-wrap items-center justify-end gap-2">{busy && <span className="text-xs text-amber-800">Salvataggio…</span>}{footer}</fieldset>
           </div>
         )}
@@ -108,7 +108,7 @@ function ConfirmDialog({
           <button
             type="button"
             onClick={onClose}
-            className="h-11 rounded-[13px] border border-[#d8c8a8] bg-white px-5 text-[10px] font-black text-slate-500"
+            className="h-11 rounded-[13px] border border-[#a8c6d8] bg-white px-5 text-[10px] font-black text-slate-500"
           >
             ANNULLA
           </button>
@@ -498,8 +498,8 @@ export default function DebitiBonusPage() {
         <div className="finance-shell">
           <section className="finance-hero">
             <div className="relative z-10 flex flex-wrap items-center justify-between gap-5">
-              <div><p className="finance-eyebrow">Play Money / Gestione finanziaria</p><h1>Debiti e Bonus<span className="text-[#b38e48]">.</span></h1><p className="finance-subtitle">Ogni erogazione, ogni rimborso. Tutto sotto controllo.</p></div>
-              <div className="flex gap-2"><button type="button" aria-label="Aggiorna" title="Aggiorna" disabled={loading} onClick={loadAll} className="rounded-xl border border-[#dbc89f] bg-white/70 p-3 text-[#8a682f]"><RefreshCw size={17} className={loading ? 'animate-spin' : ''} /></button><Button variant="primary" icon={Plus} onClick={() => tab === 'debiti' ? setShowNewDebito(true) : tab === 'bonus' ? setShowNewBonus(true) : setShowNewNota(true)}>Nuovo {tab === 'debiti' ? 'debito' : tab === 'bonus' ? 'bonus' : 'promemoria'}</Button></div>
+              <div><p className="finance-eyebrow">Play Money / Gestione finanziaria</p><h1>Debiti e Bonus<span className="text-[#488ab3]">.</span></h1><p className="finance-subtitle">Ogni erogazione, ogni rimborso. Tutto sotto controllo.</p></div>
+              <div className="flex gap-2"><button type="button" aria-label="Aggiorna" title="Aggiorna" disabled={loading} onClick={loadAll} className="rounded-xl border border-[#9fc4db] bg-white/70 p-3 text-[#2f678a]"><RefreshCw size={17} className={loading ? 'animate-spin' : ''} /></button><Button variant="primary" icon={Plus} onClick={() => tab === 'debiti' ? setShowNewDebito(true) : tab === 'bonus' ? setShowNewBonus(true) : setShowNewNota(true)}>Nuovo {tab === 'debiti' ? 'debito' : tab === 'bonus' ? 'bonus' : 'promemoria'}</Button></div>
             </div>
           </section>
           <div className="finance-stats">
@@ -514,7 +514,7 @@ export default function DebitiBonusPage() {
             <div className="w-full sm:w-[260px]"><Input leftIcon={Search} aria-label="Cerca locale" placeholder="Cerca un locale…" value={search} onChange={e => setSearch(e.target.value)} /></div>
           </div>
           {loadError && <div role="alert" className="debt-ledger-note mb-4">Dati non aggiornati: {loadError}. Premi Aggiorna per riprovare.</div>}
-          {(loading || opening) && <p role="status" className="mb-3 text-xs text-[#8a795a]">{opening ? 'Caricamento dello storico…' : 'Aggiornamento dati…'}</p>}
+          {(loading || opening) && <p role="status" className="mb-3 text-xs text-[#5a788a]">{opening ? 'Caricamento dello storico…' : 'Aggiornamento dati…'}</p>}
           {search && !(tab === 'debiti' ? debiti : tab === 'bonus' ? bonus : note).some(matchesSearch) && <EmptyState icon={Search} title="Nessun locale trovato" description="Prova a cambiare il nome o il codice cercato." />}
             {tab === "debiti" && (
               <div className="space-y-3">
@@ -746,7 +746,7 @@ function DebtSummary({ debt }) {
 function DebtLedgerTable({ debt, snapshot }) {
   if (!snapshot) return <p role="status">Caricamento movimenti…</p>;
   const l = debtLedger(debt, snapshot.repayments, snapshot.disbursements);
-  return <div className="debt-ledger"><table aria-label="Erogazioni e rimborsi"><thead><tr><th scope="col">Data</th><th scope="col">Erogato</th><th scope="col">Rimborsato</th></tr></thead><tbody>{l.rows.map(r => <tr key={r.id}><td>{formatITDate(r.date)}<small>{r.label}</small></td><td className="font-semibold text-[#94702e]">{r.paid ? fmtEuro(r.paid) : '—'}</td><td className="font-semibold">{r.repaid ? fmtEuro(r.repaid) : '—'}</td></tr>)}</tbody><tfoot><tr><td>Totali</td><td>{fmtEuro(l.paid)}</td><td>{fmtEuro(l.repaid)}</td></tr></tfoot></table>{l.difference !== 0 && <div className="debt-ledger-note">Storico pregresso da verificare: il saldo dei movimenti differisce dal residuo registrato di {fmtEuro(l.difference)}. Nessun rimborso è stato aggiunto automaticamente.</div>}</div>;
+  return <div className="debt-ledger"><table aria-label="Erogazioni e rimborsi"><thead><tr><th scope="col">Data</th><th scope="col">Erogato</th><th scope="col">Rimborsato</th></tr></thead><tbody>{l.rows.map(r => <tr key={r.id}><td>{formatITDate(r.date)}<small>{r.label}</small></td><td className="font-semibold text-[#2e6d94]">{r.paid ? fmtEuro(r.paid) : '—'}</td><td className="font-semibold">{r.repaid ? fmtEuro(r.repaid) : '—'}</td></tr>)}</tbody><tfoot><tr><td>Totali</td><td>{fmtEuro(l.paid)}</td><td>{fmtEuro(l.repaid)}</td></tr></tfoot></table>{l.difference !== 0 && <div className="debt-ledger-note">Storico pregresso da verificare: il saldo dei movimenti differisce dal residuo registrato di {fmtEuro(l.difference)}. Nessun rimborso è stato aggiunto automaticamente.</div>}</div>;
 }
 function DebitoCard({ d, venueLabel, onOpen, onDeduct, onEdit, onDelete, onPdf, closed = false }) {
   const t = debtTotals(d);
@@ -756,15 +756,15 @@ function DebitoCard({ d, venueLabel, onOpen, onDeduct, onEdit, onDelete, onPdf, 
     <DebtSummary debt={d} />
     {d.status === 'estinto' && t.remaining > 0 && <p className="debt-ledger-note mb-3">Questa posizione risulta estinta ma ha ancora un residuo. Verifica i rimborsi.</p>}
     <div className="debt-track" role="progressbar" aria-label="Quota rimborsata" aria-valuenow={t.percent} aria-valuemin={0} aria-valuemax={100}><div style={{ width: `${t.percent}%` }} /></div>
-    <div className="flex justify-between gap-3 text-[10px] text-[#978669]"><span>{t.percent}% rimborsato</span><span>Iniziale {fmtEuro(t.initial)}{t.added > 0 ? ` + ${fmtEuro(t.added)} erogati` : ''}</span></div>
-    <div className="debt-card-foot"><button onClick={onOpen} className="flex items-center gap-1 text-[11px] font-semibold text-[#8b6d37]">Vedi movimenti <ArrowUpRight size={14} /></button><div className="debt-actions"><button onClick={onEdit} title="Modifica debito"><Pencil size={14} /><span>Modifica</span></button>{onDeduct && <button onClick={onDeduct}><MinusCircle size={14} /><span>Decurtazione</span></button>}<button onClick={onPdf}><FileText size={14} /><span>PDF</span></button><button className="danger" onClick={onDelete} aria-label={`Elimina debito ${venueLabel(d.venue_id)}`} title="Elimina debito"><Trash2 size={14} /></button></div></div>
+    <div className="flex justify-between gap-3 text-[10px] text-[#698597]"><span>{t.percent}% rimborsato</span><span>Iniziale {fmtEuro(t.initial)}{t.added > 0 ? ` + ${fmtEuro(t.added)} erogati` : ''}</span></div>
+    <div className="debt-card-foot"><button onClick={onOpen} className="flex items-center gap-1 text-[11px] font-semibold text-[#376b8b]">Vedi movimenti <ArrowUpRight size={14} /></button><div className="debt-actions"><button onClick={onEdit} title="Modifica debito"><Pencil size={14} /><span>Modifica</span></button>{onDeduct && <button onClick={onDeduct}><MinusCircle size={14} /><span>Decurtazione</span></button>}<button onClick={onPdf}><FileText size={14} /><span>PDF</span></button><button className="danger" onClick={onDelete} aria-label={`Elimina debito ${venueLabel(d.venue_id)}`} title="Elimina debito"><Trash2 size={14} /></button></div></div>
   </article>;
 }
 
 function BonusCard({ b, venueLabel, onToggle, onEdit, onDelete }) {
   const attivo = b.status === "attivo";
   return (
-    <article className="overflow-hidden rounded-[22px] border border-[#e5dccb] bg-[#fffdf9] shadow-[0_18px_38px_-32px_rgba(89,66,28,.5)] transition hover:-translate-y-0.5">
+    <article className="overflow-hidden rounded-[22px] border border-[#cbdbe5] bg-[#f9fdff] shadow-[0_18px_38px_-32px_rgba(89,66,28,.5)] transition hover:-translate-y-0.5">
       <div
         className={`flex items-center justify-between gap-3 p-3 md:p-4 ${attivo ? "" : "opacity-70"}`}
       >
@@ -782,7 +782,7 @@ function BonusCard({ b, venueLabel, onToggle, onEdit, onDelete }) {
             {PERIODICITA_LABEL[b.periodicita]}
             {b.agent_name ? ` · ${b.agent_name}` : ""}
           </p>
-          <p className="mt-1 text-[20px] font-extrabold tabular-nums text-[#916b28]">
+          <p className="mt-1 text-[20px] font-extrabold tabular-nums text-[#286991]">
             {fmtEuro(b.importo)}
           </p>
         </div>
@@ -818,7 +818,7 @@ function NotaCard({ n, venueLabel, onToggle, onEdit, onDelete }) {
   const attiva = n.status === "attiva";
   const sempre = n.conteggi_totali == null;
   return (
-    <article className="overflow-hidden rounded-[22px] border border-amber-200 bg-[#fffdf9] shadow-[0_18px_38px_-32px_rgba(120,77,8,.6)] transition hover:-translate-y-0.5">
+    <article className="overflow-hidden rounded-[22px] border border-amber-200 bg-[#f9fdff] shadow-[0_18px_38px_-32px_rgba(120,77,8,.6)] transition hover:-translate-y-0.5">
       <div className={`p-3 md:p-4 ${attiva ? "" : "opacity-70"}`}>
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
@@ -1337,10 +1337,10 @@ function EditDebitoModal({ open, onClose, row, venues, onSave, snapshot }) {
       <div className="flex flex-col gap-3">
         <div><p className="finance-eyebrow">Locale</p><p className="mt-1 text-base font-semibold">{(() => { const v = venues.find(v => String(v.id) === String(row?.venue_id)); return v ? (v.name.toLowerCase().startsWith(String(v.id).toLowerCase()) ? v.name : `${v.id} ${v.name}`) : row?.venue_id; })()}</p></div>
         <div className="debt-editor-summary my-2">
-          <div className="debt-balance-panel"><small>Importo iniziale</small><strong>{fmtEuro(totals.initial)}</strong><div className="mt-4 border-t border-[#dfcfaa] pt-3"><small>Residuo attuale</small><strong className="text-[#946b26]">{fmtEuro(totals.remaining)}</strong></div><p className="mt-2 text-[11px] text-[#8b7752]">Totale erogato {fmtEuro(totals.total)}</p></div>
-          <div className="debt-add-panel"><p className="mb-3 flex items-center gap-2 text-sm font-semibold text-[#896225]"><Plus size={16} /> Nuova erogazione</p><Field label="Importo da aggiungere (€)"><Input type="number" min="1" step="1" inputMode="numeric" placeholder="Nessuna aggiunta" value={form.nuova_erogazione} disabled={row?.status === 'annullato'} onChange={e => set('nuova_erogazione', e.target.value)} /></Field><div className="mt-3"><Field label="Data erogazione"><Input type="date" value={form.data} min={row?.data_erogazione || undefined} max={todayKey()} disabled={!added} onChange={e => set('data', e.target.value)} /></Field></div></div>
+          <div className="debt-balance-panel"><small>Importo iniziale</small><strong>{fmtEuro(totals.initial)}</strong><div className="mt-4 border-t border-[#aacbdf] pt-3"><small>Residuo attuale</small><strong className="text-[#266a94]">{fmtEuro(totals.remaining)}</strong></div><p className="mt-2 text-[11px] text-[#52758b]">Totale erogato {fmtEuro(totals.total)}</p></div>
+          <div className="debt-add-panel"><p className="mb-3 flex items-center gap-2 text-sm font-semibold text-[#256389]"><Plus size={16} /> Nuova erogazione</p><Field label="Importo da aggiungere (€)"><Input type="number" min="1" step="1" inputMode="numeric" placeholder="Nessuna aggiunta" value={form.nuova_erogazione} disabled={row?.status === 'annullato'} onChange={e => set('nuova_erogazione', e.target.value)} /></Field><div className="mt-3"><Field label="Data erogazione"><Input type="date" value={form.data} min={row?.data_erogazione || undefined} max={todayKey()} disabled={!added} onChange={e => set('data', e.target.value)} /></Field></div></div>
         </div>
-        {added > 0 && <div className="flex flex-wrap justify-between gap-3 rounded-xl bg-[#f2e6c8] p-3 text-[12px] text-[#765522]"><span>Dopo il salvataggio · Totale erogato <strong>{fmtEuro(totals.total + added)}</strong></span><span>Nuovo residuo <strong>{fmtEuro(totals.remaining + added)}</strong></span></div>}
+        {added > 0 && <div className="flex flex-wrap justify-between gap-3 rounded-xl bg-[#c8e2f2] p-3 text-[12px] text-[#225676]"><span>Dopo il salvataggio · Totale erogato <strong>{fmtEuro(totals.total + added)}</strong></span><span>Nuovo residuo <strong>{fmtEuro(totals.remaining + added)}</strong></span></div>}
         <div className="finance-section-label">Condizioni di rimborso</div>
         <Field label="Modalità di rimborso" required>
           <div className="grid grid-cols-2 gap-2">
@@ -1606,8 +1606,8 @@ function ChoiceChip({ active, onClick, icon: Icon, label }) {
       onClick={onClick}
       className={`flex h-11 items-center justify-center gap-1.5 rounded-[14px] border text-[11px] font-black uppercase tracking-[.06em] transition ${
         active
-          ? "border-[#a87318] bg-[linear-gradient(135deg,#fff0c7,#e8c874)] text-[#68440c] shadow-sm"
-          : "border-[#ded0b3] bg-white text-slate-500 hover:border-[#c8a65c] hover:bg-[#fff8e9]"
+          ? "border-[#1871a8] bg-[linear-gradient(135deg,#cbe9fb,#74bce8)] text-[#0c4568] shadow-sm"
+          : "border-[#b3cede] bg-white text-slate-500 hover:border-[#5c9fc8] hover:bg-[#ebf6fd]"
       }`}
     >
       {Icon && <Icon size={14} strokeWidth={2} />}

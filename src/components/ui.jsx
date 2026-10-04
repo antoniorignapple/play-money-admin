@@ -21,7 +21,7 @@ export function Button({
     ghost: 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text)]',
     danger: 'bg-[var(--color-danger)] text-white hover:bg-[#DC2626] shadow-sm',
     success: 'bg-[var(--color-success)] text-white hover:bg-[#059669] shadow-sm',
-    warning: 'bg-[var(--color-warning)] text-white hover:bg-[#D97706] shadow-sm',
+    warning: 'bg-[var(--color-warning)] text-white hover:bg-[#1186ce] shadow-sm',
     info: 'bg-[var(--color-info)] text-white hover:bg-[#2563EB] shadow-sm',
   }
   const iconSize = size === 'sm' ? 12 : size === 'lg' ? 15 : 13

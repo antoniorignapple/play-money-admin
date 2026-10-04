@@ -219,11 +219,11 @@ export default function CalendarioConteggiPage() {
   return (
     <PageLayout>
       <PageBody>
-        <div className="min-h-full bg-[#f5f1e9] p-3 md:p-6">
+        <div className="min-h-full bg-[#e9f0f5] p-3 md:p-6">
           <div className="mx-auto max-w-6xl space-y-4">
             <section className="overflow-hidden rounded-[28px] border border-amber-200/80 bg-gradient-to-br from-white via-amber-50/35 to-amber-100/55 shadow-[0_22px_65px_-38px_rgba(146,93,12,0.55)]">
-              <div className="relative overflow-hidden border-b border-amber-300/70 bg-gradient-to-br from-[#fffaf0] via-white to-[#efd38d] px-5 py-6 md:px-7">
-                <div className="pointer-events-none absolute -right-12 -top-20 h-52 w-52 rounded-full bg-amber-400/20 blur-3xl" />
+              <div className="relative overflow-hidden border-b border-amber-300/70 bg-gradient-to-br from-[#f1f9fe] via-white to-[#8dc9ef] px-5 py-6 md:px-7">
+                <div className="pointer-events-none absolute -right-12 -top-20 h-52 w-52 rounded-full bg-sky-400/20 blur-3xl" />
                 <div className="relative flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
                   <div>
                     <p className="flex items-center gap-2 text-[10px] font-black tracking-[.24em] text-amber-700">
@@ -253,7 +253,7 @@ export default function CalendarioConteggiPage() {
                       type="button"
                       onClick={save}
                       disabled={saving}
-                      className="flex h-12 items-center gap-2 rounded-2xl bg-gradient-to-r from-[#946000] to-[#d5a83a] px-5 text-[10px] font-black tracking-[.1em] text-white shadow-lg shadow-amber-900/15 transition hover:-translate-y-0.5 disabled:opacity-50"
+                      className="flex h-12 items-center gap-2 rounded-2xl bg-gradient-to-r from-[#0b5989] to-[#3a9ad5] px-5 text-[10px] font-black tracking-[.1em] text-white shadow-lg shadow-amber-900/15 transition hover:-translate-y-0.5 disabled:opacity-50"
                     >
                       <Save size={16} />{" "}
                       {saving ? "SALVATAGGIO…" : `SALVA ${MONTHS[month]}`}

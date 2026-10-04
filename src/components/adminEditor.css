@@ -2,21 +2,21 @@
   position: fixed;
   inset: 0;
   z-index: 11000;
-  background: rgba(12, 12, 10, 0.72);
+  background: rgba(10,11,12, 0.72);
   backdrop-filter: blur(9px);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 18px;
-  color: #29251d;
+  color: #1d2429;
 }
 .pm11-editor {
   width: min(1120px, 100%);
   max-height: 94dvh;
   display: flex;
   flex-direction: column;
-  background: #f6f3eb;
-  border: 1px solid #cbaa5d;
+  background: #ebf2f6;
+  border: 1px solid #5da1cb;
   border-radius: 28px;
   box-shadow: 0 35px 110px #0008;
   overflow: hidden;
@@ -39,7 +39,7 @@
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.16em;
-  color: #d6b66e;
+  color: #6eaed6;
 }
 .pm11-header h2 {
   font-size: 29px;
@@ -50,7 +50,7 @@
 }
 .pm11-header p {
   font-size: 13px;
-  color: #d3cec1;
+  color: #c1ccd3;
 }
 .pm11-icon {
   border: 1px solid #ffffff26;
@@ -60,9 +60,9 @@
 .pm11-tabs {
   display: flex;
   gap: 5px;
-  background: #fffaf0;
+  background: #f1f9fe;
   padding: 10px 24px;
-  border-bottom: 1px solid #e7dcc7;
+  border-bottom: 1px solid #c7dbe7;
 }
 .pm11-tabs button {
   display: flex;
@@ -71,12 +71,12 @@
   padding: 10px 15px;
   border-radius: 10px;
   font-size: 12px;
-  color: #716650;
+  color: #506471;
   font-weight: 700;
 }
 .pm11-tabs button.active {
-  background: #e9dcbf;
-  color: #5d4113;
+  background: #bfd9e9;
+  color: #13415d;
 }
 .pm11-tabs span {
   border-radius: 6px;
@@ -102,15 +102,15 @@
 }
 .pm11-card {
   padding: 20px;
-  background: #fffdf8;
-  border: 1px solid #e4ddcd;
+  background: #f9fcfe;
+  border: 1px solid #cddbe4;
   border-radius: 18px;
   box-shadow: 0 6px 20px #62503205;
 }
 .pm11-section-number {
   font-size: 13px;
   font-weight: 800;
-  color: #a57729;
+  color: #2975a5;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -119,7 +119,7 @@
 .pm11-section-number span {
   font-size: 10px;
   letter-spacing: 0.13em;
-  color: #756a55;
+  color: #556975;
 }
 .pm11-fields {
   display: grid;
@@ -129,7 +129,7 @@
 .pm11-editor label,
 .pm11-hub label {
   font-size: 11px;
-  color: #6c604a;
+  color: #4a5f6c;
   font-weight: 700;
   display: flex;
   flex-direction: column;
@@ -143,7 +143,7 @@
 .pm11-hub textarea {
   width: 100%;
   min-width: 0;
-  border: 1px solid #ddd2ba;
+  border: 1px solid #bad0dd;
   border-radius: 10px;
   padding: 11px 12px;
   font-size: 14px;
@@ -156,7 +156,7 @@
 .pm11-editor select:focus,
 .pm11-editor textarea:focus,
 .pm11-hub input:focus {
-  border-color: #b3852e;
+  border-color: #2e80b3;
   box-shadow: 0 0 0 3px #c8a55022;
 }
 .pm11-money {
@@ -170,16 +170,16 @@
   position: absolute;
   right: 12px;
   top: 10px;
-  color: #a1844b;
+  color: #4b80a1;
 }
 .pm11-help {
   font-size: 11px;
   line-height: 1.65;
-  color: #847a66;
+  color: #667884;
   margin: 12px 0;
 }
 .pm11-total {
-  border: 1px solid #ccba94;
+  border: 1px solid #94b7cc;
   border-radius: 18px;
   background: #1c2620;
   color: #a8dbc3;
@@ -223,29 +223,29 @@
 }
 .pm11-check input {
   margin-top: 2px;
-  accent-color: #936719;
+  accent-color: #196493;
 }
 .pm11-diff p {
   padding: 9px 0;
-  border-bottom: 1px solid #e9e2d4;
+  border-bottom: 1px solid #d4e1e9;
   font-size: 11px;
 }
 .pm11-diff b {
   display: block;
-  color: #655639;
+  color: #395465;
   margin-bottom: 5px;
 }
 .pm11-diff span {
   display: flex;
   align-items: center;
   gap: 6px;
-  color: #85755c;
+  color: #5c7585;
   overflow-wrap: anywhere;
 }
 .pm11-footer {
   padding: 16px 24px;
-  background: #fffdf7;
-  border-top: 1px solid #ded3bc;
+  background: #f8fcfe;
+  border-top: 1px solid #bcd1de;
   display: flex;
   justify-content: flex-end;
   gap: 10px;
@@ -263,14 +263,14 @@
   cursor: pointer;
 }
 .pm11-primary {
-  background: linear-gradient(120deg, #b78930, #e1be6d);
-  color: #302109;
-  border: 1px solid #c39d51;
+  background: linear-gradient(120deg, #3083b7, #6db5e1);
+  color: #092130;
+  border: 1px solid #5197c3;
 }
 .pm11-secondary {
   background: #fff;
-  border: 1px solid #ded4be;
-  color: #6c5b3a;
+  border: 1px solid #bed2de;
+  color: #3a596c;
 }
 .pm11-editor button:disabled,
 .pm11-hub button:disabled {
@@ -292,7 +292,7 @@
   gap: 10px;
   padding: 20px;
   font-size: 13px;
-  color: #776445;
+  color: #456477;
 }
 .pm11-review {
   display: flex;
@@ -311,8 +311,8 @@
   line-height: 1.6;
 }
 .pm11-history article {
-  border-left: 3px solid #c3a156;
-  background: #fffdf8;
+  border-left: 3px solid #5699c3;
+  background: #f9fcfe;
   padding: 20px;
   margin-bottom: 16px;
   border-radius: 0 14px 14px 0;
@@ -327,7 +327,7 @@
 }
 .pm11-hub-head {
   background: #18201b;
-  color: #f6f1e5;
+  color: #e5eff6;
   border-radius: 22px;
   padding: 28px;
   margin-bottom: 20px;
@@ -340,7 +340,7 @@
 }
 .pm11-hub-head p {
   font-size: 13px;
-  color: #bdb9ac;
+  color: #acb6bd;
 }
 .pm11-hub-grid {
   display: grid;
@@ -360,8 +360,8 @@
   font-weight: 650;
 }
 .pm11-hub-menu button.active {
-  background: #e8d7b0;
-  color: #553b10;
+  background: #b0d3e8;
+  color: #103b55;
 }
 .pm11-hub-row {
   display: flex;
@@ -369,14 +369,14 @@
   align-items: center;
   gap: 14px;
   padding: 15px 18px;
-  border-bottom: 1px solid #e6dece;
+  border-bottom: 1px solid #cedde6;
 }
 .pm11-hub-row strong {
   font-size: 13px;
 }
 .pm11-hub-row p {
   font-size: 11px;
-  color: #8a7e66;
+  color: #667c8a;
   margin-top: 3px;
 }
 .pm11-hub-row:last-child {
@@ -461,7 +461,7 @@
 .pm11-footer-total span {
   font-size: 8px;
   letter-spacing: 0.1em;
-  color: #8b7854;
+  color: #54768b;
   font-weight: 800;
 }
 .pm11-footer-total strong {

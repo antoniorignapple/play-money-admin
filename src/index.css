@@ -3,8 +3,8 @@
 @layer base {
   :root {
     /* ============ LIGHT THEME ============ */
-    --color-bg: #F7F2E8;
-    --app-page-background: radial-gradient(circle at 15% 0%, rgba(226, 186, 99, .16), transparent 28%), linear-gradient(180deg, #F7F2E8 0%, #F4F0E8 100%);
+    --color-bg: #e8f1f7;
+    --app-page-background: radial-gradient(circle at 15% 0%, rgba(99,177,226, .16), transparent 28%), linear-gradient(180deg, #e8f1f7 0%, #e8eff4 100%);
     --color-surface: #FAFAFA;
     --color-surface-raised: #FFFFFF;
     --color-surface-hover: #F3F4F6;
@@ -28,9 +28,9 @@
     --color-info-soft: #EFF6FF;
     --color-info-border: #BFDBFE;
 
-    --color-warning: #F59E0B;
-    --color-warning-soft: #FFFBEB;
-    --color-warning-border: #FDE68A;
+    --color-warning: #1499ec;
+    --color-warning-soft: #ecf7fd;
+    --color-warning-border: #91cff6;
 
     --color-success: #10B981;
     --color-success-soft: #ECFDF5;
@@ -85,8 +85,8 @@ html, body, #root {
   html.pwa-auth-dark body,
   body.pwa-auth-dark,
   html.pwa-auth-dark #root {
-    background: #080704 !important;
-    background-color: #080704 !important;
+    background: #040608 !important;
+    background-color: #040608 !important;
   }
 
 

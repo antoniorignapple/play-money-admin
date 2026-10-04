@@ -11,7 +11,7 @@ export function generatePeriodAccountingPdf(data, period, venues = {}) {
   doc.setProperties({ title: 'Play Money - Contabilità Conteggi', author: 'Play Money Admin' });
   const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
   const M = 40, right = W - M, inner = W - M * 2;
-  const ink = '#202B38', muted = '#627084', line = '#E4E8EE', gold = '#B48A42';
+  const ink = '#202B38', muted = '#627084', line = '#E4E8EE', gold = '#4288b4';
   let y;
   function text(value, x, top, size = 11, bold = false, color = ink, options = {}) {
     doc.setFont('Manrope', bold ? 'bold' : 'normal'); doc.setFontSize(size); doc.setTextColor(color);
@@ -48,7 +48,7 @@ export function generatePeriodAccountingPdf(data, period, venues = {}) {
   [['ESATTORE CONTEGGI', data.totals.esattore], ['RECUPERI ACCONTO AGGIO', data.totals.recuperi], ['TOTALE GLOBALE', data.totals.globale]].forEach(([label, amount], i) => {
     const x = M + i * (cardWidth + gap);
     doc.setFillColor(i === 2 ? ink : '#F3F5F8'); doc.roundedRect(x, 135, cardWidth, 78, 8, 8, 'F');
-    text(label, x + 12, 157, 8.5, true, i === 2 ? '#D9B975' : muted);
+    text(label, x + 12, 157, 8.5, true, i === 2 ? '#75b3d9' : muted);
     doc.setFont('Manrope', 'bold');
     let size = 20; doc.setFontSize(size);
     while (doc.getTextWidth(euro(amount)) > cardWidth - 24 && size > 11) { size--; doc.setFontSize(size); }

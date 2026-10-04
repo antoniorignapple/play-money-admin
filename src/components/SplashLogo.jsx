@@ -43,7 +43,7 @@ export function SplashLogo({ loginDestination = false, appDestination = false })
       />
       <div className="pm-splash-copy absolute inset-x-0 text-center">
         <p className="text-[11px] font-bold text-white/45">Preparazione giornata</p>
-        <span className="pm-splash-loader mx-auto mt-3 block h-1 w-16 overflow-hidden rounded-full bg-white/10"><i className="block h-full rounded-full bg-[#c99a3e]"/></span>
+        <span className="pm-splash-loader mx-auto mt-3 block h-1 w-16 overflow-hidden rounded-full bg-white/10"><i className="block h-full rounded-full bg-[#3e94c9]"/></span>
       </div>
 
       <style>{`

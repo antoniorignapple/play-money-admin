@@ -1,7 +1,10 @@
 export const RELEASE = Object.freeze({
-  VERSION: "19.0",
-  TITLE: "Admin 19 · Mobile",
+  VERSION: "19.1",
+  TITLE: "Admin 19.1 · Azzurro",
   ITEMS: [
+    "Nuova palette bianco e azzurro Admin in tutta l’app",
+    "Titoli maiuscoli, menu compatto e aggiornamento nella barra superiore",
+    "Corretto il riepilogo Conteggi su mobile",
     "Nuova navigazione mobile: Cassa, Analisi e Conteggi con indicatore animato",
     "Menu laterale ricercabile per tutte le sezioni, ispirato a Dipendenti",
     "Login e splash ripresi da Dipendenti con logo blu Admin",

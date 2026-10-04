@@ -187,7 +187,7 @@ export default function App() {
     body.classList.toggle("pwa-auth-dark", authSurface);
 
     if (themeMeta) {
-      themeMeta.setAttribute("content", authSurface ? "#000000" : "#F7F2E8");
+      themeMeta.setAttribute("content", authSurface ? "#000000" : "#e8f1f7");
     }
 
     return () => {
@@ -437,18 +437,18 @@ function Sidebar({
 
   return (
     <aside
-      className={`relative flex h-full shrink-0 flex-col overflow-hidden border-r border-[#3b3020]/70 bg-[radial-gradient(circle_at_12%_5%,rgba(215,174,82,.14),transparent_23%),linear-gradient(180deg,#0d1118_0%,#15130e_48%,#0a0d12_100%)] pt-safe text-white shadow-[24px_0_70px_-34px_rgba(0,0,0,.95)] transition-[width] duration-300 ${collapsed ? "w-[74px]" : "w-[310px] md:w-[296px]"}`}
+      className={`relative flex h-full shrink-0 flex-col overflow-hidden border-r border-[#20313b]/70 bg-[radial-gradient(circle_at_12%_5%,rgba(82,164,215,.14),transparent_23%),linear-gradient(180deg,#0d1118_0%,#0e1215_48%,#0a0d12_100%)] pt-safe text-white shadow-[24px_0_70px_-34px_rgba(0,0,0,.95)] transition-[width] duration-300 ${collapsed ? "w-[74px]" : "w-[310px] md:w-[296px]"}`}
     >
-      <div className="pointer-events-none absolute -left-16 top-12 h-56 w-56 rounded-full bg-amber-500/10 blur-3xl" />
-      <div className="pointer-events-none absolute -right-24 bottom-20 h-64 w-64 rounded-full bg-yellow-300/5 blur-3xl" />
+      <div className="pointer-events-none absolute -left-16 top-12 h-56 w-56 rounded-full bg-sky-500/10 blur-3xl" />
+      <div className="pointer-events-none absolute -right-24 bottom-20 h-64 w-64 rounded-full bg-sky-300/5 blur-3xl" />
       <div className="pointer-events-none absolute inset-y-0 right-0 w-px bg-[linear-gradient(180deg,transparent,#d9aa4c66,transparent)]" />
 
       <div
         className={`relative flex min-h-[94px] shrink-0 items-center px-4 ${collapsed ? "justify-center px-2" : ""}`}
       >
-        <div className="pointer-events-none absolute inset-x-4 bottom-0 h-px bg-[linear-gradient(90deg,transparent,rgba(229,190,101,.38),transparent)]" />
+        <div className="pointer-events-none absolute inset-x-4 bottom-0 h-px bg-[linear-gradient(90deg,transparent,rgba(101,180,229,.38),transparent)]" />
         <div className="relative flex h-12 w-12 shrink-0 items-center justify-center">
-          <div className="absolute inset-0 rounded-[16px] border border-[#e2bc68]/25 bg-[linear-gradient(145deg,rgba(225,184,91,.18),rgba(255,255,255,.015))] shadow-[0_14px_30px_-18px_rgba(224,182,85,.85)]" />
+          <div className="absolute inset-0 rounded-[16px] border border-[#68b3e2]/25 bg-[linear-gradient(145deg,rgba(91,174,225,.18),rgba(255,255,255,.015))] shadow-[0_14px_30px_-18px_rgba(224,182,85,.85)]" />
           <img
             src="/app-icon.png"
             alt="Play Money"
@@ -460,19 +460,19 @@ function Sidebar({
                 {!collapsed && (
           <div className="ml-3 min-w-0 flex-1">
             <p
-              className="truncate text-[18px] font-extrabold tracking-[-0.02em] text-[#fffaf0]"
+              className="truncate text-[18px] font-extrabold tracking-[-0.02em] text-[#f1f9fe]"
               style={{ fontFamily: '"Avenir Next", "Segoe UI", Inter, system-ui, sans-serif' }}
             >
               PLAY MONEY
             </p>
             <div className="mt-0.5 flex items-baseline gap-2">
               <p
-                className="text-[14px] font-extrabold tracking-[0.04em] text-[#f7ead0]"
+                className="text-[14px] font-extrabold tracking-[0.04em] text-[#d0e8f7]"
                 style={{ fontFamily: '"Avenir Next", "Segoe UI", Inter, system-ui, sans-serif' }}
               >
                 ADMIN
               </p>
-              <span className="text-[14px] font-black tracking-[-0.01em] text-[#e8c775]">
+              <span className="text-[14px] font-black tracking-[-0.01em] text-[#75bce8]">
                 {APP_VERSION}
               </span>
             </div>
@@ -482,7 +482,7 @@ function Sidebar({
         {isMobile && (
           <button
             onClick={onClose}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] border border-white/8 bg-white/[.035] text-[#e8c36d] transition active:scale-95"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] border border-white/8 bg-white/[.035] text-[#6db9e8] transition active:scale-95"
             aria-label="Chiudi menu"
           >
             <X size={17} />
@@ -492,7 +492,7 @@ function Sidebar({
         {!collapsed && !isMobile && (
           <button
             onClick={() => setCollapsed(true)}
-            className="absolute right-2 top-1/2 z-20 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-[11px] border border-[#c69d4e]/30 bg-black/20 text-[#e0bb68]/70 shadow-[0_8px_20px_rgba(0,0,0,.35)] transition hover:border-[#e2bd69]/60 hover:bg-[#d7aa50]/10 hover:text-[#f3d184]"
+            className="absolute right-2 top-1/2 z-20 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-[11px] border border-[#4e98c6]/30 bg-black/20 text-[#68b2e0]/70 shadow-[0_8px_20px_rgba(0,0,0,.35)] transition hover:border-[#69b4e2]/60 hover:bg-[#50a3d7]/10 hover:text-[#84c8f3]"
             title="Comprimi"
           >
             <ChevronsLeft size={14} />
@@ -504,7 +504,7 @@ function Sidebar({
         <div className="relative px-3 py-2.5">
           <button
             onClick={openPalette}
-            className={`flex h-10 w-full items-center gap-3 rounded-[14px] border border-white/[.07] bg-white/[0.028] px-3 text-left text-white/42 transition hover:border-[#d5aa51]/28 hover:bg-white/[0.055] hover:text-white ${collapsed ? "justify-center px-0" : ""}`}
+            className={`flex h-10 w-full items-center gap-3 rounded-[14px] border border-white/[.07] bg-white/[0.028] px-3 text-left text-white/42 transition hover:border-[#51a2d5]/28 hover:bg-white/[0.055] hover:text-white ${collapsed ? "justify-center px-0" : ""}`}
           >
             <Search size={16} />
             {!collapsed && (
@@ -525,7 +525,7 @@ function Sidebar({
         {groups.map((group, gi) => (
           <div key={group.label} className={gi ? "mt-5" : ""}>
             {!collapsed && (
-              <p className="mb-2 px-2 text-[9px] font-black tracking-[0.24em] text-[#d8b35f]/55">
+              <p className="mb-2 px-2 text-[9px] font-black tracking-[0.24em] text-[#5faad8]/55">
                 {group.label}
               </p>
             )}
@@ -553,7 +553,7 @@ function Sidebar({
         {collapsed ? (
           <button
             onClick={() => setCollapsed(false)}
-            className="flex h-11 w-full items-center justify-center rounded-[15px] border border-white/8 bg-white/[0.035] text-white/45 hover:text-[#efc872]"
+            className="flex h-11 w-full items-center justify-center rounded-[15px] border border-white/8 bg-white/[0.035] text-white/45 hover:text-[#72bfef]"
             title="Espandi"
           >
             <ChevronsRight size={17} />
@@ -561,7 +561,7 @@ function Sidebar({
         ) : (
           <div className="overflow-hidden rounded-[18px] border border-white/8 bg-white/[0.035] p-3">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-[#d3aa55]/25 bg-[#d3aa55]/10 text-[12px] font-black text-[#efca77]">
+              <div className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-[#55a3d3]/25 bg-[#55a3d3]/10 text-[12px] font-black text-[#77c1ef]">
                 AD
               </div>
               <div className="min-w-0 flex-1">
@@ -593,7 +593,7 @@ function NavItem({ item, active, collapsed, isMobile, onClick }) {
     <button
       onClick={onClick}
       title={collapsed ? item.label : ""}
-      className={`group relative flex h-12 w-full items-center gap-3 overflow-hidden rounded-[16px] px-3 text-[13px] font-black transition-all duration-200 ${active ? "border border-[#e1bd6b]/45 bg-[linear-gradient(135deg,#f7e4ad_0%,#c7902d_100%)] text-[#281b08] shadow-[0_14px_28px_-17px_rgba(207,157,61,.78)]" : "border border-transparent text-white/58 hover:border-white/8 hover:bg-white/[0.045] hover:text-white"} ${collapsed ? "justify-center px-0" : ""}`}
+      className={`group relative flex h-12 w-full items-center gap-3 overflow-hidden rounded-[16px] px-3 text-[13px] font-black transition-all duration-200 ${active ? "border border-[#6bb4e1]/45 bg-[linear-gradient(135deg,#addbf7_0%,#2d8cc7_100%)] text-[#081c28] shadow-[0_14px_28px_-17px_rgba(207,157,61,.78)]" : "border border-transparent text-white/58 hover:border-white/8 hover:bg-white/[0.045] hover:text-white"} ${collapsed ? "justify-center px-0" : ""}`}
     >
       {active && (
         <>
@@ -602,7 +602,7 @@ function NavItem({ item, active, collapsed, isMobile, onClick }) {
         </>
       )}
       <div
-        className={`relative flex h-8 w-8 shrink-0 items-center justify-center rounded-[11px] ${active ? "bg-white/35 text-[#5d3b09]" : "bg-white/[0.045] text-white/38 group-hover:text-[#edc66e]"}`}
+        className={`relative flex h-8 w-8 shrink-0 items-center justify-center rounded-[11px] ${active ? "bg-white/35 text-[#093d5d]" : "bg-white/[0.045] text-white/38 group-hover:text-[#6ebced]"}`}
       >
         <Icon size={17} strokeWidth={2} />
       </div>
@@ -613,7 +613,7 @@ function NavItem({ item, active, collapsed, isMobile, onClick }) {
           </span>
           {!isMobile && (
             <span
-              className={`relative text-[9px] ${active ? "text-[#5a3a0c]/45" : "text-white/18"}`}
+              className={`relative text-[9px] ${active ? "text-[#0c3c5a]/45" : "text-white/18"}`}
             >
               {item.shortcut}
             </span>
