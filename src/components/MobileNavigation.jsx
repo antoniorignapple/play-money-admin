@@ -22,16 +22,20 @@ export function MobileNavigation({ page, pages, onNavigate, open, onOpenChange, 
     else if (drawer.current?.open) { drawer.current.close(); menuButton.current?.focus(); }
   }, [open]);
   useEffect(() => {
+    const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    document.documentElement.classList.toggle('pm-ios-standalone', standalone);
     const viewport = window.visualViewport;
     const update = () => {
       const editing = /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName || '');
-      setKeyboard(Boolean(editing && viewport && viewport.height < window.innerHeight - 120));
+      const keyboardOpen = Boolean(editing && viewport && viewport.height < window.innerHeight - 120);
+      setKeyboard(keyboardOpen);
+      document.documentElement.classList.toggle('pm-standalone-keyboard', standalone && keyboardOpen);
       document.documentElement.style.setProperty('--mobile-viewport-height', `${viewport?.height || window.innerHeight}px`);
     };
     viewport?.addEventListener('resize', update);
     document.addEventListener('focusin', update); document.addEventListener('focusout', update);
     update();
-    return () => { viewport?.removeEventListener('resize', update); document.removeEventListener('focusin', update); document.removeEventListener('focusout', update); document.documentElement.style.removeProperty('--mobile-viewport-height'); };
+    return () => { viewport?.removeEventListener('resize', update); document.removeEventListener('focusin', update); document.removeEventListener('focusout', update); document.documentElement.style.removeProperty('--mobile-viewport-height'); document.documentElement.classList.remove('pm-ios-standalone', 'pm-standalone-keyboard'); };
   }, []);
   // Same horizontal direction lock as Dipendenti; vertical gestures keep scrolling.
   useEffect(() => {

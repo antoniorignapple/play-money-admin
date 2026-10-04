@@ -233,3 +233,10 @@
  .pm-admin-shell { --pm-nav-safe-bottom:min(34px,var(--pm-safe-bottom,env(safe-area-inset-bottom,0px))); --mobile-bottom:calc(58px + var(--pm-nav-safe-bottom)); }
  .pm-mobile-tabs { height:var(--mobile-bottom); padding-bottom:var(--pm-nav-safe-bottom); }
 }
+
+/* WebKit 254868: installed apps need vh; a fixed root can clip the bottom. */
+@media (max-width:767px) {
+ html.pm-ios-standalone,html.pm-ios-standalone body,html.pm-ios-standalone #root { height:100vh; min-height:0; position:static; }
+ html.pm-ios-standalone .pm-admin-shell { position:relative; inset:auto; height:100vh; min-height:0; }
+ html.pm-ios-standalone.pm-standalone-keyboard .pm-admin-shell { height:var(--mobile-viewport-height); }
+}

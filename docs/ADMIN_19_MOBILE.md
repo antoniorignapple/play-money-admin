@@ -50,3 +50,7 @@ La barra mobile ora è un elemento in flusso del contenitore app fissato ai quat
 ## Aggiornamento 19.4
 
 Padding inferiore della navigazione limitato a 34 px, con riga comandi fissa a 58 px. Verifica browser con inset simulato di 93 px: la barra deve restare entro 93 px complessivi e aderire al bordo del viewport. Correzione basata sulla differenza di altezza visibile fra gli screenshot Admin e Dipendenti; comportamento da confermare sul dispositivo reale.
+
+## Aggiornamento 19.5
+
+Rilevamento della modalità installata tramite display-mode e navigator.standalone. Solo nella PWA: html/body/root e contenitore app usano 100vh; contenitore relativo, senza fixed/inset. Durante la tastiera viene usato il visual viewport. Riferimento al problema WebKit 254868: https://bugs.webkit.org/show_bug.cgi?id=254868. Suite browser eseguita anche con modalità installata simulata; il bug WebKit reale richiede conferma su iPhone.

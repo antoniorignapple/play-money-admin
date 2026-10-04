@@ -1,7 +1,8 @@
 export const RELEASE = Object.freeze({
-  VERSION: "19.4",
-  TITLE: "Admin 19.4 · Tab bar iPhone",
+  VERSION: "19.5",
+  TITLE: "Admin 19.5 · Viewport PWA",
   ITEMS: [
+    "Viewport dedicato alla PWA iOS: altezza vh e contenitore principale senza position fixed",
     "Limitata la safe area inferiore della barra per eliminare lo spazio eccessivo su iPhone",
     "Barra mobile ancorata al contenitore dell’app, senza fascia vuota inferiore",
     "Tab bar aderente al bordo inferiore e menu con scorrimento e gesto touch",

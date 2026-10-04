@@ -9,6 +9,7 @@ const repo=process.cwd();
 const server=await createServer({root:repo,configFile:false,plugins:[react(),tailwind()],resolve:{alias:[{find:'virtual:pwa-register',replacement:path.join(repo,'tests/fixtures/pwaStub.js')},{find:/(?:.*\/lib\/supabase|\.\/supabase)(?:\.js)?$/,replacement:repo+'/tests/fixtures/mobileV19Supabase.js'}]},server:{port:5179,host:'127.0.0.1'}});await server.listen();
 const browser=await browserType.launch({headless:true,executablePath:process.env.MOBILE_BROWSER_EXECUTABLE || undefined,args:process.env.MOBILE_BROWSER_EXECUTABLE ? ['--no-sandbox','--no-zygote','--single-process','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader'] : []});
 const page=await browser.newPage({viewport:{width:440,height:956},isMobile:true,hasTouch:true,deviceScaleFactor:1,locale:'it-IT',timezoneId:'Europe/Rome'});
+if(process.env.MOBILE_STANDALONE === '1') await page.addInitScript(() => Object.defineProperty(navigator,'standalone',{value:true,configurable:true}));
 const errors=[];page.on('pageerror',err=>errors.push(err.message));
 fs.mkdirSync(process.env.MOBILE_SCREENSHOT_DIR || repo+'/docs/mobile-v19',{recursive:true});
 async function shot(name){if (!process.argv.includes('--screenshots')) return;await page.screenshot({path:path.join(process.env.MOBILE_SCREENSHOT_DIR || repo+'/docs/mobile-v19',name+'.png')});}
@@ -48,6 +49,7 @@ async function swipe(x1,y1,x2,y2) {
 
 try{
  await page.goto('http://127.0.0.1:5179');await page.waitForSelector('.pm-simple-splash');await shot('splash');await page.waitForSelector('.pm-mobile-tabbar');await page.waitForTimeout(250);await shot('analisi');await audit('analisi');
+ if(process.env.MOBILE_STANDALONE === '1') assert.equal(await page.locator('.pm-admin-shell').evaluate(el=>getComputedStyle(el).position),'relative','PWA must avoid the fixed-root viewport clipping');
  assert.deepEqual(await page.getByRole('navigation',{name:'Navigazione principale'}).getByRole('button').allTextContents(),['CASSA','ANALISI','CONTEGGI']);
  await page.getByRole('button',{name:'Apri menu',exact:true}).click();await page.waitForTimeout(400);
  await swipe(180,750,180,350);
