@@ -6,22 +6,14 @@ import {
   BarChart3,
   Car,
   Trash2,
-  ShieldCheck,
   Calculator,
   Receipt,
   ClipboardCheck,
   Search,
   ChevronsLeft,
   ChevronsRight,
-  Menu,
   X,
-  LockKeyhole,
-  Mail,
-  Eye,
-  EyeOff,
   LogOut,
-  Loader2,
-  RefreshCw,
   CalendarDays,
   Route,
 } from "lucide-react";
@@ -43,6 +35,9 @@ import GiriPage from "./pages/GiriPage";
 import { ToastProvider } from "./components/Toast";
 import { CommandPalette } from "./components/CommandPalette";
 import { supabase } from "./lib/supabase";
+import { MobileNavigation } from "./components/MobileNavigation";
+import { LoginView } from "./components/LoginView";
+import { SplashLogo } from "./components/SplashLogo";
 import { APP_VERSION } from "./config/release";
 
 const NAV = [
@@ -172,12 +167,13 @@ export default function App() {
   const [collapsed, setCollapsed] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
   const [session, setSession] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [authError, setAuthError] = useState("");
   const [splashReady, setSplashReady] = useState(false);
   const authorizedUserIdRef = useRef(null);
+  const splashAuthenticated = Boolean(session);
 
   // iOS PWA: durante splash/login colora anche la safe-area inferiore
   // (quella dell'Home Indicator), che altrimenti può restare bianca.
@@ -191,7 +187,7 @@ export default function App() {
     body.classList.toggle("pwa-auth-dark", authSurface);
 
     if (themeMeta) {
-      themeMeta.setAttribute("content", authSurface ? "#080704" : "#A87318");
+      themeMeta.setAttribute("content", authSurface ? "#000000" : "#F7F2E8");
     }
 
     return () => {
@@ -201,9 +197,10 @@ export default function App() {
   }, [authLoading, splashReady, session]);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setSplashReady(true), 1100);
+    if (authLoading) return;
+    const timer = window.setTimeout(() => setSplashReady(true), splashAuthenticated ? 1250 : 1450);
     return () => window.clearTimeout(timer);
-  }, []);
+  }, [authLoading, splashAuthenticated]);
 
   useEffect(() => {
     let active = true;
@@ -232,6 +229,7 @@ export default function App() {
         authorizedUserIdRef.current === candidateSession.user?.id;
       if (!isAlreadyAuthorized) {
         setSession(null);
+        setSplashReady(false);
         setAuthLoading(true);
       }
 
@@ -352,16 +350,15 @@ export default function App() {
   }, []);
 
   const Current = NAV.find((n) => n.id === page)?.component || AnalisiPage;
-  const currentLabel = NAV.find((n) => n.id === page)?.label || "Play Money";
 
   if (authLoading || !splashReady) {
-    return <AuthLoadingScreen />;
+    return <SplashLogo loginDestination={!authLoading && !session} appDestination={!authLoading && Boolean(session)} />;
   }
 
   if (!session) {
     return (
       <ToastProvider>
-        <LoginScreen
+        <LoginView
           externalError={authError}
           onAttempt={() => setAuthError("")}
         />
@@ -372,67 +369,19 @@ export default function App() {
   return (
     <ToastProvider>
       <OfficeCashProvider>
-      <div className="flex h-[100dvh] min-h-0 w-screen overflow-hidden bg-[var(--app-page-background)] text-[var(--color-text)]">
-        {/* TOPBAR MOBILE — visibile solo < 768px */}
-        <header className="fixed left-0 right-0 top-0 z-40 flex h-[calc(48px+env(safe-area-inset-top))] items-center justify-between border-b border-[var(--color-sidebar-border)] bg-[var(--color-sidebar-bg)] px-2 pt-[env(safe-area-inset-top)] md:hidden">
-          <button
-            onClick={() => setMobileNavOpen(true)}
-            className="inline-flex h-9 w-9 items-center justify-center rounded text-[var(--color-sidebar-text)] hover:bg-[var(--color-sidebar-bg-hover)]"
-            aria-label="Apri menu"
-          >
-            <Menu size={20} strokeWidth={2} />
-          </button>
-          <div className="flex items-center gap-2">
-            <img
-              src="/app-icon.png"
-              alt=""
-              className="h-6 w-6 rounded object-contain"
-              draggable={false}
-            />
-            <p className="text-[14px] font-semibold text-white">
-              {currentLabel}
-            </p>
-          </div>
-          <button
-            onClick={() => setPaletteOpen(true)}
-            className="inline-flex h-9 w-9 items-center justify-center rounded text-[var(--color-sidebar-text)] hover:bg-[var(--color-sidebar-bg-hover)]"
-            aria-label="Cerca"
-          >
-            <Search size={18} strokeWidth={2} />
-          </button>
-        </header>
-
-        {/* BACKDROP DRAWER */}
-        {mobileNavOpen && (
-          <div
-            className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm md:hidden"
-            onClick={() => setMobileNavOpen(false)}
-          />
+      <div className="pm-admin-shell flex h-[100dvh] min-h-0 w-screen overflow-hidden bg-[var(--app-page-background)] text-[var(--color-text)]">
+        {isMobile ? (
+          <MobileNavigation page={page} pages={NAV} onNavigate={setPage}
+            open={mobileNavOpen} onOpenChange={setMobileNavOpen}
+            onSearch={() => setPaletteOpen(true)} onLogout={handleLogout} />
+        ) : (
+          <Sidebar page={page} setPage={setPage} collapsed={collapsed}
+            setCollapsed={setCollapsed} openPalette={() => setPaletteOpen(true)}
+            isMobile={false} session={session} onLogout={handleLogout} />
         )}
 
-        {/* SIDEBAR (drawer mobile, fissa desktop) */}
-        <div
-          className={`fixed inset-y-0 left-0 z-50 transition-transform duration-200 md:relative md:translate-x-0 ${
-            mobileNavOpen
-              ? "translate-x-0"
-              : "-translate-x-full md:translate-x-0"
-          }`}
-        >
-          <Sidebar
-            page={page}
-            setPage={setPage}
-            collapsed={collapsed && !isMobile}
-            setCollapsed={setCollapsed}
-            openPalette={() => setPaletteOpen(true)}
-            isMobile={isMobile}
-            onClose={() => setMobileNavOpen(false)}
-            session={session}
-            onLogout={handleLogout}
-          />
-        </div>
-
         {/* MAIN: con padding-top su mobile per topbar */}
-        <main className="min-h-0 min-w-0 flex-1 overflow-hidden pt-[calc(48px+env(safe-area-inset-top))] md:pt-0">
+        <main className="pm-admin-main min-h-0 min-w-0 flex-1 overflow-hidden" data-page={page}>
           <Current initialPeriodId={page === "contabilita-conteggi" ? accountingPeriodId : returnPeriodId} onOpenAccounting={openAccounting} onBack={backToConteggi} />
         </main>
 
@@ -450,236 +399,6 @@ export default function App() {
       </div>
       </OfficeCashProvider>
     </ToastProvider>
-  );
-}
-
-function AuthLoadingScreen() {
-  return (
-    <div className="fixed inset-0 z-[9999] grid h-[100dvh] min-h-[100dvh] place-items-center overflow-hidden bg-[#080704]">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,rgba(217,170,70,.20),transparent_30%),radial-gradient(circle_at_50%_110%,rgba(121,77,8,.18),transparent_38%)]" />
-      <div className="relative flex flex-col items-center">
-        <div className="relative grid h-36 w-36 place-items-center">
-          <span className="absolute inset-0 animate-ping rounded-full border border-amber-300/20 [animation-duration:2s]" />
-          <span className="absolute inset-3 rounded-full bg-amber-400/15 blur-2xl" />
-          <div className="relative grid h-28 w-28 place-items-center rounded-full border border-amber-300/20 shadow-[0_28px_70px_-25px_rgba(222,174,72,.8)]">
-            <img
-              src="/app-icon.png"
-              alt="Play Money Admin"
-              className="h-20 w-20 rounded-full object-cover"
-              draggable={false}
-            />
-          </div>
-        </div>
-        <p className="mt-6 text-[10px] font-black tracking-[.34em] text-amber-200/70">
-          PLAY MONEY
-        </p>
-        <h1 className="mt-2 text-2xl font-black tracking-[.22em] text-white">
-          ADMIN
-        </h1>
-        <div className="mt-7 h-[2px] w-44 overflow-hidden rounded-full bg-white/5">
-          <span className="block h-full w-1/3 animate-[adminLoad_1.25s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-amber-300 to-transparent" />
-        </div>
-      </div>
-      <style>{`@keyframes adminLoad{from{transform:translateX(-130%)}to{transform:translateX(400%)}}`}</style>
-    </div>
-  );
-}
-
-function LoginScreen({ externalError = "", onAttempt }) {
-  const ADMIN_EMAIL = "admin@playmoney.com";
-  const [password, setPassword] = useState("");
-  const [passwordVisible, setPasswordVisible] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const visibleError = error || externalError;
-
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    onAttempt?.();
-    setError("");
-    if (password.length < 4) {
-      setError("Inserisci la password amministratore.");
-      return;
-    }
-    setLoading(true);
-    let { error: authError } = await supabase.auth.signInWithPassword({
-      email: ADMIN_EMAIL,
-      password,
-    });
-    // Compatibilità temporanea con il vecchio PIN durante la migrazione.
-    if (authError && /^\d{4}$/.test(password)) {
-      const fallback = await supabase.auth.signInWithPassword({
-        email: ADMIN_EMAIL,
-        password: `pm${password}`,
-      });
-      authError = fallback.error;
-    }
-    setLoading(false);
-    if (authError) {
-      setPassword("");
-      setError("Password amministratore non corretta.");
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 z-[9998] h-[100dvh] min-h-[100dvh] overflow-y-auto bg-[#090805] text-white">
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_16%_18%,rgba(216,168,64,.16),transparent_30%),radial-gradient(circle_at_88%_82%,rgba(129,83,11,.18),transparent_34%),linear-gradient(135deg,#080704,#151006_55%,#080704)]" />
-      <div className="pointer-events-none fixed inset-0 opacity-[.035] [background-image:linear-gradient(rgba(255,255,255,.6)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.6)_1px,transparent_1px)] [background-size:42px_42px]" />
-
-      <main className="relative mx-auto grid min-h-[100dvh] w-full max-w-[1380px] items-center px-4 py-7 pb-[calc(1.75rem+env(safe-area-inset-bottom))] md:grid-cols-[1.15fr_.85fr] md:gap-12 md:px-10 md:pb-7 lg:gap-20 lg:px-16">
-        <section className="hidden md:block">
-          <div className="inline-flex items-center gap-2 rounded-full border border-amber-300/20 bg-amber-300/[.07] px-4 py-2 text-[9px] font-black tracking-[.22em] text-amber-200">
-            <ShieldCheck size={14} /> ACCESSO AMMINISTRATIVO PROTETTO
-          </div>
-          <div className="mt-9 flex items-center gap-6">
-            <div className="relative grid h-28 w-28 shrink-0 place-items-center">
-              <span className="absolute inset-0 rounded-full border border-amber-300/20" />
-              <span className="absolute inset-3 rounded-full bg-amber-300/20 blur-2xl" />
-              <span className="absolute inset-2 rounded-full border border-amber-200/10" />
-              <img
-                src="/app-icon.png"
-                alt=""
-                className="relative h-[82px] w-[82px] rounded-full object-cover shadow-[0_22px_55px_-18px_rgba(221,171,65,.85)]"
-                draggable={false}
-              />
-            </div>
-            <div>
-              <p className="text-[12px] font-black tracking-[.38em] text-amber-300">
-                PLAY MONEY
-              </p>
-              <h1 className="mt-1 text-5xl font-black tracking-[.12em] text-white lg:text-6xl">
-                ADMIN
-              </h1>
-            </div>
-          </div>
-          <p className="mt-8 max-w-xl text-xl font-bold leading-relaxed text-white/80 lg:text-2xl">
-            Tutto il controllo operativo,
-            <br />
-            <span className="bg-gradient-to-r from-amber-200 via-[#e4b951] to-amber-500 bg-clip-text text-transparent">
-              in un unico spazio.
-            </span>
-          </p>
-          <div className="mt-10 grid max-w-xl grid-cols-3 gap-3">
-            {["DATI PROTETTI", "CONTROLLO COMPLETO", "ACCESSO RAPIDO"].map(
-              (label, index) => (
-                <div
-                  key={label}
-                  className="rounded-2xl border border-white/8 bg-white/[.035] px-4 py-4 backdrop-blur"
-                >
-                  <p className="text-[9px] font-black tracking-[.12em] text-amber-300/75">
-                    0{index + 1}
-                  </p>
-                  <p className="mt-2 text-[10px] font-black leading-relaxed tracking-[.08em] text-white/70">
-                    {label}
-                  </p>
-                </div>
-              ),
-            )}
-          </div>
-          <p className="mt-10 text-[9px] font-bold tracking-[.18em] text-white/25">
-            PLAY MONEY ADMIN · VERSIONE {APP_VERSION}
-          </p>
-        </section>
-
-        <section className="mx-auto w-full max-w-[430px]">
-          <div className="overflow-hidden rounded-[32px] border border-amber-200/20 bg-white/[.07] shadow-[0_40px_110px_-35px_rgba(0,0,0,.95)] backdrop-blur-2xl">
-            <div className="border-b border-white/8 bg-gradient-to-br from-white/[.08] to-amber-300/[.04] px-5 py-6 text-center sm:px-7">
-              <div className="relative mx-auto grid h-24 w-24 place-items-center md:hidden">
-                <span className="absolute inset-1 rounded-full border border-amber-300/20" />
-                <span className="absolute inset-3 rounded-full bg-amber-300/20 blur-xl" />
-                <img
-                  src="/app-icon.png"
-                  alt="Play Money Admin"
-                  className="relative h-[70px] w-[70px] rounded-full object-cover shadow-[0_20px_45px_-18px_rgba(221,171,65,.9)]"
-                  draggable={false}
-                />
-              </div>
-              <p className="mt-4 text-[9px] font-black tracking-[.3em] text-amber-300 md:mt-0">
-                BENTORNATO
-              </p>
-              <h2 className="mt-2 text-2xl font-black tracking-[.1em] text-white">
-                ACCESSO ADMIN
-              </h2>
-              <p className="mt-2 text-xs font-semibold text-white/40">
-                Inserisci la password per aprire il pannello.
-              </p>
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-5 p-5 sm:p-7">
-              <div>
-                <p className="mb-2 text-[9px] font-black tracking-[.2em] text-amber-200/70">
-                  UTENTE SELEZIONATO
-                </p>
-                <div className="flex h-[62px] items-center gap-3 rounded-[20px] border border-amber-300/20 bg-black/25 px-4 shadow-inner">
-                  <div className="grid h-10 w-10 place-items-center rounded-[13px] bg-gradient-to-br from-[#e4b74f] to-[#79500e] text-white">
-                    <ShieldCheck size={20} />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-black tracking-[.12em] text-white">
-                      ADMIN
-                    </p>
-                    <p className="mt-0.5 text-[9px] font-bold tracking-[.1em] text-amber-200/45">
-                      AMMINISTRATORE PRINCIPALE
-                    </p>
-                  </div>
-                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_0_5px_rgba(52,211,153,.1)]" />
-                </div>
-              </div>
-
-              <label className="block">
-                <span className="mb-2 block text-[9px] font-black tracking-[.2em] text-amber-200/70">
-                  PASSWORD AMMINISTRATORE
-                </span>
-                <div className="relative">
-                  <input
-                    autoFocus
-                    type={passwordVisible ? "text" : "password"}
-                    autoComplete="current-password"
-                    value={password}
-                    onChange={(event) => {
-                      onAttempt?.();
-                      setPassword(String(event.target.value || ""));
-                      setError("");
-                    }}
-                    placeholder="Inserisci la password"
-                    disabled={loading}
-                    className="h-[66px] w-full rounded-[20px] border border-amber-300/15 bg-black/25 px-5 pr-14 text-base font-black text-white outline-none shadow-inner transition placeholder:text-white/20 focus:border-amber-300/50 focus:ring-4 focus:ring-amber-300/10 disabled:opacity-60"
-                  />
-                  <button type="button" aria-label={passwordVisible ? "Nascondi password" : "Mostra password"} onClick={() => setPasswordVisible((value) => !value)} className="absolute right-3 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-xl text-amber-200/65 hover:bg-white/5">
-                    {passwordVisible ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                </div>
-                <p className="mt-2 text-center text-[10px] font-semibold text-white/35">
-                  Accesso riservato · credenziale personale
-                </p>
-              </label>
-
-              {visibleError && (
-                <div className="rounded-[18px] border border-red-400/20 bg-red-500/10 px-4 py-3 text-center text-xs font-black text-red-200">
-                  {visibleError}
-                </div>
-              )}
-
-              <button
-                type="submit"
-                disabled={loading || password.length < 4}
-                className="flex h-[60px] w-full items-center justify-center gap-2 rounded-[20px] bg-gradient-to-r from-[#f2d477] via-[#d5a33c] to-[#a56d12] text-xs font-black tracking-[.18em] text-[#241704] shadow-[0_22px_48px_-20px_rgba(224,175,65,.75)] transition hover:-translate-y-0.5 hover:brightness-105 active:scale-[.985] disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                {loading ? (
-                  <Loader2 size={19} className="animate-spin" />
-                ) : (
-                  <LockKeyhole size={18} />
-                )}
-                {loading ? "ACCESSO…" : "ENTRA NEL PANNELLO"}
-              </button>
-            </form>
-          </div>
-          <p className="mt-6 text-center text-[9px] font-bold tracking-[.18em] text-white/25 md:hidden">
-            PLAY MONEY ADMIN · VERSIONE {APP_VERSION}
-          </p>
-        </section>
-      </main>
-    </div>
   );
 }
 

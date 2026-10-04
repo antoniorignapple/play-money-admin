@@ -1,7 +1,7 @@
 {
   "name": "play-money-admin",
   "private": true,
-  "version": "18.5.0",
+  "version": "19.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -15,7 +15,8 @@
     "test:database:v14": "node tests/database/office-cash-v14.mjs",
     "test:ui:v14": "node tests/office-ui.mjs",
     "test:database:v18": "node tests/database/accounting-v18.mjs",
-    "test:ui:v18": "node tests/accounting-ui-v18.mjs"
+    "test:ui:v18": "node tests/accounting-ui-v18.mjs",
+    "test:ui:mobile": "node tests/mobile-v19.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.105.4",
@@ -37,6 +38,7 @@
     "eslint-plugin-react-refresh": "0.5.2",
     "globals": "17.6.0",
     "jsdom": "26.1.0",
+    "playwright": "^1.62.1",
     "vite": "8.2.2",
     "vite-plugin-pwa": "1.3.0"
   }

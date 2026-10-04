@@ -928,7 +928,7 @@ export default function LocaliPage() {
                         <p className="text-[9px] font-black tracking-[.2em] text-[#9b6a19]">
                           SCHEDA LOCALE
                         </p>
-                        <h2 className="truncate text-[25px] font-black uppercase tracking-[.05em] text-[#30210a] md:text-[32px]">
+                        <h2 className="pm-local-venue-name truncate text-[25px] font-black uppercase tracking-[.05em] text-[#30210a] md:text-[32px]">
                           {selectedVenue.name}
                         </h2>
                         <p className="mt-1 flex items-center gap-1 text-[11px] font-bold text-[#76521b]">
@@ -1015,7 +1015,7 @@ export default function LocaliPage() {
                           key={machine.id}
                           className="overflow-hidden rounded-[26px] border border-[#d9c18a] bg-[#fffdf9] shadow-[0_22px_48px_-35px_rgba(66,39,3,.75)]"
                         >
-                          <div className="grid min-h-[235px] grid-cols-[145px_1fr]">
+                          <div className="pm-local-change-card grid min-h-[235px] grid-cols-[145px_1fr]">
                             <div className="relative flex items-end justify-center overflow-hidden border-r border-[#e2d3b3] bg-[radial-gradient(circle_at_50%_70%,#f0cb70,transparent_48%),linear-gradient(180deg,#fff8e6,#f1e0bd)] p-2">
                               <img
                                 src={getChangeImage(machine.name)}
@@ -1027,7 +1027,7 @@ export default function LocaliPage() {
                                 }}
                               />
                             </div>
-                            <div className="flex flex-col p-4">
+                            <div className="pm-local-machine-detail flex flex-col p-4">
                               <div className="flex items-start justify-between gap-2">
                                 <div>
                                   <p className="text-[9px] font-black tracking-[.18em] text-[#a16d18]">

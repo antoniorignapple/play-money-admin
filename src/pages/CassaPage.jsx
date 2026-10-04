@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   Calendar, User, Building2, Plus, RefreshCw,
-  RotateCcw, Pencil, Trash2,
+  RotateCcw, Pencil, Trash2, Search,
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import {
@@ -618,7 +618,11 @@ async function deleteMovement(row) {
             </div>
           </section>
 
-          {filterBanners}
+          <div className="pm-cassa-mobile-toolbar md:hidden">
+            <button type="button" onClick={() => setFiltersOpen(true)}><Search size={20}/> Filtri{(cognome || nomeLocale || showGeneric) && ' · attivi'}</button>
+            <button type="button" onClick={() => setNewOpen(true)}><Plus size={20}/> Nuovo movimento</button>
+          </div>
+          <div className="hidden md:block">{filterBanners}</div>
 
           <section className="overflow-hidden rounded-[28px] border border-[#dfcfaa] bg-[#fffdf9] shadow-[0_24px_55px_-38px_rgba(65,43,8,.68)]">
             <div className="relative flex min-h-[68px] flex-col items-center justify-center gap-2 border-b border-[#eadfca] px-4 py-4 text-center md:flex-row">
@@ -747,7 +751,7 @@ async function deleteMovement(row) {
 </div>
 
             {/* LISTA CARD MOBILE */}
-            <div className="md:hidden divide-y divide-[var(--color-border)]">
+            <div className="pm-cassa-mobile-list md:hidden">
               {loading && Array.from({ length: 5 }).map((_, i) => (
                 <div key={i} className="px-3 py-3">
                   <div className="h-4 w-1/2 animate-pulse rounded bg-[var(--color-surface-active)]" />
@@ -764,54 +768,27 @@ async function deleteMovement(row) {
               {!loading && rows.map((r) => {
                 const pending = pendingDeletes.has(r.id)
                 return (
-                  <div
-                    key={r.id}
-                    className={`px-3 py-3 ${pending ? 'bg-[var(--color-danger-soft)]' : ''}`}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <p className={`text-[14px] font-black uppercase ${pending ? 'line-through text-[var(--color-danger)]' : 'text-[#3d2a0b]'}`}>
-                          {r.venue_id ? venueLabel(r.venue_id) : <span className="italic text-[var(--color-text-muted)]">generico</span>}
-                        </p>
-                        <p className={`text-[12px] ${pending ? 'line-through' : 'text-[var(--color-text-secondary)]'}`}>
-                          {dipendenteName(operatorById(r.created_by))}
-                        </p>
-                        <p className="mt-0.5 text-[11px] text-[var(--color-text-muted)] tabular-nums">
-                          {r.origine === 'chiusura_conteggio' || r.origine === 'admin_cassa'
-  ? `${toIT(r.work_date)} 00:00`
-  : formatDateTime(r.created_at)}
-                        </p>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={pending}
-                        onChange={() => toggleRow(r.id)}
-                        className="h-5 w-5 cursor-pointer accent-[var(--color-danger)]"
-                      />
+                  <article key={r.id} className={`pm-cassa-movement ${pending ? 'pending' : ''}`}>
+                    <div className="pm-cassa-movement-heading">
+                      <button type="button" className="pm-cassa-open" aria-label={`Apri movimento ${r.venue_id ? venueLabel(r.venue_id) : 'generico'}`} onClick={() => openEditMovement(r)}>
+                        <span>
+                          <strong>{r.venue_id ? venueLabel(r.venue_id) : 'Operazione generica'}</strong>
+                          <small>{dipendenteName(operatorById(r.created_by))}</small>
+                          <small>{r.origine === 'chiusura_conteggio' || r.origine === 'admin_cassa' ? `${toIT(r.work_date)} 00:00` : formatDateTime(r.created_at)}</small>
+                        </span>
+                        <Pencil size={20} className="shrink-0 text-[#946318]" />
+                      </button>
+                      <label className="pm-cassa-select" title="Seleziona per cancellare">
+                        <input type="checkbox" checked={pending} onChange={() => toggleRow(r.id)} aria-label={`Seleziona movimento ${r.venue_id ? venueLabel(r.venue_id) : 'generico'} per cancellare`} />
+                      </label>
                     </div>
-                    {isGenericMovement(r) ? (
-                      <div className={`mt-3 border-t border-[#eadfca] pt-3 text-center text-[11px] font-black uppercase tracking-[0.16em] ${
-                        pending ? 'line-through text-[var(--color-danger)]' : 'text-[#946318]'
-                      }`}>
-                        Operazione generica
-                      </div>
-                    ) : (
-                      <div className="mt-3 grid grid-cols-3 gap-2 border-t border-[#eadfca] pt-3">
-                        <div>
-                          <p className="text-[10px] uppercase text-[var(--color-text-muted)]">Acconto</p>
-                          <p className={`text-[13px] font-black tabular-nums ${pending ? 'line-through text-[var(--color-danger)]' : 'text-[#3d2a0b]'}`}>{formatEuro0(r.acconto)}</p>
-                        </div>
-                        <div>
-                          <p className="text-[10px] uppercase text-[var(--color-text-muted)]">Recupero</p>
-                          <p className={`text-[13px] font-black tabular-nums ${pending ? 'line-through text-[var(--color-danger)]' : 'text-[#765116]'}`}>{formatEuro0(r.recupero)}</p>
-                        </div>
-                        <div>
-                          <p className="text-[10px] uppercase text-[var(--color-text-muted)]">Da Riportare</p>
-                          <p className={`text-[13px] font-black tabular-nums ${pending ? 'line-through text-[var(--color-danger)]' : 'text-slate-700'}`}>{formatEuro0(r.da_riportare)}</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                    {!isGenericMovement(r) && <div className="pm-cassa-values">
+                      <div><small>Acconto</small><strong className="text-[#3d2a0b]">{formatEuro0(r.acconto)}</strong></div>
+                      <div><small>Recupero</small><strong className="text-[#765116]">{formatEuro0(r.recupero)}</strong></div>
+                      <div><small>Da riportare</small><strong className="text-slate-700">{formatEuro0(r.da_riportare)}</strong></div>
+                    </div>}
+                    {isGenericMovement(r) && <p className="px-3 pb-3 text-sm text-[#946318]">Operazione generica</p>}
+                  </article>
                 )
               })}
             </div>
@@ -898,6 +875,11 @@ async function deleteMovement(row) {
             CREA MOVIMENTO
           </button>
         </div>
+      </Modal>
+
+      <Modal open={filtersOpen} onClose={() => setFiltersOpen(false)} title="FILTRI CASSA" footer={<Button variant="primary" onClick={() => { updateDateRange(); setFiltersOpen(false); }}>Mostra movimenti</Button>}>
+        <div className="pm-cassa-filter-panel">{filterBanners}</div>
+        <Button className="mt-4 w-full" onClick={() => { setCognome(''); setNomeLocale(''); setShowGeneric(false); setDraftDateFrom(todayISO()); setDraftDateTo(todayISO()); }}>Ripristina filtri di oggi</Button>
       </Modal>
 
       {/* Modifica movimento — stile Play Money Dipendenti */}

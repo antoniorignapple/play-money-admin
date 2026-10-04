@@ -678,9 +678,9 @@ export default function AnalisiPage() {
             <section className="relative overflow-hidden rounded-[30px] border border-[#dfc98f] bg-[linear-gradient(135deg,#fffdf8_0%,#f4e5bf_100%)] px-4 py-5 shadow-[0_24px_60px_-38px_rgba(80,55,15,.62)] md:px-7">
               <div className="pointer-events-none absolute -left-16 -top-24 h-60 w-60 rounded-full bg-white/75 blur-3xl" />
               <div className="pointer-events-none absolute -right-12 -top-20 h-64 w-64 rounded-full bg-amber-400/20 blur-3xl" />
-              <div className="relative flex min-h-[92px] flex-col items-center justify-center text-center">
+              <div className="pm-analisi-heading relative flex min-h-[92px] flex-col items-center justify-center text-center">
                 <h1 className="text-[29px] font-black tracking-[0.13em] text-[#3d2a0b] md:text-[35px]">ANALISI GIORNALIERA</h1>
-                <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+                <div className="pm-analisi-date mt-3 flex flex-wrap items-center justify-center gap-2">
                   <button type="button" onClick={() => moveDay(-1)} title="Giorno precedente" aria-label="Vai al giorno precedente" className="flex h-10 w-10 items-center justify-center rounded-[13px] border border-[#d8b86c] bg-[linear-gradient(145deg,#fffaf0,#ecd18f)] text-[#755019] shadow-[0_10px_20px_-16px_rgba(116,79,17,.48)] transition hover:-translate-y-0.5 active:scale-95">
                     <ChevronLeft size={19} strokeWidth={2.7} />
                   </button>
@@ -702,7 +702,7 @@ export default function AnalisiPage() {
               <div className="border-b border-[#eadfca] px-4 py-4 text-center">
                 <h2 className="text-[21px] font-black tracking-[0.18em] text-[#946318] md:text-[26px]">RIEPILOGO GENERALE</h2>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
+              <div className="pm-analisi-overview grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
                 {[
                   ['AGENTI', agentRows.length],
                   ['ACCONTI', formatEuro0(grandTotals.acconti)],
@@ -749,7 +749,7 @@ export default function AnalisiPage() {
                   key={r.id}
                   className={`mb-3 overflow-hidden rounded-[24px] border bg-[#fffdf9] shadow-[0_20px_42px_-34px_rgba(61,39,4,.75)] last:mb-0 ${cassaSubmitted ? 'border-emerald-400' : 'border-[#d5b76e]'}`}
                 >
-                  <div className={`flex items-start justify-between gap-3 border-b px-3 py-3 md:px-4 ${cassaSubmitted ? 'border-emerald-300 bg-[linear-gradient(135deg,#e8fff1,#83d7a8)]' : 'border-[#eee3cf] bg-[linear-gradient(135deg,#fff4d5,#e9c977)]'}`}>
+                  <div className={`pm-analisi-agent-heading flex items-start justify-between gap-3 border-b px-3 py-3 md:px-4 ${cassaSubmitted ? 'border-emerald-300 bg-[linear-gradient(135deg,#e8fff1,#83d7a8)]' : 'border-[#eee3cf] bg-[linear-gradient(135deg,#fff4d5,#e9c977)]'}`}>
                     <div className="flex min-w-0 flex-1 items-start gap-3">
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
@@ -772,6 +772,7 @@ export default function AnalisiPage() {
                         <button
                           type="button"
                           onClick={() => setExpandedAgentId(isExpanded ? null : String(r.id))}
+                          aria-expanded={isExpanded}
                           className="mt-3 inline-flex h-8 items-center gap-1 rounded-[10px] border border-[#d2b36a] bg-white/70 px-2.5 text-[10px] font-black tracking-[0.08em] text-[#68450e] transition hover:bg-white active:scale-95"
                         >
                           Movimenti
@@ -803,8 +804,8 @@ export default function AnalisiPage() {
 
                   {isExpanded && (
                     <div className="overflow-x-auto border-b border-[#e8dcc5] bg-[#faf7f1] p-3">
-                     <div className="min-w-[820px] overflow-hidden rounded-[16px] border border-[#e2d4b9] bg-white">
-                      <div className="grid grid-cols-[minmax(180px,1fr)_150px_90px_90px_110px_72px] border-b border-[#e4d6bc] bg-[#f2e5cd] px-3 py-2.5 text-[9px] font-black uppercase tracking-[0.12em] text-[#79571f]">
+                     <div className="pm-analisi-movements min-w-[820px] overflow-hidden rounded-[16px] border border-[#e2d4b9] bg-white">
+                      <div className="pm-analisi-movement-header grid grid-cols-[minmax(180px,1fr)_150px_90px_90px_110px_72px] border-b border-[#e4d6bc] bg-[#f2e5cd] px-3 py-2.5 text-[9px] font-black uppercase tracking-[0.12em] text-[#79571f]">
                         <div>Locale</div>
                         <div>Data e ora inserimento</div>
                         <div className="text-right">Acconto</div>
@@ -821,7 +822,7 @@ export default function AnalisiPage() {
                         agentMovements.map((m) => (
                           <div
                             key={m.id}
-                            className="grid grid-cols-[minmax(180px,1fr)_150px_90px_90px_110px_72px] items-center border-b border-[#eee7da] px-3 py-2.5 text-[11px] last:border-0 even:bg-[#fffaf1]"
+                            className="pm-analisi-movement-row grid grid-cols-[minmax(180px,1fr)_150px_90px_90px_110px_72px] items-center border-b border-[#eee7da] px-3 py-2.5 text-[11px] last:border-0 even:bg-[#fffaf1]"
                           >
                             <div className="truncate font-semibold text-slate-700">
                               {venueLabel(m.venue_id)}
@@ -833,9 +834,9 @@ export default function AnalisiPage() {
                               <div className="col-span-3 text-center text-[10px] font-black uppercase tracking-[0.16em] text-[#946318]">OPERAZIONE GENERICA</div>
                             ) : (
                               <>
-                                <div className="text-right font-black tabular-nums text-slate-800">{formatEuro0(m.acconto || 0)}</div>
-                                <div className="text-right font-black tabular-nums text-slate-800">{formatEuro0(m.recupero || 0)}</div>
-                                <div className="text-right font-black tabular-nums text-slate-800">{formatEuro0(m.da_riportare || 0)}</div>
+                                <div data-label="Acconto" className="text-right font-black tabular-nums text-slate-800">{formatEuro0(m.acconto || 0)}</div>
+                                <div data-label="Recupero" className="text-right font-black tabular-nums text-slate-800">{formatEuro0(m.recupero || 0)}</div>
+                                <div data-label="Da riportare" className="text-right font-black tabular-nums text-slate-800">{formatEuro0(m.da_riportare || 0)}</div>
                               </>
                             )}
 
@@ -843,7 +844,7 @@ export default function AnalisiPage() {
                               <button
                                 type="button"
                                 onClick={() => openEditMov(m)}
-                                title="Modifica movimento"
+                                title="Modifica movimento" aria-label="Modifica movimento"
                                 className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
                               >
                                 <Pencil size={13} strokeWidth={2.2} />
@@ -851,7 +852,7 @@ export default function AnalisiPage() {
                               <button
                                 type="button"
                                 onClick={() => setDeleteMov(m)}
-                                title="Elimina movimento"
+                                title="Elimina movimento" aria-label="Elimina movimento"
                                 className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-red-200 text-[var(--color-danger)] transition hover:bg-red-50"
                               >
                                 <Trash2 size={13} strokeWidth={2.2} />
@@ -940,7 +941,7 @@ export default function AnalisiPage() {
       <ConfirmDialog
         open={!!deleteMov}
         onClose={() => setDeleteMov(null)}
-        title="Elimina movimento"
+        title="Elimina movimento" aria-label="Elimina movimento"
         message="Il movimento andrà nel Cestino e sparirà subito dall'app dipendente. Potrai ripristinarlo dal Cestino. Procedere?"
         confirmLabel="Elimina"
         onConfirm={doDeleteMovimento}

@@ -1,7 +1,15 @@
 export const RELEASE = Object.freeze({
-  VERSION: "18.5",
-  TITLE: "Admin 18.5",
+  VERSION: "19.0",
+  TITLE: "Admin 19 · Mobile",
   ITEMS: [
+    "Nuova navigazione mobile: Cassa, Analisi e Conteggi con indicatore animato",
+    "Menu laterale ricercabile per tutte le sezioni, ispirato a Dipendenti",
+    "Login e splash ripresi da Dipendenti con logo blu Admin",
+    "Comandi touch, testi leggibili e finestre adatte agli iPhone Pro Max",
+    "Cassa: modifica dalla scheda movimento e filtri dedicati su mobile",
+    "Analisi e Conteggi: dettagli verticali senza tabelle larghe su telefono",
+    "Calendario: nuova vista Agenda con selezione dei giorni",
+
     "Parco slot: nota salvabile per ogni locale insieme alle quantità",
     "Corretto il salvataggio dei modelli MARIK TOUCH e delle variazioni di quantità",
     "PDF locali: parco slot sotto i Change, con modelli, quantità e totale",

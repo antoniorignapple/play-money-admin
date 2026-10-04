@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo, useRef } from 'react'
-import { Search, ArrowRight, Building2, Users, Wallet, BarChart3, Car, Trash2, Hash, ShieldCheck, Calculator } from 'lucide-react'
+import { Search, X, ArrowRight, Building2, Users, Wallet, BarChart3, Car, Trash2, Hash, ShieldCheck, Calculator } from 'lucide-react'
 const ICONS = { Building2, Users, Wallet, BarChart3, Car, Trash2, Hash, ShieldCheck, Calculator }
 
 export function CommandPalette({ open, onClose, onNavigate, pages = [] }) {
@@ -47,7 +47,7 @@ export function CommandPalette({ open, onClose, onNavigate, pages = [] }) {
       className="fixed inset-0 z-[200] flex items-start justify-center bg-black/30 px-4 pt-[15vh] backdrop-blur-sm"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="w-full max-w-[560px] overflow-hidden rounded-xl border border-[var(--color-border)] bg-white shadow-2xl">
+      <div role="dialog" aria-modal="true" aria-label="Cerca sezioni" className="w-full max-w-[560px] overflow-hidden rounded-xl border border-[var(--color-border)] bg-white shadow-2xl">
         <div className="flex items-center gap-2.5 border-b border-[var(--color-border)] px-3.5 py-3">
           <Search size={15} className="text-[var(--color-text-muted)]" strokeWidth={2} />
           <input
@@ -55,9 +55,10 @@ export function CommandPalette({ open, onClose, onNavigate, pages = [] }) {
             value={query}
             onChange={(e) => { setQuery(e.target.value); setActiveIdx(0) }}
             placeholder="Vai a… cerca pagine, azioni"
-            className="flex-1 bg-transparent text-[14px] text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] outline-none"
+            aria-label="Cerca sezioni"
+            className="min-w-0 flex-1 bg-transparent text-[14px] text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] outline-none"
           />
-          <kbd className="rounded border border-[var(--color-border)] bg-[var(--color-surface)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--color-text-muted)]">ESC</kbd>
+          <button type="button" onClick={onClose} aria-label="Chiudi ricerca" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--color-border)] text-[var(--color-text-muted)]"><X size={20}/></button>
         </div>
 
         <div className="max-h-[380px] overflow-y-auto p-1.5">
