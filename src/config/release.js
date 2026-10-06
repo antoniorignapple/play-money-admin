@@ -1,9 +1,8 @@
 export const RELEASE = Object.freeze({
-  VERSION: "19.6",
+  VERSION: "19.7",
   TITLE: "Novità della versione",
   ITEMS: [
-    "PDF Contabilità Conteggi più compatto: totale e saldo nella prima pagina, debiti dalla seconda",
-    "Aggiornamenti con note della versione, Aggiorna ora, Più tardi e conferma dell’installazione"
+    "Debiti e Bonus: ogni erogazione e rimborso è modificabile o eliminabile dallo storico, con saldo aggiornato automaticamente"
   ]
 });
 export const APP_VERSION = RELEASE.VERSION;

@@ -161,6 +161,9 @@ export default function DebitiBonusPage() {
   const [showNewBonus, setShowNewBonus] = useState(false);
   const [showNewNota, setShowNewNota] = useState(false);
   const [detailDebito, setDetailDebito] = useState(null);
+  const [ledgerAction, setLedgerAction] = useState(null);
+  const [ledgerAmount, setLedgerAmount] = useState("");
+  const [ledgerDate, setLedgerDate] = useState(todayKey());
   const [manualDeduct, setManualDeduct] = useState(null); // debito su cui registrare decurtazione
   const [manualAmount, setManualAmount] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(null); // { kind, row }
@@ -236,6 +239,47 @@ export default function DebitiBonusPage() {
       else setDetailDebito(snapshot.debt);
     } catch (e) { toast.error(debtError(e)); }
     finally { setOpening(false); }
+  }
+  async function openLedgerAction(row, deleting = false) {
+    if (opening || saving) return;
+    setOpening(true);
+    try {
+      const snapshot = movByDebito[detailDebito.id];
+      const kind = row.id === 'initial' ? 'initial' : row.id.startsWith('e-') ? 'disbursement' : 'repayment';
+      const movement = kind === 'initial' ? null :
+        (kind === 'disbursement' ? snapshot.disbursements : snapshot.repayments).find(m => String(m.id) === row.id.slice(2));
+      if (kind !== 'initial' && !movement) throw new Error('Movimento non disponibile. Riapri lo storico.');
+      let conteggio = null;
+      if (movement?.conteggio_id) {
+        const result = await supabase.from('conteggi_tool').select('*').eq('id', movement.conteggio_id).single();
+        if (result.error) throw result.error;
+        conteggio = result.data;
+      }
+      setLedgerAmount(String(row.paid || row.repaid)); setLedgerDate(row.date || todayKey());
+      setLedgerAction({ kind, movement, conteggio, debt: snapshot.debt, label: row.label, deleting });
+    } catch (e) { toast.error(debtError(e)); }
+    finally { setOpening(false); }
+  }
+  async function saveLedgerAction() {
+    const a = ledgerAction;
+    if (!a) return;
+    if (!a.deleting && !validAmount(ledgerAmount)) throw new Error('Inserisci un importo positivo in euro interi');
+    const result = await supabase.rpc('admin_v19_7_debt_movement', {
+      p_debito: a.debt.id, p_kind: a.kind, p_movement: a.movement?.id || null,
+      p_expected_debt: a.debt, p_expected_movement: a.movement,
+      p_amount: a.deleting ? 0 : Number(ledgerAmount), p_date: ledgerDate,
+      p_delete: a.deleting, p_expected_conteggio: a.conteggio,
+    });
+    if (result.error) throw new Error(debtError(result.error));
+    setLedgerAction(null);
+    // The write succeeded even if the following history refresh cannot complete.
+    setDetailDebito(null);
+    toast.success(a.deleting ? 'Movimento eliminato e saldo aggiornato' : 'Movimento modificato e saldo aggiornato');
+    await loadAll();
+    try {
+      const snapshot = await getDebtSnapshot(a.debt.id);
+      setMovByDebito(prev => ({ ...prev, [a.debt.id]: snapshot })); setDetailDebito(snapshot.debt);
+    } catch (e) { toast.warning('Movimento salvato. Riapri lo storico per aggiornare i dati: ' + debtError(e)); }
   }
   async function startDeduct(d, full = false) {
     try {
@@ -662,7 +706,20 @@ export default function DebitiBonusPage() {
             {Number(detailDebito.residuo) > 0 && detailDebito.status !== 'annullato' && <><button onClick={() => startDeduct(detailDebito)}><MinusCircle size={15} /> Aggiungi decurtazione</button><button onClick={() => startDeduct(detailDebito, true)}><CheckCircle2 size={15} /> Rimborsa tutto</button></>}
           </div>
           <div className="finance-section-label">Storico movimenti <span className="normal-case tracking-normal font-normal">Dal più vecchio</span></div>
-          <DebtLedgerTable debt={detailDebito} snapshot={movByDebito[detailDebito.id]} />
+          <DebtLedgerTable debt={detailDebito} snapshot={movByDebito[detailDebito.id]} onEdit={r => openLedgerAction(r)} onDelete={r => openLedgerAction(r, true)} busy={saving || opening} />
+        </div>}
+      </Modal>
+
+      <Modal open={!!ledgerAction} onClose={() => setLedgerAction(null)}
+        title={ledgerAction?.deleting ? 'Elimina movimento' : 'Modifica movimento'} width="sm"
+        footer={<><Button variant="ghost" onClick={() => setLedgerAction(null)}>Annulla</Button><Button variant="primary" onClick={() => saveAction(saveLedgerAction)}>{ledgerAction?.deleting ? 'Elimina movimento' : 'Salva movimento'}</Button></>}>
+        {ledgerAction && <div className="space-y-4">
+          <p className="font-semibold">{ledgerAction.label} · {fmtEuro(ledgerAmount)}</p>
+          {ledgerAction.deleting ? <p>Eliminare questo singolo movimento? Totale e residuo saranno aggiornati. L’operazione non è reversibile.</p> : <>
+            <Field label="Importo movimento (€)" required><Input type="number" min="1" step="1" inputMode="numeric" value={ledgerAmount} onChange={e => setLedgerAmount(e.target.value)} /></Field>
+            <Field label="Data movimento" required><Input type="date" max={todayKey()} min={ledgerAction.kind === 'initial' ? undefined : ledgerAction.debt.data_erogazione || undefined} disabled={!!ledgerAction.conteggio} value={ledgerDate} onChange={e => setLedgerDate(e.target.value)} /></Field>
+          </>}
+          {ledgerAction.conteggio && <p className="text-sm text-[#376b8b]">La rettifica aggiornerà anche la voce Debito del conteggio collegato. La data si modifica dalla sezione Conteggi.</p>}
         </div>}
       </Modal>
 
@@ -743,10 +800,10 @@ function DebtSummary({ debt }) {
   const t = debtTotals(debt);
   return <div className="debt-amounts"><div><small>Residuo da rimborsare</small><strong>{fmtEuro(t.remaining)}</strong></div><div><small>Totale erogato</small><strong>{fmtEuro(t.total)}</strong></div><div><small>Già rimborsato</small><strong>{fmtEuro(t.repaid)}</strong></div></div>;
 }
-function DebtLedgerTable({ debt, snapshot }) {
+function DebtLedgerTable({ debt, snapshot, onEdit, onDelete, busy }) {
   if (!snapshot) return <p role="status">Caricamento movimenti…</p>;
   const l = debtLedger(debt, snapshot.repayments, snapshot.disbursements);
-  return <div className="debt-ledger"><table aria-label="Erogazioni e rimborsi"><thead><tr><th scope="col">Data</th><th scope="col">Erogato</th><th scope="col">Rimborsato</th></tr></thead><tbody>{l.rows.map(r => <tr key={r.id}><td>{formatITDate(r.date)}<small>{r.label}</small></td><td className="font-semibold text-[#2e6d94]">{r.paid ? fmtEuro(r.paid) : '—'}</td><td className="font-semibold">{r.repaid ? fmtEuro(r.repaid) : '—'}</td></tr>)}</tbody><tfoot><tr><td>Totali</td><td>{fmtEuro(l.paid)}</td><td>{fmtEuro(l.repaid)}</td></tr></tfoot></table>{l.difference !== 0 && <div className="debt-ledger-note">Storico pregresso da verificare: il saldo dei movimenti differisce dal residuo registrato di {fmtEuro(l.difference)}. Nessun rimborso è stato aggiunto automaticamente.</div>}</div>;
+  return <div className="debt-ledger"><table aria-label="Erogazioni e rimborsi"><thead><tr><th scope="col">Data</th><th scope="col">Erogato</th><th scope="col">Rimborsato</th></tr></thead><tbody>{l.rows.map(r => <tr key={r.id}><td>{formatITDate(r.date)}<small>{r.label}</small>{onEdit && <div className="debt-ledger-actions"><button type="button" disabled={busy} onClick={() => onEdit(r)} aria-label={`Modifica ${r.label} del ${formatITDate(r.date)}`}><Pencil size={14} /> Modifica</button><button type="button" disabled={busy} onClick={() => onDelete(r)} aria-label={`Elimina ${r.label} del ${formatITDate(r.date)}`}><Trash2 size={14} /> Elimina</button></div>}</td><td className="font-semibold text-[#2e6d94]">{r.paid ? fmtEuro(r.paid) : '—'}</td><td className="font-semibold">{r.repaid ? fmtEuro(r.repaid) : '—'}</td></tr>)}</tbody><tfoot><tr><td>Totali</td><td>{fmtEuro(l.paid)}</td><td>{fmtEuro(l.repaid)}</td></tr></tfoot></table>{l.difference !== 0 && <div className="debt-ledger-note">Storico pregresso da verificare: il saldo dei movimenti differisce dal residuo registrato di {fmtEuro(l.difference)}. Nessun rimborso è stato aggiunto automaticamente.</div>}</div>;
 }
 function DebitoCard({ d, venueLabel, onOpen, onDeduct, onEdit, onDelete, onPdf, closed = false }) {
   const t = debtTotals(d);

@@ -80,3 +80,9 @@
  .debt-ledger th,.debt-ledger td { padding:10px 9px; }
 }
 @media(prefers-reduced-motion:reduce) { .finance-theme * { transition:none !important; animation:none !important; } }
+
+.debt-ledger-actions { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+.debt-ledger-actions button { display:inline-flex; align-items:center; justify-content:center; gap:4px; min-height:36px; padding:6px 8px; border:1px solid #c4ddeb; border-radius:9px; background:#fff; color:#246c99; font-size:11px; cursor:pointer; }
+.debt-ledger-actions button:last-child { color:#a43b36; }
+.debt-ledger-actions button:disabled { opacity:.5; cursor:wait; }
+@media (max-width:480px) { .debt-ledger-actions button { min-height:44px; } .debt-ledger td:first-child { white-space:normal; } }

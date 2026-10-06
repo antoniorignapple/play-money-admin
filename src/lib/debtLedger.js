@@ -16,7 +16,7 @@ export function debtTotals(debt) {
 export function debtLedger(debt, repayments = [], disbursements = []) {
   const totals = debtTotals(debt);
   const initialDate = debt.data_erogazione || (debt.created_at ? getRomeISODate(debt.created_at) : null);
-  const rows = [{ id: 'initial', date: initialDate, created: debt.created_at || '', label: 'Erogazione iniziale', paid: totals.initial, repaid: 0 },
+  const rows = [...(totals.initial > 0 ? [{ id: 'initial', date: initialDate, created: debt.created_at || '', label: 'Erogazione iniziale', paid: totals.initial, repaid: 0 }] : []),
     ...disbursements.map(r => ({ id: `e-${r.id}`, date: r.data, created: r.created_at || '', label: 'Nuova erogazione', paid: money(r.importo), repaid: 0 })),
     ...repayments.map(r => ({ id: `r-${r.id}`, date: r.data || (r.created_at ? getRomeISODate(r.created_at) : null), created: r.created_at || '', label: r.origine === 'manuale' ? 'Rimborso manuale' : 'Rimborso da conteggio', paid: 0, repaid: money(r.importo) }))];
   rows.sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.id === 'initial' ? -1 : b.id === 'initial' ? 1 : a.created.localeCompare(b.created) || a.id.localeCompare(b.id)));
