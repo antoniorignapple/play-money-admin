@@ -18,3 +18,24 @@ test('PDF: movimenti lunghi e molti debiti passano su più pagine senza troncame
  assert.ok(doc.getNumberOfPages()>3);
  assert.equal(many.movements[0].note,long);
 });
+
+test('riepilogo e saldo restano nella prima pagina, debiti dalla seconda, nessuna voce persa', async()=>{
+ const { jsPDF } = await import('jspdf');
+ const calls=[];
+ const hook=['initialized',function(){
+   const original=this.text;
+   this.text=function(value,x,y,...args){calls.push({page:this.internal.getCurrentPageInfo().pageNumber,value:Array.isArray(value)?value.join(' '):String(value),y});return original.call(this,value,x,y,...args);};
+ }];
+ jsPDF.API.events.push(hook);
+ try {
+   const many={...data,movements:Array.from({length:80},(_,i)=>({destination:`MOVIMENTO-${i}-FINE`,note:i===30?'TESTO LUNGO '.repeat(120)+'TERMINE NOTA':'ACCONTO',workDate:'2026-09-20',amount:i+1}))};
+   const doc=generatePeriodAccountingPdf(many,period,{K1:'BEVERLY HILLS'});
+   assert.ok(doc.getNumberOfPages()>2);
+   assert.ok(calls.some(c=>c.page===1&&c.value==='SALDO AZIENDA'));
+   assert.ok(calls.some(c=>c.page===1&&c.value==='TOTALE MOVIMENTI'));
+   assert.ok(calls.some(c=>c.page===2&&c.value==='BEVERLY HILLS'));
+   for(let i=0;i<80;i++)assert.ok(calls.some(c=>c.value.includes(`MOVIMENTO-${i}-FINE`)),`movement ${i} missing`);
+   assert.ok(calls.some(c=>c.value.includes('TERMINE NOTA')));
+   assert.ok(calls.every(c=>c.y>=0&&c.y<810),'text outside printable area');
+ } finally {jsPDF.API.events.splice(jsPDF.API.events.indexOf(hook),1);}
+});

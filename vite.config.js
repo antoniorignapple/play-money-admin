@@ -23,6 +23,7 @@ const releaseMetadata = () => ({
 })
 
 export default defineConfig({
+  define: { __APP_BUILD_ID__: JSON.stringify(new Date().toISOString()) },
   plugins: [
     react(),
     tailwindcss(),
@@ -35,8 +36,8 @@ export default defineConfig({
         name: 'Play Money Admin',
         short_name: 'Play Money',
         description: 'Gestione cassa, agenti, locali e automezzi',
-        theme_color: '#A87318',
-        background_color: '#080704',
+        theme_color: '#246c99',
+        background_color: '#eef6fb',
         display: 'standalone',
         display_override: ['window-controls-overlay', 'standalone', 'minimal-ui'],
         orientation: 'any',
@@ -59,7 +60,10 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,png,svg,ico,woff2}'],
+        globPatterns: ['**/*.{js,css,html,png,svg,ico,woff2,json}'],
+        skipWaiting: false,
+        clientsClaim: false,
+        cleanupOutdatedCaches: true,
       },
     }),
   ],
