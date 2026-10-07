@@ -317,6 +317,7 @@ export default function App() {
   // Keyboard shortcuts (solo desktop)
   useEffect(() => {
     function onKey(e) {
+      if (e.defaultPrevented) return;
       const isMac = navigator.platform.toUpperCase().includes("MAC");
       const cmd = isMac ? e.metaKey : e.ctrlKey;
 
@@ -326,6 +327,7 @@ export default function App() {
         return;
       }
 
+      if (document.querySelector('[role="dialog"], [aria-modal="true"]')) return;
       const tag = (e.target?.tagName || "").toLowerCase();
       if (tag === "input" || tag === "textarea" || tag === "select") return;
       if (e.target?.isContentEditable) return;

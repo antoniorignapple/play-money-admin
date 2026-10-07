@@ -1,8 +1,6 @@
 export const RELEASE = Object.freeze({
-  VERSION: "19.7",
+  VERSION: "19.8",
   TITLE: "Novità della versione",
-  ITEMS: [
-    "Debiti e Bonus: ogni erogazione e rimborso è modificabile o eliminabile dallo storico, con saldo aggiornato automaticamente"
-  ]
+  ITEMS: ["DEBITI E BONUS: NUOVA RICERCA RAPIDA CON FILTRO IMMEDIATO E SCORCIATOIA DA TASTIERA"],
 });
 export const APP_VERSION = RELEASE.VERSION;

@@ -1,7 +1,7 @@
 {
   "name": "play-money-admin",
   "private": true,
-  "version": "19.7.0",
+  "version": "19.8.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -18,7 +18,8 @@
     "test:ui:v18": "node tests/accounting-ui-v18.mjs",
     "test:ui:mobile": "node tests/mobile-v19.mjs",
     "test:database:movimenti": "node tests/database/debt-movements-v19.mjs",
-    "test:ui:movimenti": "node tests/debt-movements-ui.mjs"
+    "test:ui:movimenti": "node tests/debt-movements-ui.mjs",
+    "test:ui:search": "node tests/debt-search-ui.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.105.4",

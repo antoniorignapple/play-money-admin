@@ -133,6 +133,22 @@ export default function DebitiBonusPage() {
   const toast = useToast();
   const [tab, setTab] = useState("debiti");
   const [search, setSearch] = useState('');
+  const searchRef = useRef(null);
+  useEffect(() => {
+    function startSearch(event) {
+      if (event.defaultPrevented || event.isComposing || event.ctrlKey || event.metaKey || event.altKey) return;
+      if (event.target?.closest?.('input, textarea, select, [contenteditable="true"], [role="textbox"]')) return;
+      if (document.querySelector('[role="dialog"], [aria-modal="true"]')) return;
+      if (event.key.length !== 1 || event.key.trim() === '') return;
+      if (!searchRef.current) return;
+      event.preventDefault();
+      event.stopPropagation(); // Local search takes precedence over single-letter navigation.
+      searchRef.current.focus();
+      if (event.key !== '/') setSearch(value => value + event.key);
+    }
+    document.addEventListener('keydown', startSearch, true);
+    return () => document.removeEventListener('keydown', startSearch, true);
+  }, []);
   const [saving, setSaving] = useState(false);
   const saveLock = useRef(false);
   const [loadError, setLoadError] = useState('');
@@ -534,7 +550,19 @@ export default function DebitiBonusPage() {
   const bonusAttivi = bonus.filter((b) => b.status === "attivo");
   const noteAttive = note.filter((n) => n.status === "attiva");
 
-  const matchesSearch = r => venueLabel(r.venue_id).toLocaleLowerCase().includes(search.toLocaleLowerCase().trim());
+  const normalizeSearch = value => String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('it');
+  const searchTerms = normalizeSearch(search).trim().split(/\s+/).filter(Boolean);
+  const matchesSearch = row => {
+    const text = normalizeSearch([
+      venueLabel(row.venue_id), row.note, row.testo, row.agent_name,
+      row.modalita, row.status,
+      PERIODICITA_LABEL[row.periodicita], row.importo, row.importo_iniziale, row.residuo,
+      ...[row.importo, row.importo_iniziale, row.residuo].filter(value => value != null).map(fmtEuro),
+    ].filter(value => value != null).join(' '));
+    return searchTerms.every(term => text.includes(term));
+  };
+  const currentRows = tab === 'debiti' ? debiti : tab === 'bonus' ? bonus : note;
+  const resultsCount = currentRows.filter(matchesSearch).length;
 
   return (
     <SavingContext.Provider value={saving}><div className="finance-theme h-full min-h-0"><PageLayout>
@@ -546,6 +574,15 @@ export default function DebitiBonusPage() {
               <div className="flex gap-2"><button type="button" aria-label="Aggiorna" title="Aggiorna" disabled={loading} onClick={loadAll} className="rounded-xl border border-[#9fc4db] bg-white/70 p-3 text-[#2f678a]"><RefreshCw size={17} className={loading ? 'animate-spin' : ''} /></button><Button variant="primary" icon={Plus} onClick={() => tab === 'debiti' ? setShowNewDebito(true) : tab === 'bonus' ? setShowNewBonus(true) : setShowNewNota(true)}>Nuovo {tab === 'debiti' ? 'debito' : tab === 'bonus' ? 'bonus' : 'promemoria'}</Button></div>
             </div>
           </section>
+          <section className="finance-search" aria-label="Ricerca in Debiti e Bonus">
+            <label htmlFor="finance-search-input" className="finance-eyebrow">CERCA {tab === 'debiti' ? 'DEBITI' : tab === 'bonus' ? 'BONUS' : 'NOTE'}</label>
+            <div className="finance-search-field">
+              <Input ref={searchRef} id="finance-search-input" type="search" leftIcon={Search} placeholder="Cerca locale, note o importo…" value={search} onChange={event => setSearch(event.target.value)} onKeyDown={event => { if (event.key === 'Escape') { event.preventDefault(); setSearch(''); } }} aria-describedby="finance-search-help" autoComplete="off" enterKeyHint="search" />
+              {search && <button type="button" className="finance-search-clear" aria-label="Cancella ricerca" onClick={() => { setSearch(''); searchRef.current?.focus(); }}><X size={18}/></button>}
+            </div>
+            <p id="finance-search-help" className="finance-search-help">Filtra mentre scrivi.<span className="hidden md:inline"> Da tastiera, inizia a digitare oppure premi / per cercare.</span></p>
+            {searchTerms.length > 0 && !loading && <p role="status" className="finance-search-results">{resultsCount} {resultsCount === 1 ? 'risultato trovato' : 'risultati trovati'}</p>}
+          </section>
           <div className="finance-stats">
             <div className="finance-stat"><p className="finance-eyebrow">Residuo da rimborsare</p><strong>{fmtEuro(debitoResiduoTotale)}</strong><small>{debitiAttivi.length} posizioni attive</small></div>
             <div className="finance-stat"><p className="finance-eyebrow">Bonus attivi</p><strong>{bonusAttivi.length}</strong><small>Incentivi ai locali</small></div>
@@ -555,11 +592,10 @@ export default function DebitiBonusPage() {
             <nav className="finance-tabs" role="tablist" aria-label="Gestione locali">
               {[['debiti', 'Debiti', debitiAttivi.length], ['bonus', 'Bonus', bonusAttivi.length], ['note', 'Note', noteAttive.length]].map(([id, label, count]) => <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)}>{label}<span>{count}</span></button>)}
             </nav>
-            <div className="w-full sm:w-[260px]"><Input leftIcon={Search} aria-label="Cerca locale" placeholder="Cerca un locale…" value={search} onChange={e => setSearch(e.target.value)} /></div>
           </div>
           {loadError && <div role="alert" className="debt-ledger-note mb-4">Dati non aggiornati: {loadError}. Premi Aggiorna per riprovare.</div>}
           {(loading || opening) && <p role="status" className="mb-3 text-xs text-[#5a788a]">{opening ? 'Caricamento dello storico…' : 'Aggiornamento dati…'}</p>}
-          {search && !(tab === 'debiti' ? debiti : tab === 'bonus' ? bonus : note).some(matchesSearch) && <EmptyState icon={Search} title="Nessun locale trovato" description="Prova a cambiare il nome o il codice cercato." />}
+          {searchTerms.length > 0 && !loading && currentRows.length > 0 && resultsCount === 0 && <EmptyState icon={Search} title="Nessun risultato trovato" description="Prova con un altro locale, una nota o un importo." />}
             {tab === "debiti" && (
               <div className="space-y-3">
                 {debitiAttivi.length === 0 && debitiChiusi.length === 0 ? (
@@ -584,7 +620,7 @@ export default function DebitiBonusPage() {
                         }
                       />
                     ))}
-                    {debitiChiusi.length > 0 && (
+                    {debitiChiusi.some(matchesSearch) && (
                       <p className="px-1 pt-2 text-[11px] font-bold uppercase tracking-wide text-[var(--color-text-muted)]">
                         Estinti / annullati
                       </p>

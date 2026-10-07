@@ -86,3 +86,12 @@
 .debt-ledger-actions button:last-child { color:#a43b36; }
 .debt-ledger-actions button:disabled { opacity:.5; cursor:wait; }
 @media (max-width:480px) { .debt-ledger-actions button { min-height:44px; } .debt-ledger td:first-child { white-space:normal; } }
+
+.finance-search { margin-top:16px; padding:16px; border:1px solid #b6d1e3; border-radius:20px; background:#f9fdff; }
+.finance-search > label { display:block; margin-bottom:9px; }
+.finance-search-field { position:relative; }
+.finance-search-field input { min-height:48px; padding-right:48px; font-size:16px; }
+.finance-search-field input::-webkit-search-cancel-button { -webkit-appearance:none; }
+.finance-search-clear { position:absolute; right:3px; top:2px; display:grid; place-items:center; width:44px; height:44px; color:#2f6d94; border-radius:12px; }
+.finance-search-help,.finance-search-results { margin-top:8px; font-size:11px; line-height:1.5; color:#5a788a; }
+.finance-search-results { font-weight:700; color:#1f5475; }
