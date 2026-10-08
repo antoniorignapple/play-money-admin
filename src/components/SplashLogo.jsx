@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-const LOGO_SRC = '/app-icon.png';
+const LOGO_SRC = '/logo/admin-logo.png';
 
 export function SplashLogo({ loginDestination = false, appDestination = false }) {
   useEffect(() => {
@@ -14,10 +14,10 @@ export function SplashLogo({ loginDestination = false, appDestination = false })
       rootBackground: root?.style.background,
     };
 
-    html.style.background = '#000';
-    body.style.background = '#000';
+    html.style.background = '#f5faff';
+    body.style.background = '#f5faff';
     body.style.overflow = 'hidden';
-    if (root) root.style.background = '#000';
+    if (root) root.style.background = '#f5faff';
 
     return () => {
       html.style.background = previous.htmlBackground;
@@ -34,7 +34,7 @@ export function SplashLogo({ loginDestination = false, appDestination = false })
       : 'pm-splash-waiting';
 
   return (
-    <div className={`pm-simple-splash fixed inset-0 z-[9999] overflow-hidden bg-black ${destinationClass}`}>
+    <div className={`pm-simple-splash fixed inset-0 z-[9999] overflow-hidden bg-[#f5faff] ${destinationClass}`}>
       <img
         src={LOGO_SRC}
         alt="Play Money Admin"
@@ -42,8 +42,8 @@ export function SplashLogo({ loginDestination = false, appDestination = false })
         className="pm-simple-splash-logo absolute select-none object-contain"
       />
       <div className="pm-splash-copy absolute inset-x-0 text-center">
-        <p className="text-[11px] font-bold text-white/45">Preparazione giornata</p>
-        <span className="pm-splash-loader mx-auto mt-3 block h-1 w-16 overflow-hidden rounded-full bg-white/10"><i className="block h-full rounded-full bg-[#3e94c9]"/></span>
+        <p className="text-[11px] font-bold text-[#647b8c]">Preparazione giornata</p>
+        <span className="pm-splash-loader mx-auto mt-3 block h-1 w-16 overflow-hidden rounded-full bg-[#dbeaf4]"><i className="block h-full rounded-full bg-[#3e94c9]"/></span>
       </div>
 
       <style>{`

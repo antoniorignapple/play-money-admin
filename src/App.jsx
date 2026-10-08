@@ -183,16 +183,16 @@ export default function App() {
     const body = document.body;
     const themeMeta = document.querySelector('meta[name="theme-color"]');
 
-    html.classList.toggle("pwa-auth-dark", authSurface);
-    body.classList.toggle("pwa-auth-dark", authSurface);
+    html.classList.toggle("pwa-auth-light", authSurface);
+    body.classList.toggle("pwa-auth-light", authSurface);
 
     if (themeMeta) {
-      themeMeta.setAttribute("content", authSurface ? "#000000" : "#e8f1f7");
+      themeMeta.setAttribute("content", authSurface ? "#f5faff" : "#e8f1f7");
     }
 
     return () => {
-      html.classList.remove("pwa-auth-dark");
-      body.classList.remove("pwa-auth-dark");
+      html.classList.remove("pwa-auth-light");
+      body.classList.remove("pwa-auth-light");
     };
   }, [authLoading, splashReady, session]);
 

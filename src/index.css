@@ -81,12 +81,12 @@ html, body, #root {
 
   /* iOS PWA: la zona dell'Home Indicator può essere disegnata usando
      il background di html/body anziché quello del nodo fixed. */
-  html.pwa-auth-dark,
-  html.pwa-auth-dark body,
-  body.pwa-auth-dark,
-  html.pwa-auth-dark #root {
-    background: #040608 !important;
-    background-color: #040608 !important;
+  html.pwa-auth-light,
+  html.pwa-auth-light body,
+  body.pwa-auth-light,
+  html.pwa-auth-light #root {
+    background: #f5faff !important;
+    background-color: #f5faff !important;
   }
 
 
