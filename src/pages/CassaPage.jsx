@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
 import {
   Calendar, User, Building2, Plus, RefreshCw,
   RotateCcw, Pencil, Trash2, Search,
@@ -16,6 +16,7 @@ import {
   dipendenteName, dipendenteId, normNumber,
 } from '../lib/helpers'
 import { closePdfPreviewWindow, createPdfPreviewWindow, openPdfPreview } from '../lib/pdfPreview'
+import { fetchAllRows } from '../lib/fetchAllRows'
 import { DIPENDENTI_SAFE_FIELDS } from '../lib/dipendentiFields'
 
 /* ============ PDF EXPORT ============ */
@@ -248,6 +249,35 @@ export default function CassaPage() {
   const [newOpen, setNewOpen] = useState(false)
   const [pdfOpen, setPdfOpen] = useState(false)
   const [filtersOpen, setFiltersOpen] = useState(false)
+  const [availableOpen, setAvailableOpen] = useState(false)
+  const [available, setAvailable] = useState({ loading: false, error: '', rows: [] })
+  const availableRequest = useRef(0)
+
+  function closeAvailable() { availableRequest.current += 1; setAvailableOpen(false) }
+  async function loadAvailable() {
+    const request = ++availableRequest.current
+    setAvailable({ loading: true, error: '', rows: [] })
+    try {
+      const { data: period, error } = await supabase.from('active_conteggi_period').select('id,date_from,date_to').maybeSingle()
+      if (error) throw error
+      if (!period?.date_from || !period?.date_to) throw new Error('Nessun periodo attivo disponibile.')
+      const [data, locales] = await Promise.all([
+        fetchAllRows(() => supabase.from('movements_cassa').select('id,venue_id,da_riportare,recupero').is('deleted_at', null).gte('work_date', period.date_from).lte('work_date', period.date_to).order('id')),
+        fetchAllRows(() => supabase.from('venues').select('id,name').order('id')),
+      ])
+      const names = new Map(locales.map(venue => [String(venue.id), String(venue.name || venue.id)]))
+      const balances = new Map()
+      data.forEach(row => {
+        if (row.venue_id == null) return
+        const id = String(row.venue_id)
+        balances.set(id, (balances.get(id) || 0) + Number(row.da_riportare || 0) - Number(row.recupero || 0))
+      })
+      const rows = [...balances].filter(([, amount]) => amount > 0).map(([id, amount]) => ({ id, name: names.get(id) || id, amount })).sort((a, b) => a.name.localeCompare(b.name, 'it', { numeric: true }))
+      if (request === availableRequest.current) setAvailable({ loading: false, error: '', rows })
+    } catch (error) {
+      if (request === availableRequest.current) setAvailable({ loading: false, error: error.message || 'Impossibile caricare i saldi.', rows: [] })
+    }
+  }
 
   const [pdfDate, setPdfDate] = useState(todayISO())
   const [pdfEmployee, setPdfEmployee] = useState('all')
@@ -631,16 +661,18 @@ async function deleteMovement(row) {
           <div className="hidden md:block">{filterBanners}</div>
 
           <section className="overflow-hidden rounded-[28px] border border-[#aacbdf] bg-[#f9fdff] shadow-[0_24px_55px_-38px_rgba(65,43,8,.68)]">
-            <div className="relative flex min-h-[68px] flex-col items-center justify-center gap-2 border-b border-[#cadeea] px-4 py-4 text-center md:flex-row">
-              <h2 className="text-[21px] font-black tracking-[0.18em] text-[#186494] md:text-[26px]">LISTA MOVIMENTI</h2>
-              {!loading && <span className="rounded-full border border-[#8dbcd9] bg-[#e8f4fb] px-2.5 py-1 text-[9px] font-black tracking-[0.1em] text-[#165176]">{rows.length} MOVIMENTI</span>}
-              {hasPending && (
-                <div className="flex items-center gap-2 md:absolute md:right-4 md:top-1/2 md:-translate-y-1/2">
-                  <Badge variant="danger" size="sm">{pendingDeletes.size} da cancellare</Badge>
-                  <Button size="sm" icon={RotateCcw} variant="ghost" onClick={cancelPending} className="flex-1 md:flex-initial">Annulla</Button>
-                  <Button size="sm" icon={Trash2} variant="danger" onClick={() => setConfirmSave(true)} className="flex-1 font-black tracking-[0.06em] md:flex-initial">CONFERMA CANCELLAZIONE</Button>
-                </div>
-              )}
+            <div className="grid grid-cols-[44px_minmax(0,1fr)_44px] items-center gap-2 border-b border-[#cadeea] px-3 py-4 md:px-4">
+              <button type="button" onClick={() => { setAvailableOpen(true); loadAvailable() }} aria-label="Da riportare disponibili" title="Da riportare disponibili" className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#8dbcd9] bg-[#e8f4fb] text-[#165176] transition hover:bg-[#d4eaf8] active:scale-95"><RotateCcw size={20}/></button>
+              <div className="flex min-w-0 flex-col items-center justify-center gap-2 text-center md:flex-row md:flex-wrap">
+                <h2 className="text-[18px] font-black tracking-[0.04em] text-[#186494] md:text-[26px]">LISTA MOVIMENTI</h2>
+                {!loading && <span className="rounded-full border border-[#8dbcd9] bg-[#e8f4fb] px-2.5 py-1 text-[9px] font-black tracking-[0.1em] text-[#165176]">{rows.length} MOVIMENTI</span>}
+              </div>
+              <span aria-hidden="true" />
+              {hasPending && <div className="col-span-3 flex flex-wrap items-center justify-end gap-2">
+                <Badge variant="danger" size="sm">{pendingDeletes.size} da cancellare</Badge>
+                <Button size="sm" icon={RotateCcw} variant="ghost" onClick={cancelPending}>Annulla</Button>
+                <Button size="sm" icon={Trash2} variant="danger" onClick={() => setConfirmSave(true)} className="font-black tracking-[0.06em]">CONFERMA CANCELLAZIONE</Button>
+              </div>}
             </div>
 
 {/* TABELLA DESKTOP */}
@@ -841,6 +873,14 @@ async function deleteMovement(row) {
       )}
 
       {/* Nuovo movimento — stile Play Money Dipendenti */}
+      <Modal open={availableOpen} onClose={closeAvailable} title="DA RIPORTARE DISPONIBILI" width="md" footer={<Button onClick={closeAvailable}>Chiudi</Button>}>
+        <p className="mb-4 text-xs text-slate-500">Residui del periodo corrente, al netto dei recuperi. Il riepilogo comprende tutti i locali, indipendentemente dai filtri Cassa.</p>
+        {available.loading ? <p role="status">Caricamento saldi disponibili…</p> : available.error ? <div role="alert"><p>{available.error}</p><Button onClick={loadAvailable} className="mt-3">Riprova</Button></div> : <>
+          <div className="mb-4 rounded-2xl border border-[#aacbdf] bg-[#e8f4fb] p-4"><p className="text-xs font-bold uppercase text-[#165176]">Totale disponibile</p><p className="mt-1 text-2xl font-black tabular-nums text-[#165176]">{formatEuro0(available.rows.reduce((sum, row) => sum + row.amount, 0))}</p></div>
+          {available.rows.length === 0 ? <EmptyState icon={RotateCcw} title="Nessun da riportare disponibile" /> : <ul className="divide-y divide-[#cadeea]">{available.rows.map(row => <li key={row.id} className="flex items-center justify-between gap-3 py-3"><span className="min-w-0 break-words text-sm font-semibold">{row.name}<small className="block text-xs font-normal text-slate-500">{row.id}</small></span><strong className="shrink-0 text-sm tabular-nums text-[#165176]">{formatEuro0(row.amount)}</strong></li>)}</ul>}
+        </>}
+      </Modal>
+
       <Modal
         open={newOpen}
         onClose={() => setNewOpen(false)}
