@@ -28,6 +28,9 @@ const MONTHS = [
 ];
 const DAYS = ["LUN", "MAR", "MER", "GIO", "VEN", "SAB", "DOM"];
 
+// Temporary testing switch: restore false to block Sundays and holidays again.
+const ALLOW_HOLIDAY_COUNTING_DAYS = true;
+
 const pad = (n) => String(n).padStart(2, "0");
 const keyOf = (year, month, day) => `${year}-${pad(month + 1)}-${pad(day)}`;
 
@@ -82,7 +85,7 @@ function italianHolidayName(year, month, day) {
 
 function isBlockedDay(year, month, day) {
   const date = new Date(year, month, day);
-  return date.getDay() === 0 || Boolean(italianHolidayName(year, month, day));
+  return !ALLOW_HOLIDAY_COUNTING_DAYS && (date.getDay() === 0 || Boolean(italianHolidayName(year, month, day)));
 }
 
 export default function CalendarioConteggiPage() {
@@ -275,8 +278,7 @@ export default function CalendarioConteggiPage() {
                         <Sparkles size={16} className="text-amber-600" />
                       </div>
                       <p className="mt-1 text-sm text-slate-500">
-                        I giorni rossi sono festivi o domeniche e non possono
-                        essere selezionati.
+                        I giorni rossi sono festivi o domeniche.
                       </p>
                     </div>
                   </div>
@@ -320,7 +322,7 @@ export default function CalendarioConteggiPage() {
                         {MONTHS[month]} {year}
                       </p>
                       <p className="mt-1 text-xs font-semibold text-slate-500">
-                        Tocca un giorno lavorativo per attivarlo o disattivarlo
+                        Tocca un giorno per attivarlo o disattivarlo
                       </p>
                     </div>
 
@@ -366,7 +368,8 @@ export default function CalendarioConteggiPage() {
                       const date = new Date(year, month, day);
                       const holidayName = italianHolidayName(year, month, day);
                       const sunday = date.getDay() === 0;
-                      const blocked = sunday || Boolean(holidayName);
+                      const nonWorking = sunday || Boolean(holidayName);
+                      const blocked = isBlockedDay(year, month, day);
                       const isToday =
                         today.getFullYear() === year &&
                         today.getMonth() === month &&
@@ -396,7 +399,7 @@ export default function CalendarioConteggiPage() {
                         >
                           <span
                             className={`relative inline-flex h-10 w-10 items-center justify-center rounded-full text-sm font-black transition md:h-11 md:w-11 ${
-                              blocked
+                              nonWorking && !active
                                 ? "border border-red-200 bg-red-50 text-red-600"
                                 : active
                                   ? "border-2 border-amber-500 bg-white text-slate-950 shadow-[0_5px_16px_-8px_rgba(217,145,15,0.95)]"
@@ -417,7 +420,7 @@ export default function CalendarioConteggiPage() {
                             </span>
                           )}
 
-                          {blocked && (
+                          {nonWorking && !active && (
                             <span className="absolute bottom-2 left-1 right-1 truncate text-center text-[8px] font-bold uppercase tracking-wide text-red-500 md:bottom-3 md:text-[9px]">
                               {holidayName || "Domenica"}
                             </span>
@@ -435,7 +438,7 @@ export default function CalendarioConteggiPage() {
                       const blocked = isBlockedDay(year, month, day);
                       return <button type="button" key={dateKey} disabled={blocked || loading || saving} aria-pressed={active} onClick={() => toggle(day)}>
                         <span className="pm-calendar-day">{day}</span>
-                        <span><strong>{date.toLocaleDateString('it-IT', { weekday: 'long' })}</strong><small>{italianHolidayName(year, month, day) || (blocked ? 'Domenica' : active ? 'Conteggio programmato' : 'Nessun conteggio')}</small></span>
+                        <span><strong>{date.toLocaleDateString('it-IT', { weekday: 'long' })}</strong><small>{active ? 'Conteggio programmato' : italianHolidayName(year, month, day) || (date.getDay() === 0 ? 'Domenica' : 'Nessun conteggio')}</small></span>
                         <span className="pm-calendar-day-status">{blocked ? '—' : active ? '✓' : '+'}</span>
                       </button>;
                     })}
