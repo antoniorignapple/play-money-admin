@@ -28,9 +28,6 @@ const MONTHS = [
 ];
 const DAYS = ["LUN", "MAR", "MER", "GIO", "VEN", "SAB", "DOM"];
 
-// Temporary testing switch: restore false to block Sundays and holidays again.
-const ALLOW_HOLIDAY_COUNTING_DAYS = true;
-
 const pad = (n) => String(n).padStart(2, "0");
 const keyOf = (year, month, day) => `${year}-${pad(month + 1)}-${pad(day)}`;
 
@@ -85,7 +82,7 @@ function italianHolidayName(year, month, day) {
 
 function isBlockedDay(year, month, day) {
   const date = new Date(year, month, day);
-  return !ALLOW_HOLIDAY_COUNTING_DAYS && (date.getDay() === 0 || Boolean(italianHolidayName(year, month, day)));
+  return date.getDay() === 0 || Boolean(italianHolidayName(year, month, day));
 }
 
 export default function CalendarioConteggiPage() {
@@ -278,7 +275,7 @@ export default function CalendarioConteggiPage() {
                         <Sparkles size={16} className="text-amber-600" />
                       </div>
                       <p className="mt-1 text-sm text-slate-500">
-                        I giorni rossi sono festivi o domeniche.
+                        I giorni rossi sono festivi o domeniche e non sono selezionabili.
                       </p>
                     </div>
                   </div>
@@ -322,7 +319,7 @@ export default function CalendarioConteggiPage() {
                         {MONTHS[month]} {year}
                       </p>
                       <p className="mt-1 text-xs font-semibold text-slate-500">
-                        Tocca un giorno per attivarlo o disattivarlo
+                        Tocca un giorno lavorativo per attivarlo o disattivarlo
                       </p>
                     </div>
 
